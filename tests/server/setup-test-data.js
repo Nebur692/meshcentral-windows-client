@@ -2,12 +2,15 @@
 // Se ejecuta DENTRO del contenedor MeshCentral de pruebas (usa sus módulos ws y otplib).
 // Enables TOTP on the "otp" account and creates the "Test group". Prints: <otp secret> <group id>
 // Activa TOTP en la cuenta «otp» y crea el «Test group». Escribe: <secreto otp> <id del grupo>
-const M = '/opt/meshcentral/meshcentral/node_modules/';
+// MESHCENTRAL_MODULES and MESHTEST_WS let it run against a MeshCentral installed with npm (Windows CI).
+// MESHCENTRAL_MODULES y MESHTEST_WS permiten usarlo contra un MeshCentral instalado con npm (CI de Windows).
+const M = (process.env.MESHCENTRAL_MODULES || '/opt/meshcentral/meshcentral/node_modules').replace(/[\\/]?$/, '/');
+const WS_URL = process.env.MESHTEST_WS || 'wss://localhost/control.ashx';
 const WebSocket = require(M + 'ws');
 const otplib = require(M + 'otplib');
 const auth = (u, p) => Buffer.from(u).toString('base64') + ',' + Buffer.from(p).toString('base64');
 function session(u, p, onMsg, onOpen) {
-  const ws = new WebSocket('wss://localhost/control.ashx', { rejectUnauthorized: false, headers: { 'x-meshauth': auth(u, p) } });
+  const ws = new WebSocket(WS_URL, { rejectUnauthorized: false, headers: { 'x-meshauth': auth(u, p) } });
   ws.on('message', m => onMsg(ws, JSON.parse(m.toString())));
   ws.on('open', () => setTimeout(() => onOpen(ws), 300));
   ws.on('error', e => { console.error(e.message); process.exit(1); });

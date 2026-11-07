@@ -33,7 +33,7 @@ public static class L
         ["CopyName"] = ("Copy name", "Copiar el nombre"),
         ["Online"] = ("Online", "Conectado"),
         ["Offline"] = ("Offline", "Desconectado"),
-        ["DevicesCount"] = ("{0} devices, {1} online", "{0} equipos, {1} conectados"),
+        ["DevicesCount"] = ("Devices: {0} · online: {1}", "Equipos: {0} · conectados: {1}"),
         ["NoDevices"] = ("This account cannot see any device on this server.", "Esta cuenta no ve ningún equipo en este servidor."),
         ["Details"] = ("Details", "Detalles"),
         ["Copy"] = ("Copy", "Copiar"),

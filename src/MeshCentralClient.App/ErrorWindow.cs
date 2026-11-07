@@ -24,6 +24,8 @@ public static class ErrorWindow
             WindowStartupLocation = owner is null ? WindowStartupLocation.CenterScreen : WindowStartupLocation.CenterOwner,
             ResizeMode = ResizeMode.NoResize,
         };
+        System.Windows.Automation.AutomationProperties.SetAutomationId(w, "ErrorWindow");
+        System.Windows.Automation.AutomationProperties.SetAutomationId(close, "ErrorClose");
         copy.Click += (_, _) => { try { Clipboard.SetText(error.CopyText); } catch (Exception) { } };
         close.Click += (_, _) => w.Close();
         w.Content = new StackPanel

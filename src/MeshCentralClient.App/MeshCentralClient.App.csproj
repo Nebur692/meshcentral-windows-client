@@ -10,9 +10,8 @@
     <NoWarn>$(NoWarn);WPF0001</NoWarn>
     <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
   </PropertyGroup>
-  <ItemGroup>
-    <PackageReference Include="System.Security.Cryptography.ProtectedData" Version="10.0.0" />
-  </ItemGroup>
+  <!-- DPAPI (System.Security.Cryptography.ProtectedData) comes with the Windows Desktop framework.
+       DPAPI (System.Security.Cryptography.ProtectedData) viene con el framework de escritorio de Windows. -->
   <ItemGroup>
     <ProjectReference Include="..\MeshCentralClient.Core\MeshCentralClient.Core.csproj" />
   </ItemGroup>

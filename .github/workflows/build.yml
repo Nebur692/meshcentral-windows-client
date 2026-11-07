@@ -35,7 +35,7 @@ jobs:
         with:
           dotnet-version: '10.0.x'
       - name: Windows tests (unit only; integration runs on Linux)
-        run: dotnet test MeshCentralClient.slnx -c Release --filter "Category!=Integration" --logger "console;verbosity=normal"
+        run: dotnet test MeshCentralClient.slnx -c Release --filter "Category!=Integration&Category!=UI" --logger "console;verbosity=normal"
       - name: Publish
         run: dotnet publish src/MeshCentralClient.App -c Release -r win-x64 --self-contained -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:DebugType=none -o out
       - uses: actions/upload-artifact@v4
@@ -43,3 +43,28 @@ jobs:
           name: MeshCentralClient-win-x64
           path: out/MeshCentralClient.exe
           if-no-files-found: error
+
+  ui:
+    name: End-to-end UI (real MeshCentral + Windows agent)
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Publish the app
+        run: dotnet publish src/MeshCentralClient.App -c Release -r win-x64 --self-contained -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:DebugType=none -o out
+      - name: UI test
+        shell: pwsh
+        run: tests/ui/run-ui-test.ps1 -Exe "$PWD\out\MeshCentralClient.exe" -Work "$env:RUNNER_TEMP\meshui"
+      - name: Server log on failure
+        if: failure()
+        shell: pwsh
+        run: Get-Content "$env:RUNNER_TEMP\meshui\mc.log" -Tail 60 -ErrorAction SilentlyContinue
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ui-screenshots
+          path: ${{ runner.temp }}/meshui/shots
+          if-no-files-found: warn

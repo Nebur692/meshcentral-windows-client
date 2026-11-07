@@ -17,6 +17,9 @@ public static class CertificateWindow
             Title = L.T("CertTitle") + " — " + host, Owner = owner, SizeToContent = SizeToContent.Height, Width = 560,
             WindowStartupLocation = WindowStartupLocation.CenterOwner, ResizeMode = ResizeMode.NoResize,
         };
+        System.Windows.Automation.AutomationProperties.SetAutomationId(w, "CertificateWindow");
+        System.Windows.Automation.AutomationProperties.SetAutomationId(trust, "CertTrust");
+        System.Windows.Automation.AutomationProperties.SetAutomationId(cancel, "CertCancel");
         var accepted = false;
         trust.Click += (_, _) => { accepted = true; w.Close(); };
         cancel.Click += (_, _) => w.Close();

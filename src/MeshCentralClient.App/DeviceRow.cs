@@ -34,6 +34,9 @@ public sealed class DeviceRow : INotifyPropertyChanged
         || Tags.Contains(filter, StringComparison.CurrentCultureIgnoreCase)
         || GroupName.Contains(filter, StringComparison.CurrentCultureIgnoreCase);
 
+    // What screen readers and UI Automation read for the row. / Lo que leen los lectores de pantalla y UI Automation de la fila.
+    public override string ToString() => Name;
+
     public event PropertyChangedEventHandler? PropertyChanged;
     private void Changed([CallerMemberName] string? name = null) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
 }

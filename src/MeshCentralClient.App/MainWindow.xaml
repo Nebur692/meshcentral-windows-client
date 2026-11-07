@@ -79,15 +79,15 @@
         <TextBox x:Name="SearchBox" Grid.Column="1" Margin="24,0" MaxWidth="420" VerticalAlignment="Center"
                  TextChanged="SearchBox_TextChanged" ToolTip="{app:T Search}" />
         <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
-          <Button Content="{app:T Refresh}" Click="Refresh_Click" Margin="0,0,8,0" />
-          <Button Content="{app:T Disconnect}" Click="Disconnect_Click" />
+          <Button x:Name="RefreshButton" Content="{app:T Refresh}" Click="Refresh_Click" Margin="0,0,8,0" />
+          <Button x:Name="DisconnectButton" Content="{app:T Disconnect}" Click="Disconnect_Click" />
         </StackPanel>
       </Grid>
 
       <Border x:Name="LostBanner" DockPanel.Dock="Top" Visibility="Collapsed" Margin="16,0,16,8" Padding="10" CornerRadius="6"
               BorderThickness="1" BorderBrush="{StaticResource ErrorBrush}">
         <DockPanel>
-          <Button DockPanel.Dock="Right" Content="{app:T Reconnect}" Click="Reconnect_Click" />
+          <Button x:Name="ReconnectButton" DockPanel.Dock="Right" Content="{app:T Reconnect}" Click="Reconnect_Click" />
           <TextBlock x:Name="LostText" VerticalAlignment="Center" TextWrapping="Wrap" />
         </DockPanel>
       </Border>
