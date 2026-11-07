@@ -62,6 +62,7 @@ public static class L
         ["Theme"] = ("Theme", "Tema"),
         ["OpenFiles"] = ("Open files", "Abrir ficheros"),
         ["OpenDesktop"] = ("Open remote desktop", "Abrir escritorio remoto"),
+        ["TypeClipboard"] = ("Type clipboard", "Escribir el portapapeles"),
         ["Desktop"] = ("Remote desktop", "Escritorio remoto"),
         ["QualityHigh"] = ("High quality", "Calidad alta"),
         ["QualityMedium"] = ("Balanced", "Equilibrada"),

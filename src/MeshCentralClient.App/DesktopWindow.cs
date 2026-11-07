@@ -56,6 +56,7 @@ public sealed class DesktopWindow : Window
         tools.Children.Add(_quality);
         tools.Children.Add(Action("CtrlAltDelButton", "Ctrl+Alt+Del", async () => { if (_desk is not null) await _desk.SendCtrlAltDelAsync(); }));
         tools.Children.Add(Action("WinKeyButton", "⊞ Win", async () => { if (_desk is null) return; await _desk.SendKeyAsync(0x5B, true, true); await _desk.SendKeyAsync(0x5B, false, true); }));
+        tools.Children.Add(Action("TypeClipboardButton", L.T("TypeClipboard"), TypeClipboardAsync));
         tools.Children.Add(Action("RefreshDesktop", L.T("Refresh"), async () => { if (_desk is not null) await _desk.RefreshAsync(); }));
         DockPanel.SetDock(tools, Dock.Right);
         bar.Children.Add(tools);
@@ -225,6 +226,26 @@ public sealed class DesktopWindow : Window
         // Left and right Shift/Ctrl/Alt travel as the generic key, as the website sends them. / Como los manda la web.
         var send = vk switch { 0xA0 or 0xA1 => 16, 0xA2 or 0xA3 => 17, 0xA4 or 0xA5 => 18, _ => vk };
         await _desk.SendKeyAsync(send, down, Extended.Contains(key));
+    }
+
+    /// <summary>
+    /// Types the local clipboard on the device, character by character (Unicode, so the remote keyboard layout does not
+    /// matter); line breaks become Enter. For when the remote clipboard is not shared, e.g. a login screen.
+    /// Escribe el portapapeles local en el equipo, carácter a carácter (Unicode, así que no importa la distribución del
+    /// teclado remoto); los saltos de línea son Intro. Para cuando no se comparte el portapapeles, p. ej. una pantalla de entrada.
+    /// </summary>
+    private async Task TypeClipboardAsync()
+    {
+        if (_desk is null) return;
+        string text;
+        try { text = Clipboard.GetText(); } catch (Exception) { return; }
+        if (text.Length > 10_000) text = text[..10_000];
+        foreach (var c in text)
+        {
+            if (c == '\r') continue;
+            if (c == '\n') { await _desk.SendKeyAsync(13, true); await _desk.SendKeyAsync(13, false); }
+            else await _desk.SendCharAsync(c);
+        }
     }
 
     private async Task ReleaseAllAsync()

@@ -137,13 +137,18 @@ public sealed class DesktopTests(ITestOutputHelper output) : IDisposable
         Until(() => Foreground() == notepad.Properties.NativeWindowHandle.Value, "the remote click did not bring Notepad to the front");
         Shot("remote-click");
 
-        // Keys: the viewer's Windows-key button opens the real Start menu. / Teclas: el botón Win del visor abre el menú Inicio de verdad.
-        desk.AsWindow().SetForeground();
-        Anywhere("WinKeyButton").AsButton().Invoke();
-        Until(() => _automation.GetDesktop().FindAllChildren().Any(e => SafeClass(e) == "Windows.UI.Core.CoreWindow" && SafeName(e) is "Start" or "Search" or "Inicio" or "Búsqueda"),
-            "the Start menu did not open", () => string.Join(" | ", _automation.GetDesktop().FindAllChildren().Select(e => SafeClass(e) + ":" + SafeName(e))));
-        Shot("start-menu");
-        Keyboard.Type(VirtualKeyShort.ESCAPE);
+        // Keys: "Type clipboard", pressed through UI Automation (Invoke does not change the foreground window), types
+        // into Notepad, which the remote click left in front. Nobody types locally: the text can only come through the agent.
+        // Teclas: «Escribir el portapapeles», pulsado por UI Automation (Invoke no cambia la ventana activa), escribe en el
+        // Bloc de notas que dejó al frente el clic remoto. Nadie teclea en local: el texto solo puede llegar por el agente.
+        const string typed = "hola Mesh 123 ñ€";
+        using (var ps = Process.Start(new ProcessStartInfo("powershell", $"-NoProfile -Command Set-Clipboard -Value '{typed}'") { UseShellExecute = false, CreateNoWindow = true })!) ps.WaitForExit();
+        Assert.Equal(notepad.Properties.NativeWindowHandle.Value, GetForegroundWindow());
+        Anywhere("TypeClipboardButton").AsButton().Invoke();
+        var edit = WaitFor(() => notepad.FindFirstDescendant(cf => cf.ByControlType(ControlType.Edit).Or(cf.ByControlType(ControlType.Document))), "Notepad's text");
+        string Text() { try { return edit.Patterns.Value.IsSupported ? edit.Patterns.Value.Pattern.Value.Value : edit.Patterns.Text.Pattern.DocumentRange.GetText(-1); } catch (Exception) { return ""; } }
+        Until(() => Text().Contains(typed), "the typed text did not reach Notepad", Text);
+        Shot("typed");
     }
 
     private static bool IsInside(AutomationElement? e, AutomationElement window)
