@@ -75,11 +75,17 @@ public sealed class SsoTests : IDisposable
         if (Retry.WhileNull(() => Anywhere("CertTrust"), TimeSpan.FromSeconds(10)).Result is { } trust) trust.AsButton().Invoke();
         var sso = WaitFor(() => Anywhere("SsoWindow"), "the sign-on window");
         if (!expectProviderPage) return;
-        var login = WaitFor(() => sso.FindFirstDescendant(cf => cf.ByControlType(ControlType.Edit)), "the provider's login field");
+        // Both fields are required by the page, as a person would find. / La página exige los dos campos, como se lo encontraría una persona.
+        var fields = Retry.WhileFalse(() => sso.FindAllDescendants(cf => cf.ByControlType(ControlType.Edit)).Length >= 2, Timeout, TimeSpan.FromMilliseconds(300)).Result
+            ? sso.FindAllDescendants(cf => cf.ByControlType(ControlType.Edit))
+            : throw new Exception("the provider's login and password fields did not appear");
         Shot($"{user}-provider-page");
-        login.Focus();
+        fields[0].Focus();
         Keyboard.Type(user);
+        fields[1].Focus();
+        Keyboard.Type("any-password");
         WaitFor(() => sso.FindFirstDescendant(cf => cf.ByControlType(ControlType.Button).And(cf.ByName("Sign-in"))), "Sign-in").Click();
+        Shot($"{user}-after-sign-in");
         WaitFor(() => sso.FindFirstDescendant(cf => cf.ByControlType(ControlType.Button).And(cf.ByName("Continue"))), "Continue").Click();
     }
 
