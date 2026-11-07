@@ -41,7 +41,7 @@ public sealed class SavedServers
 
     public SavedServers(string? folder = null)
     {
-        var dir = folder ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "MeshCentralClient");
+        var dir = folder ?? AppPaths.Roaming;
         _file = Path.Combine(dir, "servers.json");
     }
 

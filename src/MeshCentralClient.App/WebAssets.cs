@@ -14,7 +14,7 @@ namespace MeshCentralClient.App;
 public static class WebAssets
 {
     public const string Host = "app.local";
-    private static readonly string Root = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "MeshCentralClient");
+    private static readonly string Root = AppPaths.Local;
     private static readonly Lazy<string> Folder = new(Extract);
     private static Task<CoreWebView2Environment>? _env;
 

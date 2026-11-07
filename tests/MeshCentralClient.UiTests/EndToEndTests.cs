@@ -42,6 +42,7 @@ public sealed class EndToEndTests(ITestOutputHelper output) : IDisposable
     {
         var psi = new ProcessStartInfo(Env("MESHUI_EXE")) { UseShellExecute = false };
         psi.Environment["APPDATA"] = _appData.FullName; // isolated saved servers / servidores guardados aislados
+        psi.Environment["LOCALAPPDATA"] = Path.Combine(_appData.FullName, "local");
         psi.Environment["MESHCLIENT_UPDATE_FEED"] = "off"; // this test is not about updates / esta prueba no va de actualizaciones
         _app = Application.Launch(psi);
         _win = _app.GetMainWindow(_automation, Timeout) ?? throw new Exception("main window did not appear");

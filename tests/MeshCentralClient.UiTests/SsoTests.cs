@@ -80,9 +80,11 @@ public sealed class SsoTests : IDisposable
             ? sso.FindAllDescendants(cf => cf.ByControlType(ControlType.Edit))
             : throw new Exception("the provider's login and password fields did not appear");
         Shot($"{user}-provider-page");
-        fields[0].Focus();
+        // A click, as a person does: UI Automation focus does not activate a field inside a web page.
+        // Un clic, como una persona: el foco de UI Automation no activa un campo dentro de una página web.
+        fields[0].Click();
         Keyboard.Type(user);
-        fields[1].Focus();
+        fields[1].Click();
         Keyboard.Type("any-password");
         WaitFor(() => sso.FindFirstDescendant(cf => cf.ByControlType(ControlType.Button).And(cf.ByName("Sign-in"))), "Sign-in").Click();
         Shot($"{user}-after-sign-in");

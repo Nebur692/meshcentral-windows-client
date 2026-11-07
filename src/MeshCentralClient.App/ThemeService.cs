@@ -13,7 +13,7 @@ public enum AppTheme { System, Light, Dark }
 /// </summary>
 public static class ThemeService
 {
-    private static readonly string File = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "MeshCentralClient", "settings.json");
+    private static readonly string File = Path.Combine(AppPaths.Roaming, "settings.json");
 
     public static AppTheme Current { get; private set; } = AppTheme.System;
 
