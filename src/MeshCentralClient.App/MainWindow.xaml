@@ -76,8 +76,13 @@
           <TextBlock x:Name="SessionTitle" FontSize="18" FontWeight="SemiBold" />
           <TextBlock x:Name="SessionSubtitle" Opacity="0.65" FontSize="12" />
         </StackPanel>
-        <TextBox x:Name="SearchBox" Grid.Column="1" Margin="24,0" MaxWidth="420" VerticalAlignment="Center"
-                 TextChanged="SearchBox_TextChanged" ToolTip="{app:T Search}" />
+        <Grid Grid.Column="1" Margin="24,0" MaxWidth="420" VerticalAlignment="Center">
+          <TextBox x:Name="SearchBox" TextChanged="SearchBox_TextChanged" ToolTip="{app:T Search}"
+                   AutomationProperties.Name="{app:T Search}" />
+          <!-- Hint while empty / Pista mientras está vacío -->
+          <TextBlock x:Name="SearchHint" Text="{app:T Search}" IsHitTestVisible="False" Opacity="0.55"
+                     Margin="12,0,0,0" VerticalAlignment="Center" />
+        </Grid>
         <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
           <Button x:Name="RefreshButton" Content="{app:T Refresh}" Click="Refresh_Click" Margin="0,0,8,0" />
           <Button x:Name="DisconnectButton" Content="{app:T Disconnect}" Click="Disconnect_Click" />

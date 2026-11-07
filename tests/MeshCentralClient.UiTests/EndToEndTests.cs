@@ -4,6 +4,7 @@ using FlaUI.Core.AutomationElements;
 using FlaUI.Core.Capturing;
 using FlaUI.Core.Input;
 using FlaUI.Core.Tools;
+using Wait = FlaUI.Core.Input.Wait;
 using FlaUI.Core.WindowsAPI;
 using FlaUI.UIA3;
 using Xunit;
@@ -21,7 +22,7 @@ public sealed class EndToEndTests(ITestOutputHelper output) : IDisposable
     private static string Env(string n) => Environment.GetEnvironmentVariable(n) is { Length: > 0 } v ? v
         : throw new InvalidOperationException($"{n} is not set: run tests/ui/run-ui-test.ps1");
 
-    private static readonly TimeSpan Wait = TimeSpan.FromSeconds(30);
+    private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(30);
     private readonly UIA3Automation _automation = new();
     private readonly DirectoryInfo _appData = Directory.CreateTempSubdirectory("mcc-ui-");
     private Application? _app;
@@ -42,20 +43,20 @@ public sealed class EndToEndTests(ITestOutputHelper output) : IDisposable
         var psi = new ProcessStartInfo(Env("MESHUI_EXE")) { UseShellExecute = false };
         psi.Environment["APPDATA"] = _appData.FullName; // isolated saved servers / servidores guardados aislados
         _app = Application.Launch(psi);
-        _win = _app.GetMainWindow(_automation, Wait) ?? throw new Exception("main window did not appear");
+        _win = _app.GetMainWindow(_automation, Timeout) ?? throw new Exception("main window did not appear");
         _win.SetForeground();
     }
 
     private AutomationElement Find(string id, AutomationElement? root = null, TimeSpan? timeout = null) =>
-        Retry.WhileNull(() => (root ?? _win!).FindFirstDescendant(cf => cf.ByAutomationId(id)), timeout ?? Wait, TimeSpan.FromMilliseconds(200)).Result
+        Retry.WhileNull(() => (root ?? _win!).FindFirstDescendant(cf => cf.ByAutomationId(id)), timeout ?? Timeout, TimeSpan.FromMilliseconds(200)).Result
         ?? throw new Exception($"'{id}' did not appear / no apareció '{id}'");
 
     private AutomationElement FindAnywhere(string id) =>
-        Retry.WhileNull(() => _automation.GetDesktop().FindFirstDescendant(cf => cf.ByAutomationId(id)), Wait, TimeSpan.FromMilliseconds(200)).Result
+        Retry.WhileNull(() => _automation.GetDesktop().FindFirstDescendant(cf => cf.ByAutomationId(id)), Timeout, TimeSpan.FromMilliseconds(200)).Result
         ?? throw new Exception($"window element '{id}' did not appear / no apareció '{id}'");
 
     private bool Gone(string id) =>
-        Retry.WhileTrue(() => _win!.FindFirstDescendant(cf => cf.ByAutomationId(id)) is not null, Wait, TimeSpan.FromMilliseconds(200)).Result;
+        Retry.WhileTrue(() => _win!.FindFirstDescendant(cf => cf.ByAutomationId(id)) is not null, Timeout, TimeSpan.FromMilliseconds(200)).Result;
 
     private void Type(string id, string text)
     {
@@ -72,6 +73,9 @@ public sealed class EndToEndTests(ITestOutputHelper output) : IDisposable
 
     private void Shot(string what)
     {
+        // Let WPF finish painting what the test just checked. / Que WPF acabe de pintar lo que la prueba acaba de comprobar.
+        Wait.UntilInputIsProcessed();
+        Thread.Sleep(400);
         var dir = Env("MESHUI_SHOTS");
         Directory.CreateDirectory(dir);
         var file = Path.Combine(dir, $"{++_shot:00}-{what}.png");
@@ -118,12 +122,15 @@ public sealed class EndToEndTests(ITestOutputHelper output) : IDisposable
         Assert.NotNull(row);
         Assert.Equal("Devices: 1 · online: 1", Text("CountText"));
 
+        Assert.Equal("Search devices", Text("SearchHint"));
+
         // 3. Search filters, and clearing it brings the device back. / El buscador filtra y al vaciarlo vuelve el equipo.
         Type("SearchBox", "no-such-device-xyz");
-        Assert.True(Retry.WhileTrue(() => Find("DeviceList").FindFirstDescendant(cf => cf.ByName(machine)) is not null, Wait).Result);
+        Assert.True(Retry.WhileTrue(() => Find("DeviceList").FindFirstDescendant(cf => cf.ByName(machine)) is not null, Timeout).Result);
         Shot("search-no-match");
+        Assert.True(Gone("SearchHint"));
         Type("SearchBox", machine[..Math.Min(4, machine.Length)]);
-        Assert.NotNull(Retry.WhileNull(() => Find("DeviceList").FindFirstDescendant(cf => cf.ByName(machine)), Wait).Result);
+        Assert.NotNull(Retry.WhileNull(() => Find("DeviceList").FindFirstDescendant(cf => cf.ByName(machine)), Timeout).Result);
 
         // 4. Disconnect and sign in with the two-factor account. / Desconectar y entrar con la cuenta de doble factor.
         Click("DisconnectButton");

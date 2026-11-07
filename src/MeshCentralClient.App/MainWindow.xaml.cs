@@ -283,6 +283,7 @@ public partial class MainWindow : Window
     private void SearchBox_TextChanged(object sender, TextChangedEventArgs e)
     {
         if (_view is null) return;
+        SearchHint.Visibility = SearchBox.Text.Length == 0 ? Visibility.Visible : Visibility.Collapsed;
         var f = SearchBox.Text.Trim();
         _view.Filter = f.Length == 0 ? null : o => o is DeviceRow r && r.Matches(f);
     }
