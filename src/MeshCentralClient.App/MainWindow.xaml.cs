@@ -501,10 +501,11 @@ public partial class MainWindow : Window
     private void OpenDesktop_Click(object sender, RoutedEventArgs e)
     {
         if (DeviceList.SelectedItem is not DeviceRow row || _session is null || !row.CanOpenDesktop) return;
-        var w = new DesktopWindow(_session, row);
-        _sessionWindows.Add(w);
-        w.Closed += (_, _) => _sessionWindows.Remove(w);
-        w.Show();
+        DesktopConnection.Open(_session, row, w =>
+        {
+            _sessionWindows.Add(w);
+            w.Closed += (_, _) => _sessionWindows.Remove(w);
+        });
     }
 
     private void OpenFiles_Click(object sender, RoutedEventArgs e)
