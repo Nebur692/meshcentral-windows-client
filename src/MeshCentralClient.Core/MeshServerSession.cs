@@ -13,7 +13,7 @@ namespace MeshCentralClient.Core;
 /// Una sesión abierta en un servidor MeshCentral, por su web socket de control (control.ashx), el mismo canal
 /// que usan la web oficial y meshctrl.
 /// </summary>
-public sealed class MeshServerSession : IAsyncDisposable
+public sealed partial class MeshServerSession : IAsyncDisposable
 {
     public static readonly TimeSpan DefaultTimeout = TimeSpan.FromSeconds(20);
 

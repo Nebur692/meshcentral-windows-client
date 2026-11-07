@@ -42,7 +42,10 @@ public sealed record Device(
     int PowerState,
     AgentCapabilities Capabilities,
     IReadOnlyList<string> Tags,
-    int AgentId = 0)
+    int AgentId = 0,
+    string? Description = null,
+    DateTimeOffset? LastBoot = null,
+    string? AgentCore = null)
 {
     public bool IsOnline => Connectivity != DeviceConnectivity.None;
 
@@ -71,7 +74,10 @@ public sealed record Device(
             (int)(o.Long("pwr") ?? 0),
             (AgentCapabilities)(agent?.Long("caps") ?? 0),
             tags,
-            (int)(agent?.Long("id") ?? 0));
+            (int)(agent?.Long("id") ?? 0),
+            o.Str("desc"),
+            o.Long("lastbootuptime") is long boot and > 0 ? DateTimeOffset.FromUnixTimeMilliseconds(boot) : null,
+            agent?.Str("core"));
     }
 
     /// <summary>Applies a "changenode" update, which does not carry connection state.

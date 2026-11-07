@@ -1,5 +1,5 @@
 {
-  "generado": "2026-11-07T16:30:38Z",
+  "generado": "2026-11-07T19:32:47Z",
   "aviso": "Generado por bin/burburito. No editar a mano: la fuente de verdad es el burburito.json de al lado.",
   "proyecto": {
     "id": 35,
@@ -198,6 +198,48 @@
       "severidad": "error",
       "actuar": true,
       "titulo": "La lista de equipos llegó con un formato inesperado"
+    },
+    "ficha/cambiar-ajustes/tiempo-agotado": {
+      "codigo": "035-008-007-002",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "El servidor no confirmó el cambio del equipo"
+    },
+    "ficha/cambiar-ajustes/conexion-cortada": {
+      "codigo": "035-008-007-005",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "Se cortó la conexión al cambiar el equipo"
+    },
+    "ficha/cambiar-ajustes/rechazo-remoto": {
+      "codigo": "035-008-007-021",
+      "severidad": "aviso",
+      "actuar": true,
+      "titulo": "Las notas no se guardaron"
+    },
+    "ficha/cambiar-ajustes/sin-permiso": {
+      "codigo": "035-008-007-042",
+      "severidad": "aviso",
+      "actuar": true,
+      "titulo": "El servidor no dejó cambiar el equipo"
+    },
+    "ficha/abrir-detalle/tiempo-agotado": {
+      "codigo": "035-008-022-002",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "El servidor no dio ese dato del equipo"
+    },
+    "ficha/abrir-detalle/conexion-cortada": {
+      "codigo": "035-008-022-005",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "Se cortó la conexión al leer la ficha"
+    },
+    "ficha/abrir-detalle/no-encontrado": {
+      "codigo": "035-008-022-062",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "Ese dato del equipo no está disponible"
     },
     "ficheros/ver-pantalla/tiempo-agotado": {
       "codigo": "035-007-020-002",

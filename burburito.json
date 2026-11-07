@@ -48,6 +48,12 @@
       "slug": "ficheros",
       "nombre": "Los ficheros de un equipo",
       "descripcion": "FilesSession (src/MeshCentralClient.Core/FilesSession.cs) sobre el túnel de protocolo 5: ls, mkdir, rename, rm, upload (bloques de 64 KB con uploadack) y download (bloques de 16 KB con cabecera de 4 bytes y ack). El agente contesta en JSON dentro de mensajes binarios. La ventana de ficheros vuelve a listar tras cada cambio para comprobarlo."
+    },
+    {
+      "id": 8,
+      "slug": "ficha",
+      "nombre": "La ficha de un equipo",
+      "descripcion": "MeshServerSession.Device.cs y DeviceWindow: getsysinfo (inventario), lastconnect, getnetworkinfo, getNotes/setNotes, events y changedevice (nombre, descripción, etiquetas) por el canal de control."
     }
   ],
   "acciones": [
@@ -558,6 +564,76 @@
       "titulo": "No se pudo guardar el fichero en este PC",
       "explicacion": "Falló la escritura del fichero descargado (disco lleno o sin permiso en esa carpeta).",
       "que_hacer": "Guardarlo en otra carpeta o liberar espacio."
+    },
+    {
+      "modulo": "ficha",
+      "accion": "abrir-detalle",
+      "causa": "no-encontrado",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "Ese dato del equipo no está disponible",
+      "explicacion": "El servidor contestó noinfo / «Invalid device id»: el equipo no existe, la cuenta no tiene permiso sobre él, o el agente aún no ha mandado ese dato.",
+      "que_hacer": "Nada si es un equipo recién añadido; si no, pedir permiso sobre el equipo."
+    },
+    {
+      "modulo": "ficha",
+      "accion": "abrir-detalle",
+      "causa": "tiempo-agotado",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "El servidor no dio ese dato del equipo",
+      "explicacion": "Sin respuesta en 20 segundos. getNotes sin acceso no contesta nunca, así que acaba aquí.",
+      "que_hacer": "Pulsar Actualizar; si las notas siguen sin salir, la cuenta no tiene permiso para verlas."
+    },
+    {
+      "modulo": "ficha",
+      "accion": "abrir-detalle",
+      "causa": "conexion-cortada",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "Se cortó la conexión al leer la ficha",
+      "explicacion": "El canal de control se cerró mientras se pedían datos del equipo.",
+      "que_hacer": "Volver a conectar."
+    },
+    {
+      "modulo": "ficha",
+      "accion": "cambiar-ajustes",
+      "causa": "sin-permiso",
+      "severidad": "aviso",
+      "actuar": true,
+      "titulo": "El servidor no dejó cambiar el equipo",
+      "explicacion": "changedevice contestó algo distinto de ok (p. ej. «Access Denied»): la cuenta no tiene derecho a editar ese equipo.",
+      "que_hacer": "Pedir a un administrador el permiso de editar equipos en ese grupo."
+    },
+    {
+      "modulo": "ficha",
+      "accion": "cambiar-ajustes",
+      "causa": "tiempo-agotado",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "El servidor no confirmó el cambio del equipo",
+      "explicacion": "changedevice no tuvo respuesta en 20 segundos; puede que se aplicara o no.",
+      "que_hacer": "Pulsar Actualizar y mirar si el cambio está."
+    },
+    {
+      "modulo": "ficha",
+      "accion": "cambiar-ajustes",
+      "causa": "conexion-cortada",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "Se cortó la conexión al cambiar el equipo",
+      "explicacion": "El canal de control se cerró mientras se guardaba el cambio.",
+      "que_hacer": "Volver a conectar y mirar si el cambio está."
+    },
+    {
+      "modulo": "ficha",
+      "accion": "cambiar-ajustes",
+      "causa": "rechazo-remoto",
+      "severidad": "aviso",
+      "actuar": true,
+      "titulo": "Las notas no se guardaron",
+      "explicacion": "setNotes no contesta; la app relee las notas y no son las que se guardaron: sin permiso de notas en ese equipo.",
+      "que_hacer": "Pedir el permiso de editar notas en ese grupo."
     }
   ]
 }

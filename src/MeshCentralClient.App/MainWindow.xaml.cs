@@ -498,6 +498,17 @@ public partial class MainWindow : Window
 
     private void OpenPowerShell_Click(object sender, RoutedEventArgs e) => OpenTerminal(TunnelProtocol.PowerShell);
 
+    // The page of a device opens also when it is offline: its data, notes and history stay on the server.
+    // La ficha se abre también con el equipo desconectado: sus datos, notas e historial están en el servidor.
+    private void OpenDetails_Click(object sender, RoutedEventArgs e)
+    {
+        if (DeviceList.SelectedItem is not DeviceRow row || _session is null) return;
+        var w = new DeviceWindow(_session, row);
+        _sessionWindows.Add(w);
+        w.Closed += (_, _) => _sessionWindows.Remove(w);
+        w.Show();
+    }
+
     private void OpenDesktop_Click(object sender, RoutedEventArgs e)
     {
         if (DeviceList.SelectedItem is not DeviceRow row || _session is null || !row.CanOpenDesktop) return;
