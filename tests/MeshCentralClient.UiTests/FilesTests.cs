@@ -52,8 +52,12 @@ public sealed class FilesTests : IDisposable
         throw new Exception(what + (seen is null ? "" : " — seen: " + seen()));
     }
 
-    private static string Items(AutomationElement list) =>
-        string.Join(" | ", list.FindAllDescendants(cf => cf.ByControlType(ControlType.ListItem)).Select(i => i.Name));
+    // A ListView with columns (GridView) shows its rows as DataItem, not ListItem.
+    // Un ListView con columnas (GridView) enseña sus filas como DataItem, no como ListItem.
+    private static AutomationElement[] Rows(AutomationElement list) =>
+        list.FindAllDescendants(cf => cf.ByControlType(ControlType.DataItem).Or(cf.ByControlType(ControlType.ListItem)));
+
+    private static string Items(AutomationElement list) => string.Join(" | ", Rows(list).Select(i => i.Name));
 
     private static void Shot(string name)
     {
@@ -117,7 +121,8 @@ public sealed class FilesTests : IDisposable
         var list = Id(files, "FileList");
 
         // Starts at the drives of the Windows device. / Empieza en las unidades del equipo Windows.
-        Until(() => list.FindAllDescendants(cf => cf.ByControlType(ControlType.ListItem)).Any(i => i.Name.EndsWith(':')), "no drive listed",
+        // The Windows agent names drives "C:\". / El agente de Windows llama a las unidades «C:\».
+        Until(() => Rows(list).Any(i => i.Name.TrimEnd('\\', '/').EndsWith(':')), "no drive listed",
             () => Items(list) + " · status: " + (files.FindFirstDescendant(cf => cf.ByAutomationId("FilesStatus"))?.Name ?? "?"));
         Shot("drives");
 
