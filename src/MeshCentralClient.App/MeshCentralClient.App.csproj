@@ -11,6 +11,9 @@
     <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
     <!-- The single-file exe carries .NET and WPF: compressed it is far smaller. / El exe de un fichero lleva .NET y WPF: comprimido pesa mucho menos. -->
     <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+    <!-- 48-256 px: the glossy design; 16-32 px: the flat one, which reads better small (sources in docs/icon).
+         48-256 px: el diseño con brillo; 16-32 px: el plano, que se lee mejor en pequeño (originales en docs/icon). -->
+    <ApplicationIcon>Assets\app.ico</ApplicationIcon>
   </PropertyGroup>
   <!-- DPAPI (System.Security.Cryptography.ProtectedData) comes with the Windows Desktop framework.
        DPAPI (System.Security.Cryptography.ProtectedData) viene con el framework de escritorio de Windows. -->
