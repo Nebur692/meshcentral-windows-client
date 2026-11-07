@@ -6,6 +6,8 @@
 #
 # Usage / Uso:  tests/server/run-integration.sh [work-dir]
 #   MESH_IMAGE (default ghcr.io/ylianst/meshcentral:latest), SDK_IMAGE (default mcr.microsoft.com/dotnet/sdk:10.0)
+#   MESHTEST_FILTER: only some tests, with their full output (e.g. "FullyQualifiedName~Desktop")
+#   MESHTEST_FILTER: solo algunas pruebas, con toda su salida (p. ej. "FullyQualifiedName~Desktop")
 set -euo pipefail
 ROOT=$(cd "$(dirname "$0")/../.." && pwd)
 HERE="$ROOT/tests/server"
@@ -49,6 +51,7 @@ echo "server $SRV · agent $AGENT · cert ${CERT:0:16}…"
 # Las pruebas llaman al servidor por el nombre de su certificado, como un navegador (el inicio único vuelve a https://mesh.test/).
 docker run --rm --network "$NET" --add-host "mesh.test:$SRV_IP" --cpus 2 --memory 3g --user "$(id -u):$(id -g)" \
   -e HOME=/tmp -e DOTNET_CLI_HOME=/tmp -e NUGET_PACKAGES=/tmp/nuget -e DOTNET_NOLOGO=1 -e DOTNET_CLI_TELEMETRY_OPTOUT=1 \
-  -e MESHTEST_URL="https://mesh.test/" -e MESHTEST_CERT_SHA256="$CERT" -e MESHTEST_OTP_SECRET="$OTP" -e MESHTEST_GROUP_ID="$GROUP" \
+  -e MESHTEST_FILTER="${MESHTEST_FILTER:-}" -e MESHTEST_URL="https://mesh.test/" -e MESHTEST_CERT_SHA256="$CERT" -e MESHTEST_OTP_SECRET="$OTP" -e MESHTEST_GROUP_ID="$GROUP" \
   -v "$ROOT:/src" -v "$WORK:/work" -w /src "$SDK_IMAGE" \
-  sh -c 'dotnet test tests/MeshCentralClient.Core.Tests --nologo -v q --logger "console;verbosity=normal" --results-directory /work/results --artifacts-path /tmp/artifacts'
+  sh -c 'if [ -n "$MESHTEST_FILTER" ]; then set -- --filter "$MESHTEST_FILTER" --logger "console;verbosity=detailed"; else set -- --logger "console;verbosity=normal"; fi
+         dotnet test tests/MeshCentralClient.Core.Tests --nologo -v q "$@" --results-directory /work/results --artifacts-path /tmp/artifacts'

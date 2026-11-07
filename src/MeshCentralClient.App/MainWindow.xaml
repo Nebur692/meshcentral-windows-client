@@ -133,6 +133,7 @@
         <ListView x:Name="DeviceList" Margin="16,0,16,0" MouseDoubleClick="DeviceList_MouseDoubleClick">
           <ListView.ContextMenu>
             <ContextMenu Opened="DeviceMenu_Opened">
+              <MenuItem x:Name="DesktopItem" Header="{app:T OpenDesktop}" Click="OpenDesktop_Click" />
               <MenuItem x:Name="TerminalItem" Header="{app:T OpenTerminal}" Click="OpenTerminal_Click" />
               <MenuItem x:Name="PowerShellItem" Header="{app:T OpenPowerShell}" Click="OpenPowerShell_Click" />
               <MenuItem x:Name="FilesItem" Header="{app:T OpenFiles}" Click="OpenFiles_Click" />

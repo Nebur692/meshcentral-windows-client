@@ -51,6 +51,8 @@ public sealed record Device(
 
     public bool CanOpenTerminal => IsOnline && Connectivity.HasFlag(DeviceConnectivity.Agent) && Capabilities.HasFlag(AgentCapabilities.Terminal);
 
+    public bool CanOpenDesktop => IsOnline && Connectivity.HasFlag(DeviceConnectivity.Agent) && Capabilities.HasFlag(AgentCapabilities.Desktop);
+
     public bool CanOpenFiles => IsOnline && Connectivity.HasFlag(DeviceConnectivity.Agent) && Capabilities.HasFlag(AgentCapabilities.Files);
 
     internal static Device From(JsonObject o, string? groupId = null)
