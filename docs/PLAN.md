@@ -25,8 +25,8 @@ The target is feature parity with the official website, plus what MeshCentral Ro
 | 3 | **Single sign-on** (OpenID Connect, SAML, Microsoft, Google, GitHub…) in the Windows browser; self-update | **done (0.3–0.4)** |
 | 4 | **Files**: browse, upload, download, rename, delete, create folders | **done (0.5)** |
 | 5 | **Remote desktop**: native viewer, keyboard and mouse, one window per remote display, quality, type the clipboard, Ctrl+Alt+Del, agent messages (consent) | **done (0.6)**; shared clipboard and lock/blank screen later |
-| 6 | **Device page** (next): general info, hardware and software inventory (Details), network interfaces, notes, tags, description, events and history | |
-| 7 | **Device actions**: wake-on-LAN, sleep, restart, power off, message box, toast, chat, run commands and scripts, agent update, Intel AMT power | |
+| 6 | **Device page**: general info, hardware and agent inventory, network interfaces, notes, tags, description, history | **done (0.7)** |
+| 7 | **Device actions** (next): wake-on-LAN, sleep, restart, power off, message box, toast, chat, run commands and scripts, agent update, Intel AMT power | |
 | 8 | **Device groups**: create, edit, delete, invitations (agent install links), group users and rights, move devices | |
 | 9 | **Users and accounts** (administrators): users, user groups, rights, my account (two-factor, keys, sessions) | |
 | 10 | **Server**: events, statistics, session recordings, reports, notifications | |
@@ -60,8 +60,8 @@ La meta es hacer lo mismo que la web oficial, más lo que añade MeshCentral Rou
 | 3 | **Inicio de sesión único** (OpenID Connect, SAML, Microsoft, Google, GitHub…) en el navegador de Windows; autoactualización | **hecha (0.3–0.4)** |
 | 4 | **Ficheros**: explorar, subir, bajar, renombrar, borrar, crear carpetas | **hecha (0.5)** |
 | 5 | **Escritorio remoto**: visor nativo, teclado y ratón, una ventana por pantalla remota, calidad, escribir el portapapeles, Ctrl+Alt+Supr, mensajes del agente (consentimiento) | **hecha (0.6)**; portapapeles compartido y bloquear/apagar pantalla, más adelante |
-| 6 | **Página del equipo** (siguiente): datos generales, inventario de hardware y software (Detalles), interfaces de red, notas, etiquetas, descripción, sucesos e historial | |
-| 7 | **Acciones sobre el equipo**: encender por red, suspender, reiniciar, apagar, mensaje, aviso, chat, ejecutar órdenes y guiones, actualizar el agente, energía por Intel AMT | |
+| 6 | **Página del equipo**: datos generales, inventario de hardware y del agente, interfaces de red, notas, etiquetas, descripción, historial | **hecha (0.7)** |
+| 7 | **Acciones sobre el equipo** (siguiente): encender por red, suspender, reiniciar, apagar, mensaje, aviso, chat, ejecutar órdenes y guiones, actualizar el agente, energía por Intel AMT | |
 | 8 | **Grupos de equipos**: crear, editar, borrar, invitaciones (enlaces de instalación del agente), usuarios y permisos del grupo, mover equipos | |
 | 9 | **Usuarios y cuentas** (administradores): usuarios, grupos de usuarios, permisos, mi cuenta (doble factor, llaves, sesiones) | |
 | 10 | **Servidor**: sucesos, estadísticas, grabaciones de sesiones, informes, avisos | |

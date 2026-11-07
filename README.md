@@ -27,7 +27,7 @@ official website and `meshctrl`, so it works with **any** MeshCentral installati
 
 > Unofficial project, not affiliated with the MeshCentral authors. The device side still uses the official MeshCentral agent.
 
-### Features (version 0.6)
+### Features (version 0.7)
 
 - **Sign in** with username and password, with **two-factor** codes (authenticator app, or email code when the server offers it).
 - **Single sign-on**: if the server offers it (OpenID Connect, SAML, Microsoft, Google, GitHub…), a button signs in on
@@ -43,6 +43,8 @@ official website and `meshctrl`, so it works with **any** MeshCentral installati
 - **Remote desktop**: see and control the device's screen with mouse and keyboard, choose the display or all of them,
   **one window per remote display on your monitors**, quality presets, Ctrl+Alt+Del and Windows-key buttons, and
   **type the clipboard** on the device (Unicode, whatever its keyboard layout).
+- **Device page**: general data (description and tags editable), network interfaces, the whole hardware and agent
+  inventory with a filter, notes and history — also for devices that are offline.
 - **Files**: browse the device's drives and folders, create folders, rename, delete, upload (also by dropping files
   from Explorer) and download, with progress and cancel.
 - **Open in the browser** from the device's menu.
@@ -51,8 +53,8 @@ official website and `meshctrl`, so it works with **any** MeshCentral installati
   the new version; a file that does not match is never installed.
 - **English and Spanish** interface, following the Windows language.
 
-The goal is everything the MeshCentral website does. Coming next: device details and actions, groups, users and port
-mapping — see [the plan](docs/PLAN.md).
+The goal is everything the MeshCentral website does. Coming next: device actions (wake, power, messages, run commands),
+groups, users and port mapping — see [the plan](docs/PLAN.md).
 
 ### Install
 
@@ -94,7 +96,7 @@ web oficial y `meshctrl`, así que funciona con **cualquier** instalación de Me
 
 > Proyecto no oficial, sin relación con los autores de MeshCentral. En los equipos se sigue usando el agente oficial de MeshCentral.
 
-### Qué hace (versión 0.6)
+### Qué hace (versión 0.7)
 
 - **Entrar** con usuario y contraseña, con código de **doble factor** (app de autenticación, o código por correo si el servidor lo ofrece).
 - **Inicio de sesión único**: si el servidor lo ofrece (OpenID Connect, SAML, Microsoft, Google, GitHub…), un botón
@@ -110,6 +112,8 @@ web oficial y `meshctrl`, así que funciona con **cualquier** instalación de Me
 - **Escritorio remoto**: ver y manejar la pantalla del equipo con ratón y teclado, elegir la pantalla o todas, **una
   ventana por cada pantalla remota en tus monitores**, calidades predefinidas, botones de Ctrl+Alt+Supr y tecla Windows, y
   **escribir el portapapeles** en el equipo (Unicode, sea cual sea la distribución de su teclado).
+- **Ficha del equipo**: datos generales (descripción y etiquetas editables), interfaces de red, todo el inventario de
+  hardware y del agente con filtro, notas e historial; también de equipos desconectados.
 - **Ficheros**: explorar las unidades y carpetas del equipo, crear carpetas, renombrar, borrar, subir (también
   soltando ficheros desde el Explorador) y bajar, con progreso y botón de cancelar.
 - **Abrir en el navegador** desde el menú del equipo.
@@ -118,8 +122,8 @@ web oficial y `meshctrl`, así que funciona con **cualquier** instalación de Me
   actualizada; un fichero que no coincide no se instala nunca.
 - Interfaz en **inglés y español**, según el idioma de Windows.
 
-La meta es todo lo que hace la web de MeshCentral. Lo siguiente: datos y acciones del equipo, grupos, usuarios y
-redirección de puertos; está en [el plan](docs/PLAN.md).
+La meta es todo lo que hace la web de MeshCentral. Lo siguiente: acciones sobre el equipo (encender, energía,
+mensajes, ejecutar órdenes), grupos, usuarios y redirección de puertos; está en [el plan](docs/PLAN.md).
 
 ### Instalar
 

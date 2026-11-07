@@ -98,6 +98,9 @@ public sealed class DeviceTests : IDisposable
         // General: the real OS of this machine. / General: el sistema real de esta máquina.
         Until(() => page.FindAllDescendants(cf => cf.ByControlType(ControlType.Edit)).Any(e => Value(e).Contains("Windows Server")), "the OS is not shown",
             () => string.Join(" | ", page.FindAllDescendants(cf => cf.ByControlType(ControlType.Edit)).Select(Value)));
+        // The CPU is the processor, not the first "Name" of the inventory (it showed "Physical Memory" once).
+        // La CPU es el procesador, no el primer «Name» del inventario (una vez salió «Physical Memory»).
+        Assert.DoesNotContain(page.FindAllDescendants(cf => cf.ByControlType(ControlType.Edit)), e => Value(e) == "Physical Memory");
         Shot("general");
 
         ShowTab(page, "TabNetwork");

@@ -33,6 +33,16 @@ public sealed record SystemInfo(JsonObject Hardware, DateTimeOffset? Time)
         }
     }
 
+    /// <summary>
+    /// The processor: "cpu_name" if the agent sent it, else the Name inside a "cpu" section (Windows). Never just any
+    /// "Name": the first one found was the memory's (seen on a real Windows agent).
+    /// El procesador: «cpu_name» si lo mandó el agente; si no, el Name dentro de una sección «cpu» (Windows). Nunca un
+    /// «Name» cualquiera: el primero que salía era el de la memoria (visto en un agente de Windows real).
+    /// </summary>
+    public string? Cpu => Find("cpu_name")
+        ?? Flatten().Where(p => p.Path.Split(" › ").Any(s => s.Equals("cpu", StringComparison.OrdinalIgnoreCase) || s.StartsWith("cpu [", StringComparison.OrdinalIgnoreCase)) && p.Path.EndsWith(" › Name", StringComparison.OrdinalIgnoreCase))
+                    .Select(p => p.Value).FirstOrDefault(v => v.Length > 0);
+
     /// <summary>The first value whose key is one of <paramref name="keys"/>, anywhere. / El primer valor cuya clave sea una de estas, en cualquier sitio.</summary>
     public string? Find(params string[] keys) => Flatten()
         .Where(p => keys.Any(k => p.Path.EndsWith(" › " + k, StringComparison.OrdinalIgnoreCase) || p.Path.Equals(k, StringComparison.OrdinalIgnoreCase)))

@@ -173,7 +173,7 @@ public sealed class DeviceWindow : Window
             (L.T("LastConnection"), Text(last.Time is null ? "—" : $"{Date(last.Time)}  ·  {last.Address}")),
             (L.T("LastBoot"), Text(Date(_device.LastBoot))),
             (L.T("Agent"), Text(_device.AgentCore ?? "—")),
-            ("CPU", Text(info?.Find("cpu_name", "Name") ?? "—")),
+            ("CPU", Text(info?.Cpu ?? "—")),
             ("BIOS", Text(string.Join(" ", new[] { info?.Find("bios_vendor"), info?.Find("bios_version"), info?.Find("bios_date") }.Where(x => x is not null)) is { Length: > 0 } b ? b : "—")),
             (L.T("Board"), Text(string.Join(" ", new[] { info?.Find("board_vendor"), info?.Find("board_name") }.Where(x => x is not null)) is { Length: > 0 } m ? m : "—")),
             (L.T("Description"), _desc),
