@@ -160,8 +160,8 @@ public sealed class EndToEndTests(ITestOutputHelper output) : IDisposable
         // 3d. Copy and paste as in PuTTY, checked from another process. / Copiar y pegar como en PuTTY, comprobado desde otro proceso.
         //     A double click selects the word, and selecting copies. / Un doble clic selecciona la palabra, y seleccionar copia.
         ClipboardTool.SetText("nothing yet");
-        var row = answer!.BoundingRectangle;
-        Mouse.DoubleClick(new System.Drawing.Point(row.Left + 4, row.Top + row.Height / 2));
+        var cell = answer!.BoundingRectangle;
+        Mouse.DoubleClick(new System.Drawing.Point(cell.Left + 4, cell.Top + cell.Height / 2));
         var copied = Retry.WhileFalse(() => ClipboardTool.Text() == "42", TimeSpan.FromSeconds(10), TimeSpan.FromMilliseconds(300)).Result;
         Shot("terminal-selected");
         Assert.True(copied, "selecting did not copy: the clipboard has \"" + ClipboardTool.Text() + "\"");
