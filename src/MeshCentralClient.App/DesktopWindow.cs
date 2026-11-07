@@ -47,7 +47,7 @@ public sealed class DesktopWindow : Window
         Title = $"{L.T("Desktop")} — {device.Name}";
         Width = 1100; Height = 760; MinWidth = 480; MinHeight = 320;
         WindowStartupLocation = WindowStartupLocation.CenterScreen;
-        Id(this, "DesktopWindow"); Id(_surface, "DesktopSurface"); Id(_status, "DesktopStatus"); Id(_displays, "DisplayBox"); Id(_quality, "QualityBox");
+        Id(this, "DesktopWindow"); Id(_surface, "DesktopSurface"); Id(_image, "DesktopImage"); Id(_status, "DesktopStatus"); Id(_displays, "DisplayBox"); Id(_quality, "QualityBox");
         RenderOptions.SetBitmapScalingMode(_image, BitmapScalingMode.HighQuality);
 
         var bar = new DockPanel { Margin = new Thickness(12, 8, 12, 8) };

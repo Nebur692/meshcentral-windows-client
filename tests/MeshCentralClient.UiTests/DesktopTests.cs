@@ -115,7 +115,9 @@ public sealed class DesktopTests(ITestOutputHelper output) : IDisposable
         // Ratón: clic EN EL VISOR donde está el Bloc de notas en la pantalla remota. En local ese clic cae en el visor;
         // solo el clic inyectado por el agente puede traer al frente el Bloc de notas.
         var target = notepad.BoundingRectangle;
-        var surface = Anywhere("DesktopSurface").BoundingRectangle;
+        // The image (a Border has no UI Automation element) is exactly where the remote screen is drawn.
+        // La imagen (un Border no tiene elemento de UI Automation) es justo donde se pinta la pantalla remota.
+        var surface = Anywhere("DesktopImage").BoundingRectangle;
         var scale = Math.Min((double)surface.Width / w, (double)surface.Height / h);
         var ox = surface.X + (surface.Width - w * scale) / 2;
         var oy = surface.Y + (surface.Height - h * scale) / 2;
