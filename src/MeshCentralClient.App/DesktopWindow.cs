@@ -123,7 +123,11 @@ public sealed class DesktopWindow : Window
     {
         var b = new Button { Content = text, Margin = new Thickness(0, 0, 6, 0) };
         Id(b, id);
-        b.Click += async (_, _) => { if (_c.Session is { } s) await run(s); _surface.Focus(); };
+        // Back to the picture for the next keys, but only if this window is active: focusing an inactive window brings
+        // it to the front (seen in a test: typed text went to the viewer, not to the remote program).
+        // De vuelta a la imagen para las siguientes teclas, pero solo si la ventana está activa: dar el foco a una ventana
+        // inactiva la trae al frente (visto en una prueba: el texto iba al visor, no al programa remoto).
+        b.Click += async (_, _) => { if (_c.Session is { } s) await run(s); if (IsActive) _surface.Focus(); };
         return b;
     }
 
