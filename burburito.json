@@ -7,108 +7,318 @@
     "fuente": "/mnt/cache/ESXI/docker/apps/burbumote/windows/burburito.json"
   },
   "modulos": [
-    { "id": 1, "slug": "conexion", "nombre": "La conexión y la entrada al servidor",
-      "descripcion": "MeshServerSession (src/MeshCentralClient.Core): abre el web socket control.ashx con la cabecera x-meshauth (usuario, contraseña y 2FA), comprueba el certificado (sistema o huella aceptada) y mantiene la sesión." },
-    { "id": 2, "slug": "equipos", "nombre": "La lista de grupos y equipos",
-      "descripcion": "Las peticiones meshes y nodes de MeshServerSession y los avisos en vivo (addnode, changenode, removenode, nodeconnect) que pinta la ventana principal." },
-    { "id": 3, "slug": "ajustes", "nombre": "Los servidores guardados",
-      "descripcion": "El fichero de servidores guardados en %APPDATA%\\MeshCentralClient (dirección, usuario, huella aceptada y la contraseña cifrada con DPAPI si la persona lo pide)." },
-    { "id": 4, "slug": "app", "nombre": "La aplicación",
-      "descripcion": "Lo que no encaja en otro módulo: un fallo no previsto que llega hasta la ventana." }
+    {
+      "id": 1,
+      "slug": "conexion",
+      "nombre": "La conexión y la entrada al servidor",
+      "descripcion": "MeshServerSession (src/MeshCentralClient.Core): abre el web socket control.ashx con la cabecera x-meshauth (usuario, contraseña y 2FA), comprueba el certificado (sistema o huella aceptada) y mantiene la sesión."
+    },
+    {
+      "id": 2,
+      "slug": "equipos",
+      "nombre": "La lista de grupos y equipos",
+      "descripcion": "Las peticiones meshes y nodes de MeshServerSession y los avisos en vivo (addnode, changenode, removenode, nodeconnect) que pinta la ventana principal."
+    },
+    {
+      "id": 3,
+      "slug": "ajustes",
+      "nombre": "Los servidores guardados",
+      "descripcion": "El fichero de servidores guardados en %APPDATA%\\MeshCentralClient (dirección, usuario, huella aceptada y la contraseña cifrada con DPAPI si la persona lo pide)."
+    },
+    {
+      "id": 4,
+      "slug": "app",
+      "nombre": "La aplicación",
+      "descripcion": "Lo que no encaja en otro módulo: un fallo no previsto que llega hasta la ventana."
+    },
+    {
+      "id": 5,
+      "slug": "tunel",
+      "nombre": "Los túneles a un equipo (terminal, ficheros, escritorio)",
+      "descripcion": "MeshTunnel (src/MeshCentralClient.Core/MeshTunnel.cs): pide el túnel al agente por el canal de control (msg tunnel), abre meshrelay.ashx con la cookie de authcookie, espera «c» y manda opciones y protocolo; encima van TerminalSession y lo que venga."
+    }
   ],
   "acciones": [],
   "codigos": [
-    { "modulo": "conexion", "accion": "iniciar-sesion", "causa": "dato-invalido", "severidad": "aviso", "actuar": false,
+    {
+      "modulo": "conexion",
+      "accion": "iniciar-sesion",
+      "causa": "dato-invalido",
+      "severidad": "aviso",
+      "actuar": false,
       "titulo": "La dirección del servidor no vale",
       "explicacion": "Lo escrito no es una dirección https (o lleva usuario, ?consulta o #ancla). Solo se aceptan direcciones cifradas.",
-      "que_hacer": "Escribir la dirección como en el navegador, p. ej. remoto.ejemplo.com o https://remoto.ejemplo.com/dominio/." },
-    { "modulo": "conexion", "accion": "iniciar-sesion", "causa": "credencial-invalida", "severidad": "aviso", "actuar": false,
+      "que_hacer": "Escribir la dirección como en el navegador, p. ej. remoto.ejemplo.com o https://remoto.ejemplo.com/dominio/."
+    },
+    {
+      "modulo": "conexion",
+      "accion": "iniciar-sesion",
+      "causa": "credencial-invalida",
+      "severidad": "aviso",
+      "actuar": false,
       "titulo": "Usuario o contraseña incorrectos",
       "explicacion": "MeshCentral cerró el web socket con cause=noauth: el usuario no existe o la contraseña no es suya.",
-      "que_hacer": "Repetir con los datos correctos. Tras 10 fallos en 10 minutos MeshCentral bloquea la IP un rato (maxInvalidLogin)." },
-    { "modulo": "conexion", "accion": "verificar-identidad", "causa": "falta-dato", "severidad": "aviso", "actuar": false,
+      "que_hacer": "Repetir con los datos correctos. Tras 10 fallos en 10 minutos MeshCentral bloquea la IP un rato (maxInvalidLogin)."
+    },
+    {
+      "modulo": "conexion",
+      "accion": "verificar-identidad",
+      "causa": "falta-dato",
+      "severidad": "aviso",
+      "actuar": false,
       "titulo": "El servidor pide el segundo factor",
       "explicacion": "MeshCentral contestó msg=tokenrequired sin código enviado. No es un error: la app pide el código. Si sale como error, la ventana del código no se abrió.",
-      "que_hacer": "Escribir el código de la app de autenticación (o pedirlo por correo si el servidor lo ofrece)." },
-    { "modulo": "conexion", "accion": "verificar-identidad", "causa": "credencial-invalida", "severidad": "aviso", "actuar": false,
+      "que_hacer": "Escribir el código de la app de autenticación (o pedirlo por correo si el servidor lo ofrece)."
+    },
+    {
+      "modulo": "conexion",
+      "accion": "verificar-identidad",
+      "causa": "credencial-invalida",
+      "severidad": "aviso",
+      "actuar": false,
       "titulo": "El código del segundo factor no vale",
       "explicacion": "Se mandó un código y MeshCentral volvió a contestar tokenrequired: código equivocado, ya usado o con el reloj del PC descuadrado.",
-      "que_hacer": "Esperar al siguiente código y comprobar la hora de Windows (Ajustes > Hora > Sincronizar ahora)." },
-    { "modulo": "conexion", "accion": "iniciar-sesion", "causa": "limite-de-tasa", "severidad": "aviso", "actuar": false,
+      "que_hacer": "Esperar al siguiente código y comprobar la hora de Windows (Ajustes > Hora > Sincronizar ahora)."
+    },
+    {
+      "modulo": "conexion",
+      "accion": "iniciar-sesion",
+      "causa": "limite-de-tasa",
+      "severidad": "aviso",
+      "actuar": false,
       "titulo": "Demasiados intentos: el servidor no deja entrar un rato",
       "explicacion": "MeshCentral contestó cause=banned (por IP) o cause=locked (por usuario) por su límite de intentos fallidos.",
-      "que_hacer": "Esperar los minutos que tenga configurados (10 por defecto) y entrar con los datos buenos." },
-    { "modulo": "conexion", "accion": "iniciar-sesion", "causa": "no-autorizado", "severidad": "aviso", "actuar": false,
+      "que_hacer": "Esperar los minutos que tenga configurados (10 por defecto) y entrar con los datos buenos."
+    },
+    {
+      "modulo": "conexion",
+      "accion": "iniciar-sesion",
+      "causa": "no-autorizado",
+      "severidad": "aviso",
+      "actuar": false,
       "titulo": "La cuenta no puede usar herramientas externas",
       "explicacion": "MeshCentral contestó cause=notools: la cuenta tiene el derecho de sitio NOMESHCMD, que prohíbe meshctrl, MeshCentral Router y esta app.",
-      "que_hacer": "Un administrador del servidor tiene que quitarle a la cuenta la restricción «sin herramientas»." },
-    { "modulo": "conexion", "accion": "iniciar-sesion", "causa": "falta-dato", "severidad": "aviso", "actuar": false,
+      "que_hacer": "Un administrador del servidor tiene que quitarle a la cuenta la restricción «sin herramientas»."
+    },
+    {
+      "modulo": "conexion",
+      "accion": "iniciar-sesion",
+      "causa": "falta-dato",
+      "severidad": "aviso",
+      "actuar": false,
       "titulo": "La cuenta tiene el correo sin verificar",
       "explicacion": "MeshCentral contestó cause=emailvalidation: el servidor exige verificar el correo antes de entrar.",
-      "que_hacer": "Entrar una vez por la web de MeshCentral y seguir el enlace del correo de verificación." },
-    { "modulo": "conexion", "accion": "iniciar-sesion", "causa": "tls", "severidad": "aviso", "actuar": false,
+      "que_hacer": "Entrar una vez por la web de MeshCentral y seguir el enlace del correo de verificación."
+    },
+    {
+      "modulo": "conexion",
+      "accion": "iniciar-sesion",
+      "causa": "tls",
+      "severidad": "aviso",
+      "actuar": false,
       "titulo": "El certificado del servidor no es de confianza",
       "explicacion": "Windows no confía en el certificado (autofirmado, de otro nombre o caducado) y su huella no es la aceptada. Normal la primera vez con un MeshCentral con certificado propio; grave si antes se aceptó otra huella.",
-      "que_hacer": "Comparar la huella SHA-256 que enseña la app con la del servidor (en la web de MeshCentral, Mi servidor) y aceptarla solo si coincide." },
-    { "modulo": "conexion", "accion": "iniciar-sesion", "causa": "dns", "severidad": "aviso", "actuar": false,
+      "que_hacer": "Comparar la huella SHA-256 que enseña la app con la del servidor (en la web de MeshCentral, Mi servidor) y aceptarla solo si coincide."
+    },
+    {
+      "modulo": "conexion",
+      "accion": "iniciar-sesion",
+      "causa": "dns",
+      "severidad": "aviso",
+      "actuar": false,
       "titulo": "El nombre del servidor no existe",
       "explicacion": "El DNS no resuelve el nombre escrito: errata o sin red.",
-      "que_hacer": "Revisar la dirección y la conexión a internet." },
-    { "modulo": "conexion", "accion": "iniciar-sesion", "causa": "sin-conexion", "severidad": "error", "actuar": true,
+      "que_hacer": "Revisar la dirección y la conexión a internet."
+    },
+    {
+      "modulo": "conexion",
+      "accion": "iniciar-sesion",
+      "causa": "sin-conexion",
+      "severidad": "error",
+      "actuar": true,
       "titulo": "No se pudo conectar con el servidor",
       "explicacion": "El nombre resuelve pero la conexión TCP/TLS no se abre: servidor apagado, puerto cerrado o un cortafuegos en medio.",
-      "que_hacer": "Abrir la misma dirección en el navegador. Si tampoco carga, el servidor o la red están caídos." },
-    { "modulo": "conexion", "accion": "iniciar-sesion", "causa": "tiempo-agotado", "severidad": "error", "actuar": true,
+      "que_hacer": "Abrir la misma dirección en el navegador. Si tampoco carga, el servidor o la red están caídos."
+    },
+    {
+      "modulo": "conexion",
+      "accion": "iniciar-sesion",
+      "causa": "tiempo-agotado",
+      "severidad": "error",
+      "actuar": true,
       "titulo": "El servidor no contestó a tiempo",
       "explicacion": "La conexión o la respuesta a la entrada tardaron más de 20 segundos.",
-      "que_hacer": "Repetir; si persiste, mirar si el servidor está saturado o la red va muy lenta." },
-    { "modulo": "conexion", "accion": "iniciar-sesion", "causa": "error-remoto", "severidad": "error", "actuar": true,
+      "que_hacer": "Repetir; si persiste, mirar si el servidor está saturado o la red va muy lenta."
+    },
+    {
+      "modulo": "conexion",
+      "accion": "iniciar-sesion",
+      "causa": "error-remoto",
+      "severidad": "error",
+      "actuar": true,
       "titulo": "El servidor contestó con un error HTTP",
       "explicacion": "control.ashx devolvió un estado HTTP en vez de abrir el web socket: no es un MeshCentral, la ruta del dominio está mal o un proxy no deja pasar web sockets.",
-      "que_hacer": "Comprobar la dirección (y el /dominio/ si lo hay) y que el proxy inverso tenga activados los web sockets." },
-    { "modulo": "conexion", "accion": "iniciar-sesion", "causa": "rechazo-remoto", "severidad": "error", "actuar": true,
+      "que_hacer": "Comprobar la dirección (y el /dominio/ si lo hay) y que el proxy inverso tenga activados los web sockets."
+    },
+    {
+      "modulo": "conexion",
+      "accion": "iniciar-sesion",
+      "causa": "rechazo-remoto",
+      "severidad": "error",
+      "actuar": true,
       "titulo": "El servidor rechazó la entrada por un motivo desconocido",
       "explicacion": "MeshCentral cerró con un cause/msg que la app no conoce (versión nueva del servidor). El mensaje tal cual va en Detalles.",
-      "que_hacer": "Mandar el código y el mensaje de Detalles para añadir ese caso." },
-    { "modulo": "conexion", "accion": "ver-pantalla", "causa": "conexion-cortada", "severidad": "aviso", "actuar": false,
+      "que_hacer": "Mandar el código y el mensaje de Detalles para añadir ese caso."
+    },
+    {
+      "modulo": "conexion",
+      "accion": "ver-pantalla",
+      "causa": "conexion-cortada",
+      "severidad": "aviso",
+      "actuar": false,
       "titulo": "Se cortó la conexión con el servidor",
       "explicacion": "El web socket de control se cerró con la sesión abierta: reinicio del servidor, corte de red o sesión expulsada.",
-      "que_hacer": "Volver a conectar; si se repite, mirar la red o los registros del servidor." },
-    { "modulo": "conexion", "accion": "abrir-detalle", "causa": "tiempo-agotado", "severidad": "error", "actuar": true,
+      "que_hacer": "Volver a conectar; si se repite, mirar la red o los registros del servidor."
+    },
+    {
+      "modulo": "conexion",
+      "accion": "abrir-detalle",
+      "causa": "tiempo-agotado",
+      "severidad": "error",
+      "actuar": true,
       "titulo": "El servidor no dio el permiso para abrir el túnel",
       "explicacion": "La petición authcookie (permiso para escritorio, terminal o ficheros) no tuvo respuesta en 20 segundos.",
-      "que_hacer": "Repetir; si persiste, volver a conectar con el servidor." },
-    { "modulo": "conexion", "accion": "abrir-detalle", "causa": "conexion-cortada", "severidad": "aviso", "actuar": false,
+      "que_hacer": "Repetir; si persiste, volver a conectar con el servidor."
+    },
+    {
+      "modulo": "conexion",
+      "accion": "abrir-detalle",
+      "causa": "conexion-cortada",
+      "severidad": "aviso",
+      "actuar": false,
       "titulo": "Se cortó la conexión al pedir el túnel",
       "explicacion": "El web socket de control se cerró mientras se esperaba authcookie.",
-      "que_hacer": "Volver a conectar." },
-    { "modulo": "conexion", "accion": "abrir-detalle", "causa": "respuesta-ilegible", "severidad": "error", "actuar": true,
+      "que_hacer": "Volver a conectar."
+    },
+    {
+      "modulo": "conexion",
+      "accion": "abrir-detalle",
+      "causa": "respuesta-ilegible",
+      "severidad": "error",
+      "actuar": true,
       "titulo": "El permiso para el túnel llegó sin sus datos",
       "explicacion": "La respuesta authcookie no trae cookie o rcookie: versión del servidor que no conocemos.",
-      "que_hacer": "Mandar el código y la versión de MeshCentral (sale en Detalles)." },
-    { "modulo": "equipos", "accion": "ver-pantalla", "causa": "tiempo-agotado", "severidad": "error", "actuar": true,
+      "que_hacer": "Mandar el código y la versión de MeshCentral (sale en Detalles)."
+    },
+    {
+      "modulo": "equipos",
+      "accion": "ver-pantalla",
+      "causa": "tiempo-agotado",
+      "severidad": "error",
+      "actuar": true,
       "titulo": "La lista de equipos no llegó a tiempo",
       "explicacion": "Las peticiones meshes o nodes no tuvieron respuesta en 20 segundos.",
-      "que_hacer": "Pulsar Actualizar; si persiste, el servidor va lento o está saturado." },
-    { "modulo": "equipos", "accion": "ver-pantalla", "causa": "conexion-cortada", "severidad": "aviso", "actuar": false,
+      "que_hacer": "Pulsar Actualizar; si persiste, el servidor va lento o está saturado."
+    },
+    {
+      "modulo": "equipos",
+      "accion": "ver-pantalla",
+      "causa": "conexion-cortada",
+      "severidad": "aviso",
+      "actuar": false,
       "titulo": "Se cortó la conexión al pedir la lista de equipos",
       "explicacion": "El web socket de control se cerró mientras se esperaba meshes o nodes.",
-      "que_hacer": "Volver a conectar." },
-    { "modulo": "equipos", "accion": "ver-pantalla", "causa": "respuesta-ilegible", "severidad": "error", "actuar": true,
+      "que_hacer": "Volver a conectar."
+    },
+    {
+      "modulo": "equipos",
+      "accion": "ver-pantalla",
+      "causa": "respuesta-ilegible",
+      "severidad": "error",
+      "actuar": true,
       "titulo": "La lista de equipos llegó con un formato inesperado",
       "explicacion": "meshes no es una lista o nodes no es un objeto por grupo: versión del servidor que no conocemos.",
-      "que_hacer": "Mandar el código y la versión de MeshCentral." },
-    { "modulo": "ajustes", "accion": "cambiar-ajustes", "causa": "dato-corrupto", "severidad": "aviso", "actuar": false,
+      "que_hacer": "Mandar el código y la versión de MeshCentral."
+    },
+    {
+      "modulo": "ajustes",
+      "accion": "cambiar-ajustes",
+      "causa": "dato-corrupto",
+      "severidad": "aviso",
+      "actuar": false,
       "titulo": "El fichero de servidores guardados no se puede leer",
       "explicacion": "servers.json no es JSON válido. La app lo aparta como servers.json.broken y empieza vacía, sin perderlo.",
-      "que_hacer": "Volver a añadir los servidores; el fichero apartado sigue en %APPDATA%\\MeshCentralClient." },
-    { "modulo": "ajustes", "accion": "cambiar-ajustes", "causa": "permisos-fichero", "severidad": "error", "actuar": true,
+      "que_hacer": "Volver a añadir los servidores; el fichero apartado sigue en %APPDATA%\\MeshCentralClient."
+    },
+    {
+      "modulo": "ajustes",
+      "accion": "cambiar-ajustes",
+      "causa": "permisos-fichero",
+      "severidad": "error",
+      "actuar": true,
       "titulo": "No se pudieron guardar los servidores",
       "explicacion": "Falló la escritura de servers.json en %APPDATA%\\MeshCentralClient (permisos, disco lleno o antivirus).",
-      "que_hacer": "Comprobar el espacio libre y que la carpeta no esté bloqueada." },
-    { "modulo": "app", "accion": "sin-especificar", "causa": "estado-imposible", "severidad": "error", "actuar": true,
+      "que_hacer": "Comprobar el espacio libre y que la carpeta no esté bloqueada."
+    },
+    {
+      "modulo": "app",
+      "accion": "sin-especificar",
+      "causa": "estado-imposible",
+      "severidad": "error",
+      "actuar": true,
       "titulo": "Fallo no previsto de la aplicación",
       "explicacion": "Una excepción que no esperábamos llegó hasta la ventana. El detalle técnico va en Detalles.",
-      "que_hacer": "Mandar el código y el texto de Detalles." }
+      "que_hacer": "Mandar el código y el texto de Detalles."
+    },
+    {
+      "modulo": "tunel",
+      "accion": "abrir-detalle",
+      "causa": "dispositivo-mudo",
+      "severidad": "aviso",
+      "actuar": true,
+      "titulo": "El equipo no contestó al abrir la sesión",
+      "explicacion": "Se pidió el túnel y el agente no conectó su lado en 20 segundos: agente desconectado o colgado, o la sesión de ese tipo no está permitida en el equipo.",
+      "que_hacer": "Comprobar que el equipo sale conectado (punto verde) y repetir; si sigue, reiniciar el agente del equipo."
+    },
+    {
+      "modulo": "tunel",
+      "accion": "abrir-detalle",
+      "causa": "conexion-cortada",
+      "severidad": "aviso",
+      "actuar": true,
+      "titulo": "El servidor cerró el túnel antes de abrirlo",
+      "explicacion": "meshrelay.ashx cerró el web socket antes de «c»: la cuenta no tiene permiso para ese tipo de sesión en ese equipo, o el equipo la rechazó (consentimiento).",
+      "que_hacer": "Pedir a un administrador el permiso (terminal, ficheros o escritorio) en ese grupo de equipos."
+    },
+    {
+      "modulo": "tunel",
+      "accion": "abrir-detalle",
+      "causa": "respuesta-ilegible",
+      "severidad": "error",
+      "actuar": true,
+      "titulo": "El relé contestó algo inesperado al abrir el túnel",
+      "explicacion": "El primer mensaje del relé no fue «c» ni «cr»: versión del servidor que no conocemos. El texto va en Detalles.",
+      "que_hacer": "Mandar el código y el texto de Detalles."
+    },
+    {
+      "modulo": "tunel",
+      "accion": "ver-pantalla",
+      "causa": "conexion-cortada",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "Se cortó la sesión con el equipo",
+      "explicacion": "El túnel se cerró con la sesión abierta: el equipo se apagó o reinició, se cerró la shell (exit) o se cortó la red.",
+      "que_hacer": "Volver a abrir la sesión cuando el equipo esté conectado."
+    },
+    {
+      "modulo": "app",
+      "accion": "abrir-detalle",
+      "causa": "dependencia-caida",
+      "severidad": "aviso",
+      "actuar": true,
+      "titulo": "Falta WebView2 Runtime en el PC",
+      "explicacion": "La terminal (y luego el inicio de sesión único) se pintan con Microsoft Edge WebView2 Runtime, que viene con Windows 11 y casi todos los Windows 10; si falta, CoreWebView2Environment lanza WebView2RuntimeNotFoundException.",
+      "que_hacer": "Instalar el Evergreen Runtime de https://go.microsoft.com/fwlink/p/?LinkId=2124703 y volver a abrir."
+    }
   ]
 }

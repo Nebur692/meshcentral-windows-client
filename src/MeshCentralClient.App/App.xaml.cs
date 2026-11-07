@@ -16,5 +16,6 @@ public partial class App : Application
         };
         TaskScheduler.UnobservedTaskException += (_, args) => args.SetObserved();
         base.OnStartup(e);
+        ThemeService.LoadAndApply();
     }
 }

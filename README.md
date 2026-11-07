@@ -27,7 +27,7 @@ official website and `meshctrl`, so it works with **any** MeshCentral installati
 
 > Unofficial project, not affiliated with the MeshCentral authors. The device side still uses the official MeshCentral agent.
 
-### Features (version 0.1)
+### Features (version 0.2)
 
 - **Sign in** with username and password, with **two-factor** codes (authenticator app, or email code when the server offers it).
 - **Certificates**: a certificate Windows trusts is always accepted; for a server with its own certificate the app shows
@@ -35,10 +35,14 @@ official website and `meshctrl`, so it works with **any** MeshCentral installati
 - **Devices live**: every device group and device the account can see, online status updated in real time, search by
   name, system, address, tag or group.
 - **Saved servers**: address and user remembered; the password only if you ask, encrypted for your Windows user (DPAPI).
-- **Open in the browser**: double-click a device to open it in the MeshCentral website.
+- **Terminal**: shell, cmd or PowerShell on the device, with a full terminal (xterm.js, the same engine as the
+  website); copy and paste like Windows Terminal. Double-click a device to open it.
+- **Open in the browser** from the device's menu.
+- **Light, dark or like Windows**, remembered.
 - **English and Spanish** interface, following the Windows language.
 
-Coming next: single sign-on (OIDC), terminal, files, remote desktop and port mapping — see [the plan](docs/PLAN.md).
+The goal is everything the MeshCentral website does. Coming next: single sign-on (OIDC), files, remote desktop,
+device details and actions, groups, users and port mapping — see [the plan](docs/PLAN.md).
 
 ### Install
 
@@ -59,8 +63,8 @@ tests/server/run-integration.sh                       # needs Docker: real throw
 ```
 
 The integration tests start a disposable MeshCentral server and a real Linux agent in Docker, test every login path
-(right and wrong password, two-factor, untrusted and pinned certificate), the device list, live events and a
-server-side disconnection, and remove everything when they end.
+(right and wrong password, two-factor, untrusted and pinned certificate), the device list, live events, a
+server-side disconnection and the terminal, and remove everything when they end.
 
 ### License
 
@@ -78,7 +82,7 @@ web oficial y `meshctrl`, así que funciona con **cualquier** instalación de Me
 
 > Proyecto no oficial, sin relación con los autores de MeshCentral. En los equipos se sigue usando el agente oficial de MeshCentral.
 
-### Qué hace (versión 0.1)
+### Qué hace (versión 0.2)
 
 - **Entrar** con usuario y contraseña, con código de **doble factor** (app de autenticación, o código por correo si el servidor lo ofrece).
 - **Certificados**: uno en el que confía Windows se acepta siempre; con un servidor con certificado propio la app enseña
@@ -86,10 +90,14 @@ web oficial y `meshctrl`, así que funciona con **cualquier** instalación de Me
 - **Equipos en vivo**: todos los grupos y equipos que ve la cuenta, con el estado de conexión al momento y buscador por
   nombre, sistema, dirección, etiqueta o grupo.
 - **Servidores guardados**: recuerda la dirección y el usuario; la contraseña solo si se lo pides, cifrada para tu usuario de Windows (DPAPI).
-- **Abrir en el navegador**: doble clic en un equipo para abrirlo en la web de MeshCentral.
+- **Terminal**: shell, cmd o PowerShell en el equipo, con una terminal completa (xterm.js, el mismo motor que la
+  web); copiar y pegar como en Windows Terminal. Doble clic en un equipo para abrirla.
+- **Abrir en el navegador** desde el menú del equipo.
+- **Claro, oscuro o como Windows**, y lo recuerda.
 - Interfaz en **inglés y español**, según el idioma de Windows.
 
-Lo siguiente: inicio de sesión único (OIDC), terminal, ficheros, escritorio remoto y redirección de puertos; está en [el plan](docs/PLAN.md).
+La meta es todo lo que hace la web de MeshCentral. Lo siguiente: inicio de sesión único (OIDC), ficheros, escritorio
+remoto, datos y acciones del equipo, grupos, usuarios y redirección de puertos; está en [el plan](docs/PLAN.md).
 
 ### Instalar
 
@@ -111,7 +119,7 @@ tests/server/run-integration.sh                       # necesita Docker: MeshCen
 
 Las pruebas de integración arrancan en Docker un servidor MeshCentral desechable y un agente Linux de verdad, prueban
 todas las formas de entrar (contraseña buena y mala, doble factor, certificado no fiable y aceptado), la lista de
-equipos, los avisos en vivo y un corte desde el servidor, y lo quitan todo al acabar.
+equipos, los avisos en vivo, un corte desde el servidor y la terminal, y lo quitan todo al acabar.
 
 ### Licencia
 

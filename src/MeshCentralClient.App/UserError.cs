@@ -65,6 +65,11 @@ public sealed record UserError(string Message, bool MustAct, string Footer, stri
                       : "The list of servers could not be saved. Check there is free disk space.",
             true, Burburito.Footer("ajustes/cambiar-ajustes/permisos-fichero", L.Spanish), ex.ToString());
 
+    public static UserError MissingWebView(Exception ex) => new(
+        L.Spanish ? "Falta Microsoft Edge WebView2 Runtime, que esta función necesita. Instálalo desde https://go.microsoft.com/fwlink/p/?LinkId=2124703 y vuelve a abrirla."
+                  : "Microsoft Edge WebView2 Runtime, which this feature needs, is missing. Install it from https://go.microsoft.com/fwlink/p/?LinkId=2124703 and open it again.",
+        true, Burburito.Footer("app/abrir-detalle/dependencia-caida", L.Spanish), ex.ToString());
+
     public static UserError Unexpected(Exception ex) => new(
         L.Spanish ? "Ha fallado algo que no esperábamos. Puedes seguir usando la app; si se repite, manda el texto de Detalles."
                   : "Something we did not expect failed. You can keep using the app; if it happens again, send the text under Details.",

@@ -18,6 +18,7 @@ public partial class MainWindow : Window
     private CancellationTokenSource? _connectCts;
     private UserError? _shownError;
     private bool _emailCodeAvailable;
+    private readonly List<Window> _sessionWindows = new();
 
     public MainWindow()
     {
@@ -32,6 +33,9 @@ public partial class MainWindow : Window
         _view.SortDescriptions.Add(new SortDescription(nameof(DeviceRow.GroupName), ListSortDirection.Ascending));
         _view.SortDescriptions.Add(new SortDescription(nameof(DeviceRow.Name), ListSortDirection.Ascending));
         DeviceList.ItemsSource = _view;
+
+        ThemeBox.ItemsSource = new[] { L.T("ThemeSystem"), L.T("ThemeLight"), L.T("ThemeDark") };
+        ThemeBox.SelectedIndex = (int)ThemeService.Current;
 
         Loaded += (_, _) =>
         {
@@ -300,6 +304,8 @@ public partial class MainWindow : Window
     {
         var s = _session;
         _session = null;
+        // Their tunnels belong to this session. / Sus túneles son de esta sesión.
+        foreach (var w in _sessionWindows.ToList()) w.Close();
         _rows.Clear();
         _groupNames.Clear();
         DevicesPanel.Visibility = Visibility.Collapsed;
@@ -308,7 +314,40 @@ public partial class MainWindow : Window
         if (s is not null) await s.DisposeAsync();
     }
 
-    private void DeviceList_MouseDoubleClick(object sender, System.Windows.Input.MouseButtonEventArgs e) => OpenInBrowser_Click(sender, e);
+    private void ThemeBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (ThemeBox.SelectedIndex >= 0 && (AppTheme)ThemeBox.SelectedIndex != ThemeService.Current)
+            ThemeService.Apply((AppTheme)ThemeBox.SelectedIndex);
+    }
+
+    // Double click: a terminal if the device can, otherwise its page in the browser.
+    // Doble clic: una terminal si el equipo puede; si no, su página en el navegador.
+    private void DeviceList_MouseDoubleClick(object sender, System.Windows.Input.MouseButtonEventArgs e)
+    {
+        if (DeviceList.SelectedItem is DeviceRow { CanOpenTerminal: true }) OpenTerminal_Click(sender, e);
+        else OpenInBrowser_Click(sender, e);
+    }
+
+    private void DeviceMenu_Opened(object sender, RoutedEventArgs e)
+    {
+        var row = DeviceList.SelectedItem as DeviceRow;
+        TerminalItem.IsEnabled = row is { CanOpenTerminal: true };
+        PowerShellItem.Visibility = row is { IsWindows: true } ? Visibility.Visible : Visibility.Collapsed;
+        PowerShellItem.IsEnabled = row is { CanOpenTerminal: true };
+    }
+
+    private void OpenTerminal_Click(object sender, RoutedEventArgs e) => OpenTerminal(TunnelProtocol.Terminal);
+
+    private void OpenPowerShell_Click(object sender, RoutedEventArgs e) => OpenTerminal(TunnelProtocol.PowerShell);
+
+    private void OpenTerminal(TunnelProtocol kind)
+    {
+        if (DeviceList.SelectedItem is not DeviceRow row || _session is null || !row.CanOpenTerminal) return;
+        var w = new TerminalWindow(_session, row, kind);
+        _sessionWindows.Add(w);
+        w.Closed += (_, _) => _sessionWindows.Remove(w);
+        w.Show();
+    }
 
     private void OpenInBrowser_Click(object sender, RoutedEventArgs e)
     {

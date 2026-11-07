@@ -1,5 +1,5 @@
 {
-  "generado": "2026-11-07T13:12:24Z",
+  "generado": "2026-11-07T13:46:39Z",
   "aviso": "Generado por bin/burburito. No editar a mano: la fuente de verdad es el burburito.json de al lado.",
   "proyecto": {
     "id": 35,
@@ -24,6 +24,12 @@
       "severidad": "error",
       "actuar": true,
       "titulo": "Fallo no previsto de la aplicación"
+    },
+    "app/abrir-detalle/dependencia-caida": {
+      "codigo": "035-004-022-086",
+      "severidad": "aviso",
+      "actuar": true,
+      "titulo": "Falta WebView2 Runtime en el PC"
     },
     "conexion/iniciar-sesion/sin-conexion": {
       "codigo": "035-001-001-001",
@@ -144,6 +150,30 @@
       "severidad": "error",
       "actuar": true,
       "titulo": "La lista de equipos llegó con un formato inesperado"
+    },
+    "tunel/ver-pantalla/conexion-cortada": {
+      "codigo": "035-005-020-005",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "Se cortó la sesión con el equipo"
+    },
+    "tunel/abrir-detalle/conexion-cortada": {
+      "codigo": "035-005-022-005",
+      "severidad": "aviso",
+      "actuar": true,
+      "titulo": "El servidor cerró el túnel antes de abrirlo"
+    },
+    "tunel/abrir-detalle/respuesta-ilegible": {
+      "codigo": "035-005-022-022",
+      "severidad": "error",
+      "actuar": true,
+      "titulo": "El relé contestó algo inesperado al abrir el túnel"
+    },
+    "tunel/abrir-detalle/dispositivo-mudo": {
+      "codigo": "035-005-022-120",
+      "severidad": "aviso",
+      "actuar": true,
+      "titulo": "El equipo no contestó al abrir la sesión"
     }
   },
   "frases": {

@@ -5,8 +5,18 @@
         Title="{app:T AppTitle}" Width="1000" Height="680" MinWidth="560" MinHeight="420"
         WindowStartupLocation="CenterScreen">
   <Grid>
+    <Grid.RowDefinitions>
+      <RowDefinition Height="Auto" />
+      <RowDefinition Height="*" />
+    </Grid.RowDefinitions>
+    <!-- Theme, in both views / Tema, en las dos vistas -->
+    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="16,8,16,0">
+      <TextBlock Text="{app:T Theme}" VerticalAlignment="Center" Margin="0,0,8,0" Opacity="0.7" />
+      <ComboBox x:Name="ThemeBox" MinWidth="150" SelectionChanged="ThemeBox_SelectionChanged" AutomationProperties.Name="{app:T Theme}" />
+    </StackPanel>
+
     <!-- ============ LOGIN / ENTRADA ============ -->
-    <ScrollViewer x:Name="LoginPanel" VerticalScrollBarVisibility="Auto">
+    <ScrollViewer x:Name="LoginPanel" Grid.Row="1" VerticalScrollBarVisibility="Auto">
       <Border MaxWidth="440" Margin="24" VerticalAlignment="Center">
         <StackPanel>
           <TextBlock Text="{app:T AppTitle}" FontSize="26" FontWeight="SemiBold" Margin="0,0,0,20" />
@@ -65,7 +75,7 @@
     </ScrollViewer>
 
     <!-- ============ DEVICES / EQUIPOS ============ -->
-    <DockPanel x:Name="DevicesPanel" Visibility="Collapsed">
+    <DockPanel x:Name="DevicesPanel" Grid.Row="1" Visibility="Collapsed">
       <Grid DockPanel.Dock="Top" Margin="16,12,16,8">
         <Grid.ColumnDefinitions>
           <ColumnDefinition Width="Auto" />
@@ -102,7 +112,10 @@
       <Grid>
         <ListView x:Name="DeviceList" Margin="16,0,16,0" MouseDoubleClick="DeviceList_MouseDoubleClick">
           <ListView.ContextMenu>
-            <ContextMenu>
+            <ContextMenu Opened="DeviceMenu_Opened">
+              <MenuItem x:Name="TerminalItem" Header="{app:T OpenTerminal}" Click="OpenTerminal_Click" />
+              <MenuItem x:Name="PowerShellItem" Header="{app:T OpenPowerShell}" Click="OpenPowerShell_Click" />
+              <Separator />
               <MenuItem Header="{app:T OpenInBrowser}" Click="OpenInBrowser_Click" />
               <MenuItem Header="{app:T CopyName}" Click="CopyName_Click" />
             </ContextMenu>

@@ -25,6 +25,8 @@ public sealed class DeviceRow : INotifyPropertyChanged
     public string Address => _device.Address ?? "";
     public string Tags => string.Join(", ", _device.Tags);
     public bool IsOnline => _device.IsOnline;
+    public bool CanOpenTerminal => _device.CanOpenTerminal;
+    public bool IsWindows => _device.IsWindows;
     public string Status => L.T(_device.IsOnline ? "Online" : "Offline");
 
     public bool Matches(string filter) => filter.Length == 0

@@ -69,6 +69,8 @@ public sealed class EndToEndTests(ITestOutputHelper output) : IDisposable
 
     private void Click(string id) => Find(id).AsButton().Invoke();
 
+    private static string SafeName(AutomationElement e) { try { return e.Name ?? ""; } catch (Exception) { return ""; } }
+
     private string Text(string id) => Find(id).Name;
 
     private void Shot(string what)
@@ -132,6 +134,27 @@ public sealed class EndToEndTests(ITestOutputHelper output) : IDisposable
         Type("SearchBox", machine[..Math.Min(4, machine.Length)]);
         Assert.NotNull(Retry.WhileNull(() => Find("DeviceList").FindFirstDescendant(cf => cf.ByName(machine)), Timeout).Result);
 
+        // 3b. Dark theme. / Tema oscuro.
+        Find("ThemeBox").AsComboBox().Select(2);
+        Shot("dark-devices");
+
+        // 3c. Double click opens a terminal on the real Windows agent; a command runs and its output is on screen.
+        //     El doble clic abre una terminal en el agente de Windows real; una orden se ejecuta y su salida sale en pantalla.
+        Find("DeviceList").FindFirstDescendant(cf => cf.ByName(machine))!.DoubleClick();
+        var term = FindAnywhere("TerminalWindow");
+        var ready = Retry.WhileFalse(() => term.FindFirstDescendant(cf => cf.ByAutomationId("TerminalStatus"))?.Name.StartsWith("Ctrl+Shift+C") == true,
+            TimeSpan.FromSeconds(45), TimeSpan.FromMilliseconds(300)).Result;
+        Shot("terminal-open");
+        Assert.True(ready, "terminal did not open: " + term.FindFirstDescendant(cf => cf.ByAutomationId("TerminalStatus"))?.Name);
+        Find("TerminalView", term).Click();
+        Keyboard.Type("set /a 6*7");
+        Keyboard.Type(VirtualKeyShort.ENTER);
+        var answer = Retry.WhileNull(() => term.FindFirstDescendant(cf => cf.ByName("42")) ?? term.FindAllDescendants().FirstOrDefault(e => SafeName(e).Trim() == "42"),
+            TimeSpan.FromSeconds(30), TimeSpan.FromMilliseconds(500)).Result;
+        Shot("terminal-output");
+        Assert.NotNull(answer);
+        term.AsWindow().Close();
+
         // 4. Disconnect and sign in with the two-factor account. / Desconectar y entrar con la cuenta de doble factor.
         Click("DisconnectButton");
         Find("ConnectButton");
@@ -160,6 +183,7 @@ public sealed class EndToEndTests(ITestOutputHelper output) : IDisposable
         Start();
         Assert.Contains(Env("MESHUI_SERVER").Split(':')[0], Find("ServerBox").AsComboBox().EditableText);
         Shot("restart-remembers-server");
+        Assert.Equal("Dark", Find("ThemeBox").AsComboBox().SelectedItem?.Text);
         Type("PasswordBox", "Otp-Pass-1234");
         Click("ConnectButton");
         Find("CodeBox"); // straight to two-factor, no certificate question / directo al doble factor, sin preguntar el certificado

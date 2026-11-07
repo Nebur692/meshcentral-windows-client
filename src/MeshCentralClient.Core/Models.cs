@@ -41,9 +41,15 @@ public sealed record Device(
     DeviceConnectivity Connectivity,
     int PowerState,
     AgentCapabilities Capabilities,
-    IReadOnlyList<string> Tags)
+    IReadOnlyList<string> Tags,
+    int AgentId = 0)
 {
     public bool IsOnline => Connectivity != DeviceConnectivity.None;
+
+    /// <summary>Windows agents (agenttypes.js, platform win32). / Agentes de Windows (agenttypes.js, plataforma win32).</summary>
+    public bool IsWindows => AgentId is 1 or 2 or 3 or 4 or 21 or 22 or 42 or 43 or 10003 or 10004;
+
+    public bool CanOpenTerminal => IsOnline && Connectivity.HasFlag(DeviceConnectivity.Agent) && Capabilities.HasFlag(AgentCapabilities.Terminal);
 
     internal static Device From(JsonObject o, string? groupId = null)
     {
@@ -60,7 +66,8 @@ public sealed record Device(
             (DeviceConnectivity)(o.Long("conn") ?? 0),
             (int)(o.Long("pwr") ?? 0),
             (AgentCapabilities)(agent?.Long("caps") ?? 0),
-            tags);
+            tags,
+            (int)(agent?.Long("id") ?? 0));
     }
 
     /// <summary>Applies a "changenode" update, which does not carry connection state.

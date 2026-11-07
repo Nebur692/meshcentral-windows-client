@@ -26,14 +26,20 @@ public sealed class MeshServerSession : IAsyncDisposable
     private Task? _receiveLoop;
     private int _closed;
 
-    private MeshServerSession(ServerAddress server, ClientWebSocket ws, TimeSpan timeout)
+    private MeshServerSession(ServerAddress server, ClientWebSocket ws, TimeSpan timeout, CertificateTrust trust)
     {
+        Trust = trust;
         Server = server;
         _ws = ws;
         _timeout = timeout;
     }
 
     public ServerAddress Server { get; }
+
+    /// <summary>The certificate decision of this session, reused by its tunnels. / La decisión sobre el certificado, que reutilizan sus túneles.</summary>
+    internal CertificateTrust Trust { get; }
+
+    internal TimeSpan Timeout => _timeout;
     public ServerInfo ServerInfo { get; private set; } = new("", "", null);
     public UserInfo User { get; private set; } = new("", "", false);
 
@@ -75,7 +81,7 @@ public sealed class MeshServerSession : IAsyncDisposable
             throw ConnectFailure(ex, ws, trust, connectCts.IsCancellationRequested && !cancellationToken.IsCancellationRequested);
         }
 
-        var session = new MeshServerSession(server, ws, limit);
+        var session = new MeshServerSession(server, ws, limit, trust);
         try
         {
             // Register before the loop starts, so the first messages cannot be missed.
