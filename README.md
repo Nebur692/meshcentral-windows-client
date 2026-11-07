@@ -49,6 +49,9 @@ official website and `meshctrl`, so it works with **any** MeshCentral installati
   from Explorer) and download, with progress and cancel; **Ctrl+C / Ctrl+X / Ctrl+V with the Windows clipboard**:
   copy from the device and paste in Explorer, copy in Explorer and paste on the device, folders included, and copy or
   move between folders of the device.
+- **Device actions**, on one or several selected devices: wake up, restart, power off and sleep (always asked first), a
+  notification or a message window for whoever uses the device, and **run commands** in cmd, PowerShell or sh with each
+  device's output. Only what the account is allowed to do is offered.
 - **Open in the browser** from the device's menu.
 - **Light, dark or like Windows**, remembered.
 - **Updates itself**: when a new version is published, it offers it, checks its SHA-256 fingerprint and restarts as
@@ -120,6 +123,9 @@ web oficial y `meshctrl`, así que funciona con **cualquier** instalación de Me
   soltando ficheros desde el Explorador) y bajar, con progreso y botón de cancelar; **Ctrl+C / Ctrl+X / Ctrl+V con el
   portapapeles de Windows**: copiar del equipo y pegar en el Explorador, copiar en el Explorador y pegar en el equipo,
   carpetas incluidas, y copiar o mover entre carpetas del equipo.
+- **Acciones sobre equipos**, en uno o varios equipos elegidos: encender, reiniciar, apagar y suspender (siempre
+  pregunta antes), una notificación o una ventana de mensaje para quien usa el equipo, y **ejecutar órdenes** en cmd,
+  PowerShell o sh con la salida de cada equipo. Solo se ofrece lo que la cuenta tiene permiso para hacer.
 - **Abrir en el navegador** desde el menú del equipo.
 - **Claro, oscuro o como Windows**, y lo recuerda.
 - **Se actualiza sola**: cuando se publica una versión nueva, la ofrece, comprueba su huella SHA-256 y se reabre ya

@@ -28,9 +28,12 @@ public sealed class ActionsTests : IDisposable
     private readonly UIA3Automation _automation = new();
     private readonly DirectoryInfo _dir = Directory.CreateTempSubdirectory("mcc-actions-ui-");
     private Application? _app;
+    private string? _boxTitle;
 
     public void Dispose()
     {
+        // A message window left open freezes UI Automation for the next tests: closed by its title. / Una ventana de mensaje abierta congela UI Automation: se cierra por su título.
+        if (_boxTitle is not null && FindWindow(null, _boxTitle) is var h && h != IntPtr.Zero) PostMessage(h, 0x0010, IntPtr.Zero, IntPtr.Zero);
         try { _app?.Close(); } catch (Exception) { }
         try { _app?.Kill(); } catch (Exception) { }
         _app?.Dispose();
@@ -78,6 +81,15 @@ public sealed class ActionsTests : IDisposable
         Keyboard.Type(text);
     }
 
+    [System.Runtime.InteropServices.DllImport("user32.dll", CharSet = System.Runtime.InteropServices.CharSet.Unicode)]
+    private static extern IntPtr FindWindow(string? className, string windowName);
+
+    [System.Runtime.InteropServices.DllImport("user32.dll")]
+    private static extern bool IsWindowVisible(IntPtr hWnd);
+
+    [System.Runtime.InteropServices.DllImport("user32.dll")]
+    private static extern bool PostMessage(IntPtr hWnd, uint msg, IntPtr w, IntPtr l);
+
     [Fact]
     public void A_person_acts_on_a_device_from_its_menu()
     {
@@ -116,17 +128,22 @@ public sealed class ActionsTests : IDisposable
         var tag = "prueba-" + Guid.NewGuid().ToString("N")[..6];
         Menu(win, "SendMessageItem");
         var md = Anywhere("MessageDialog");
+        // Found and closed through Windows by its unique title: while it is up, UI Automation searches of the whole
+        // desktop time out (measured 07-11: COMException "Operation timed out", and the next test waited 11 minutes).
+        // Se busca y se cierra por Windows con su título único: mientras está abierta, las búsquedas de UI Automation
+        // en todo el escritorio se agotan (medido el 07-11: COMException «Operation timed out», y la prueba siguiente
+        // esperó 11 minutos).
+        var title = _boxTitle = "MCC " + tag;
+        Replace(Id(md, "MessageTitleBox"), title);
         Replace(Id(md, "MessageTextBox"), "Hola desde la app " + tag);
         Id(md, "AsMessageBox").AsRadioButton().IsChecked = true;
         Id(md, "MessageSend").AsButton().Invoke();
-        var shown = WaitFor(() => _automation.GetDesktop().FindFirstDescendant(cf => cf.ByName("Hola desde la app " + tag, PropertyConditionFlags.MatchSubstring)), "the agent's message window");
+        IntPtr shown = IntPtr.Zero;
+        Until(() => (shown = FindWindow(null, title)) != IntPtr.Zero && IsWindowVisible(shown), "the agent's message window did not appear");
         Shot("message-box");
         Until(() => Id(win, "ActionStatus").Name.StartsWith("Message sent to 1"), "message status", () => Id(win, "ActionStatus").Name);
-        // Closed as its reader would, with its button. / Se cierra como lo haría quien lo lee, con su botón.
-        var box = shown.Parent;
-        while (box is not null && box.ControlType != ControlType.Window) box = box.Parent;
-        (box?.FindFirstDescendant(cf => cf.ByControlType(ControlType.Button)) ?? throw new Exception("no button in the message window")).Click();
-        Until(() => _automation.GetDesktop().FindFirstDescendant(cf => cf.ByName("Hola desde la app " + tag, PropertyConditionFlags.MatchSubstring)) is null, "the message window did not close");
+        PostMessage(shown, 0x0010 /* WM_CLOSE */, IntPtr.Zero, IntPtr.Zero);
+        Until(() => FindWindow(null, title) == IntPtr.Zero, "the message window did not close");
 
         //    A notification. / Una notificación.
         Menu(win, "SendMessageItem");

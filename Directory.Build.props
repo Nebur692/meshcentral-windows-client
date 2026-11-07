@@ -4,7 +4,7 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
-    <Version>0.7.0</Version>
+    <Version>0.8.0</Version>
     <Authors>Nebur692</Authors>
     <Product>MeshCentral Windows Client</Product>
     <Copyright>Nebur692</Copyright>
