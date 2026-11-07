@@ -1,0 +1,10 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/MeshCentralClient.App/MeshCentralClient.App.csproj" />
+    <Project Path="src/MeshCentralClient.Core/MeshCentralClient.Core.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/MeshCentralClient.App.Tests/MeshCentralClient.App.Tests.csproj" />
+    <Project Path="tests/MeshCentralClient.Core.Tests/MeshCentralClient.Core.Tests.csproj" />
+  </Folder>
+</Solution>

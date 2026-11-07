@@ -1,0 +1,45 @@
+name: build
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  integration:
+    name: Core + integration (real MeshCentral in Docker)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Pull images
+        run: |
+          docker pull ghcr.io/ylianst/meshcentral:latest
+          docker pull mcr.microsoft.com/dotnet/sdk:10.0
+          docker pull debian:12-slim
+      - name: Tests
+        run: tests/server/run-integration.sh "$RUNNER_TEMP/mctest"
+
+  windows:
+    name: Windows tests + single-file app
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Windows tests (unit only; integration runs on Linux)
+        run: dotnet test MeshCentralClient.slnx -c Release --filter "Category!=Integration" --logger "console;verbosity=normal"
+      - name: Publish
+        run: dotnet publish src/MeshCentralClient.App -c Release -r win-x64 --self-contained -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:DebugType=none -o out
+      - uses: actions/upload-artifact@v4
+        with:
+          name: MeshCentralClient-win-x64
+          path: out/MeshCentralClient.exe
+          if-no-files-found: error
