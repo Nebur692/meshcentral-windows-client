@@ -163,6 +163,58 @@ public sealed class FilesTests : IDisposable
         Assert.Equal("hola desde el equipo", File.ReadAllText(saved));
         Assert.False(File.Exists(saved + ".part"));
 
+        // Ctrl+C on the device: the clipboard holds a real file with the device's bytes, which is what Explorer pastes.
+        // Ctrl+C en el equipo: el portapapeles tiene un fichero de verdad con los bytes del equipo, que es lo que pega el Explorador.
+        ClipboardTool.SetText("nothing yet");
+        Row(list, "renamed.txt")!.Click();
+        Keyboard.TypeSimultaneously(VirtualKeyShort.CONTROL, VirtualKeyShort.KEY_C);
+        Until(() => ClipboardTool.Files() is [var one] && one.EndsWith("renamed.txt") && File.Exists(one) && File.ReadAllText(one) == "hola desde el equipo",
+            "Ctrl+C did not put the file on the clipboard", () => string.Join(" | ", ClipboardTool.Files()));
+        Assert.DoesNotContain(remote, ClipboardTool.Files()[0]); // a copy of its own, not the device's file / una copia propia, no el del equipo
+
+        //   Ctrl+V in the same folder: "name - copy", as Explorer does. / Ctrl+V en la misma carpeta: «nombre - copy», como el Explorador.
+        Keyboard.TypeSimultaneously(VirtualKeyShort.CONTROL, VirtualKeyShort.KEY_V);
+        Until(() => File.Exists(Path.Combine(remote, "renamed - copy.txt")), "pasting in the same folder did not make a copy");
+        Assert.Equal("hola desde el equipo", File.ReadAllText(Path.Combine(remote, "renamed - copy.txt")));
+
+        //   Ctrl+V in another folder of the device: the agent copies it there. / Ctrl+V en otra carpeta del equipo: la copia el agente.
+        Row(list, "nueva")!.DoubleClick();
+        Until(() => Id(files, "PathBox").AsTextBox().Text.TrimEnd('\\').EndsWith("nueva"), "did not open nueva");
+        Id(files, "FileList").Click();
+        Keyboard.TypeSimultaneously(VirtualKeyShort.CONTROL, VirtualKeyShort.KEY_V);
+        Until(() => File.Exists(Path.Combine(remote, "nueva", "renamed.txt")), "pasting in another folder did not copy");
+        Assert.True(File.Exists(Path.Combine(remote, "renamed.txt")));
+
+        //   Ctrl+X and Ctrl+V: moved; the original is gone. / Ctrl+X y Ctrl+V: movido; el original ya no está.
+        Keyboard.Type(VirtualKeyShort.BACK);
+        WaitFor(() => Row(list, "renamed - copy.txt"), "back in the folder");
+        Row(list, "renamed - copy.txt")!.Click();
+        Keyboard.TypeSimultaneously(VirtualKeyShort.CONTROL, VirtualKeyShort.KEY_X);
+        Row(list, "nueva")!.DoubleClick();
+        Until(() => Id(files, "PathBox").AsTextBox().Text.TrimEnd('\\').EndsWith("nueva"), "did not open nueva again");
+        Id(files, "FileList").Click();
+        Keyboard.TypeSimultaneously(VirtualKeyShort.CONTROL, VirtualKeyShort.KEY_V);
+        Until(() => File.Exists(Path.Combine(remote, "nueva", "renamed - copy.txt")) && !File.Exists(Path.Combine(remote, "renamed - copy.txt")), "Ctrl+X, Ctrl+V did not move");
+        Shot("after-move");
+
+        //   A folder copied in Explorer and pasted on the device, with everything inside. / Una carpeta copiada en el Explorador y pegada en el equipo, con todo dentro.
+        var tree = Directory.CreateDirectory(Path.Combine(_dir.FullName, "local-tree")).FullName;
+        Directory.CreateDirectory(Path.Combine(tree, "sub"));
+        File.WriteAllText(Path.Combine(tree, "a.txt"), "ñandú");
+        File.WriteAllBytes(Path.Combine(tree, "sub", "b.bin"), payload);
+        Keyboard.Type(VirtualKeyShort.BACK);
+        WaitFor(() => Row(list, "renamed.txt"), "back in the folder again");
+        ClipboardTool.SetFiles(tree);
+        Row(list, "renamed.txt")!.Click();
+        Keyboard.TypeSimultaneously(VirtualKeyShort.CONTROL, VirtualKeyShort.KEY_V);
+        var pastedTree = Path.Combine(remote, "local-tree");
+        Until(() => File.Exists(Path.Combine(pastedTree, "sub", "b.bin")) && new FileInfo(Path.Combine(pastedTree, "sub", "b.bin")).Length == payload.Length,
+            "the folder from Explorer was not pasted");
+        Assert.Equal(payload, File.ReadAllBytes(Path.Combine(pastedTree, "sub", "b.bin")));
+        Assert.Equal("ñandú", File.ReadAllText(Path.Combine(pastedTree, "a.txt")));
+        WaitFor(() => Row(list, "local-tree"), "the pasted folder in the list");
+        Shot("after-paste-tree");
+
         // Delete, confirming. / Borrar, confirmando.
         Row(list, "nueva")!.Click();
         Id(files, "DeleteButton").AsButton().Invoke();

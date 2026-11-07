@@ -12,6 +12,6 @@ docker exec "$SERVER" wget -q --no-check-certificate -O - "https://localhost/mes
 docker exec "$SERVER" wget -q --no-check-certificate -O - "https://localhost/meshsettings?id=$MID" > "$WORK/meshagent.msh"
 chmod +x "$WORK/meshagent"
 grep -q '^MeshServer=' "$WORK/meshagent.msh"
-docker run -d --rm --name "$NAME" --hostname test-device --network "$NET" --add-host "mesh.test:$IP" \
+docker run -d --name "$NAME" --hostname test-device --network "$NET" --add-host "mesh.test:$IP" \
   --cpus 0.5 --memory 256m -v "$WORK:/agent" -w /agent debian:12-slim ./meshagent connect >/dev/null
 echo "$NAME"

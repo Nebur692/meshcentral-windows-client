@@ -82,9 +82,14 @@ public sealed class FilesWindow : Window
         _list.ItemsSource = _rows;
         _list.Margin = new Thickness(12, 0, 12, 0);
         _list.MouseDoubleClick += async (_, _) => await OpenSelectedAsync();
+        _list.ContextMenu = BuildMenu();
         _list.KeyDown += async (_, e) =>
         {
-            if (e.Key == Key.Enter) await OpenSelectedAsync();
+            var ctrl = Keyboard.Modifiers == ModifierKeys.Control;
+            if (ctrl && e.Key == Key.C) { e.Handled = true; await CopyToClipboardAsync(); }
+            else if (ctrl && e.Key == Key.X) { e.Handled = true; CutToClipboard(); }
+            else if (ctrl && e.Key == Key.V) { e.Handled = true; await PasteAsync(); }
+            else if (e.Key == Key.Enter) await OpenSelectedAsync();
             else if (e.Key == Key.Back) await GoUpAsync();
             else if (e.Key == Key.Delete) await DeleteAsync();
             else if (e.Key == Key.F2) await RenameAsync();
@@ -131,6 +136,7 @@ public sealed class FilesWindow : Window
 
     private async Task StartAsync()
     {
+        ClearStaging(keep: TimeSpan.FromDays(1));
         _status.Text = L.T("Connecting");
         Busy(true);
         try
@@ -144,8 +150,7 @@ public sealed class FilesWindow : Window
 
     // ------------------------------------------------------------------ paths / rutas
 
-    internal static string Join(string folder, string name) =>
-        folder.Length == 0 ? name.TrimEnd('/', '\\') + "/" : folder.TrimEnd('/') + "/" + name;
+    internal static string Join(string folder, string name) => FilesSession.JoinPath(folder, name);
 
     internal static string ParentOf(string path)
     {
@@ -340,6 +345,204 @@ public sealed class FilesWindow : Window
     }
 
     private static void TryDelete(string path) { try { File.Delete(path); } catch (Exception) { } }
+
+    // ------------------------------------------------------------------ clipboard / portapapeles
+
+    /// <summary>What this app puts on the clipboard besides the files: where they are on the device. / Lo que pone la app en el portapapeles además de los ficheros: dónde están en el equipo.</summary>
+    internal const string ClipboardFormat = "MeshCentralClient.RemoteFiles";
+
+    internal sealed record RemoteClip(string Server, string Node, string Folder, bool Cut, List<RemoteEntry> Entries, string? Staging);
+
+    private static string StagingRoot => Path.Combine(AppPaths.Local, "clipboard");
+
+    private ContextMenu BuildMenu()
+    {
+        var menu = new ContextMenu();
+        MenuItem Item(string id, string text, string keys, Func<Task> run)
+        {
+            var i = new MenuItem { Header = text, InputGestureText = keys };
+            Id(i, id);
+            i.Click += async (_, _) => await run();
+            menu.Items.Add(i);
+            return i;
+        }
+        Item("CopyItem", L.T("CopyItem"), "Ctrl+C", CopyToClipboardAsync);
+        Item("CutItem", L.T("CutItem"), "Ctrl+X", () => { CutToClipboard(); return Task.CompletedTask; });
+        Item("PasteItem", L.T("PasteItem"), "Ctrl+V", PasteAsync);
+        menu.Items.Add(new Separator());
+        Item("DownloadItem", L.T("Download"), "", DownloadSelectedAsync);
+        Item("RenameItem", L.T("Rename"), "F2", RenameAsync);
+        Item("DeleteItem", L.T("Delete"), "Del", DeleteAsync);
+        menu.Items.Add(new Separator());
+        Item("NewFolderItem", L.T("NewFolder"), "", NewFolderAsync);
+        return menu;
+    }
+
+    private List<RemoteEntry> Selected() => _list.SelectedItems.OfType<FileRow>().Select(r => r.Entry).Where(e => e.Kind != RemoteEntryKind.Drive).ToList();
+
+    /// <summary>
+    /// Ctrl+C: the selection is downloaded to a private folder and put on the clipboard as files, so File Explorer (or
+    /// any program) pastes real files; the device path goes along, so pasting on the same device copies there directly.
+    /// Ctrl+C: la selección se baja a una carpeta propia y se pone en el portapapeles como ficheros, para que el
+    /// Explorador (o cualquier programa) pegue ficheros de verdad; va también la ruta del equipo, para que pegar en el
+    /// mismo equipo copie allí directamente.
+    /// </summary>
+    private async Task CopyToClipboardAsync()
+    {
+        if (_files is null || _path.Length == 0) return;
+        var entries = Selected();
+        if (entries.Count == 0) return;
+        var staging = Path.Combine(StagingRoot, DateTime.Now.ToString("yyyyMMdd-HHmmss", CultureInfo.InvariantCulture) + "-" + Guid.NewGuid().ToString("N")[..6]);
+        var ok = false;
+        await Transfer(async ct =>
+        {
+            ClearStaging(keep: null);
+            Directory.CreateDirectory(staging);
+            await _files.DownloadTreeAsync(_path, entries, staging, new Progress<TreeProgress>(p => Report("Downloading", p.Name, p.Done, p.Total)), ct);
+            var data = new DataObject();
+            var drop = new System.Collections.Specialized.StringCollection();
+            foreach (var e in entries) drop.Add(Path.Combine(staging, e.Name));
+            data.SetFileDropList(drop);
+            // DROPEFFECT_COPY: Explorer copies them and never deletes the private folder's files. / Explorer los copia y nunca borra los de la carpeta propia.
+            data.SetData("Preferred DropEffect", new MemoryStream(BitConverter.GetBytes(1)));
+            data.SetData(ClipboardFormat, Describe(new(Here.Server, Here.Node, _path, false, entries, staging)));
+            SetClipboard(data);
+            ok = true;
+            _status.Text = L.F("Copied", entries.Count);
+        });
+        if (!ok) { try { Directory.Delete(staging, true); } catch (Exception) { } }
+    }
+
+    /// <summary>Ctrl+X: only the device path goes on the clipboard; the move happens on paste, on this device. / Ctrl+X: solo va la ruta del equipo; se mueve al pegar, en este equipo.</summary>
+    private void CutToClipboard()
+    {
+        if (_files is null || _path.Length == 0) return;
+        var entries = Selected();
+        if (entries.Count == 0) return;
+        var data = new DataObject();
+        data.SetData(ClipboardFormat, Describe(new(Here.Server, Here.Node, _path, true, entries, null)));
+        SetClipboard(data);
+        _status.Text = L.F("CutReady", entries.Count);
+    }
+
+    private (string Server, string Node) Here => (_session.Server.BaseUri.AbsoluteUri, _device.Id);
+
+    private async Task PasteAsync()
+    {
+        if (_files is null || _path.Length == 0) return;
+        IDataObject? data = null;
+        for (var i = 0; i < 5 && data is null; i++)
+        {
+            try { data = Clipboard.GetDataObject(); }
+            catch (System.Runtime.InteropServices.COMException) { await Task.Delay(100); } // another program holds it / lo tiene otro programa
+        }
+        if (data is null) { _status.Text = L.T("NothingToPaste"); return; }
+        var clip = data.GetDataPresent(ClipboardFormat) ? Read(data.GetData(ClipboardFormat)) : null;
+        var target = _path;
+        var sameDevice = clip is not null && clip.Server == Here.Server && clip.Node == Here.Node;
+
+        if (clip is not null && sameDevice && clip.Folder != target)
+        {
+            if (clip.Entries.Any(e => e.Kind == RemoteEntryKind.Folder && FilesSession.IsInside(target, Join(clip.Folder, e.Name))))
+            { _status.Text = L.T("IntoItself"); return; }
+            var entries = clip.Entries.Where(e => !Exists(e.Name) || ConfirmReplace(e.Name)).ToList();
+            if (entries.Count == 0) return;
+            _status.Text = L.T(clip.Cut ? "MovingOnDevice" : "CopyingOnDevice");
+            await Guard(async () =>
+            {
+                if (clip.Cut)
+                {
+                    await _files.MoveTreeAsync(clip.Folder, entries, target);
+                    // As in Explorer, what was cut is pasted once. / Como en el Explorador, lo cortado se pega una vez.
+                    try { Clipboard.Clear(); } catch (Exception) { }
+                }
+                else await _files.CopyTreeAsync(clip.Folder, entries, target);
+                await ShowAsync(target, entries.Count == 1 ? entries[0].Name : null);
+                _status.Text = L.F("Done", string.Join(", ", entries.Select(e => e.Name)));
+            });
+            return;
+        }
+        if (clip is { Cut: true })
+        {
+            if (sameDevice) return; // pasted where it already is / pegado donde ya está
+            _status.Text = L.T("MoveOnlyHere");
+            return;
+        }
+
+        // Files from Explorer, or a copy from this app (another device, or the same folder: then "name - copy").
+        // Ficheros del Explorador, o una copia de esta app (otro equipo, o la misma carpeta: entonces «nombre - copia»).
+        if (!data.GetDataPresent(DataFormats.FileDrop) || data.GetData(DataFormats.FileDrop) is not string[] { Length: > 0 } paths)
+        { _status.Text = L.T("NothingToPaste"); return; }
+        var items = new List<(string Local, string Name)>();
+        foreach (var p in paths.Where(p => File.Exists(p) || Directory.Exists(p)))
+        {
+            var name = Path.GetFileName(p.TrimEnd('\\', '/'));
+            if (sameDevice) name = FreeName(name, Directory.Exists(p));
+            else if (Exists(name) && !ConfirmReplace(name)) continue;
+            items.Add((p, name));
+        }
+        if (items.Count == 0) return;
+        await Transfer(async ct =>
+        {
+            await _files.UploadTreeAsync(items, target, new Progress<TreeProgress>(p => Report("Uploading", p.Name, p.Done, p.Total)), ct);
+            await ShowAsync(target, items.Count == 1 ? items[0].Name : null);
+            _status.Text = L.F("Done", string.Join(", ", items.Select(i => i.Name)));
+        });
+    }
+
+    private bool Exists(string name) => _rows.Any(r => string.Equals(r.Name, name, _device.IsWindows ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal));
+
+    private bool ConfirmReplace(string name) =>
+        MessageBox.Show(this, L.F("ConfirmOverwrite", name), L.T("PasteItem"), MessageBoxButton.YesNo, MessageBoxImage.Question, MessageBoxResult.No) == MessageBoxResult.Yes;
+
+    /// <summary>"name - copy.ext", then "name - copy (2).ext"…, as Explorer does. / Como hace el Explorador.</summary>
+    private string FreeName(string name, bool folder)
+    {
+        var stem = folder ? name : Path.GetFileNameWithoutExtension(name);
+        var ext = folder ? "" : Path.GetExtension(name);
+        var candidate = stem + L.T("CopySuffix") + ext;
+        for (var i = 2; Exists(candidate); i++) candidate = $"{stem}{L.T("CopySuffix")} ({i}){ext}";
+        return candidate;
+    }
+
+    // As UTF-8 bytes in a stream, like Explorer's own formats: a string in a custom format does not come back as a string from the clipboard.
+    // Como bytes UTF-8 en un flujo, igual que los formatos del Explorador: una cadena en un formato propio no vuelve como cadena del portapapeles.
+    private static MemoryStream Describe(RemoteClip clip) => new(System.Text.Json.JsonSerializer.SerializeToUtf8Bytes(clip));
+
+    private static RemoteClip? Read(object? raw)
+    {
+        byte[]? bytes = raw switch { MemoryStream m => m.ToArray(), Stream s => ReadAll(s), string t => System.Text.Encoding.UTF8.GetBytes(t), _ => null };
+        if (bytes is not { Length: > 0 }) return null;
+        try { return System.Text.Json.JsonSerializer.Deserialize<RemoteClip>(bytes.AsSpan().TrimEnd((byte)0)); }
+        catch (System.Text.Json.JsonException) { return null; }
+    }
+
+    private static byte[] ReadAll(Stream s) { using var m = new MemoryStream(); s.CopyTo(m); return m.ToArray(); }
+
+    private static void SetClipboard(DataObject data)
+    {
+        for (var i = 0; ; i++)
+        {
+            try { Clipboard.SetDataObject(data, copy: true); return; }
+            catch (System.Runtime.InteropServices.COMException) when (i < 5) { Thread.Sleep(100); }
+        }
+    }
+
+    /// <summary>
+    /// The private copies of earlier Ctrl+C: removed when a new copy replaces them, and at start when older than a day
+    /// (someone may still paste the last one after closing the window).
+    /// Las copias propias de Ctrl+C anteriores: se borran cuando otra copia las sustituye, y al abrir si tienen más de un
+    /// día (alguien puede pegar aún la última tras cerrar la ventana).
+    /// </summary>
+    internal static void ClearStaging(TimeSpan? keep)
+    {
+        if (!Directory.Exists(StagingRoot)) return;
+        foreach (var dir in Directory.GetDirectories(StagingRoot))
+        {
+            if (keep is { } age && DateTime.Now - Directory.GetLastWriteTime(dir) < age) continue;
+            try { Directory.Delete(dir, true); } catch (Exception) { }
+        }
+    }
 
     private void Report(string what, string name, long done, long total)
     {

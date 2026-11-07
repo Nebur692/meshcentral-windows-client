@@ -21,7 +21,7 @@ public sealed record RemoteFolder(string Path, IReadOnlyList<RemoteEntry> Entrie
 /// mensajes BINARIOS y los datos con mensajes binarios de 4 bytes de cabecera, así que se distinguen por el primer
 /// byte («{» = JSON). Una operación cada vez: los datos de una descarga no llevan identificador.
 /// </summary>
-public sealed class FilesSession : IAsyncDisposable
+public sealed partial class FilesSession : IAsyncDisposable
 {
     private const int UploadBlock = 65564;
     private const int UploadWindow = 16;

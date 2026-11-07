@@ -462,7 +462,7 @@
       "severidad": "aviso",
       "actuar": false,
       "titulo": "Se cortó la conexión al cambiar ficheros",
-      "explicacion": "El túnel se cerró al mandar mkdir, rename o rm; puede que el cambio se hiciera o no.",
+      "explicacion": "El túnel se cerró al mandar mkdir, rename, rm o copy; puede que el cambio se hiciera o no.",
       "que_hacer": "Volver a abrir los ficheros y mirar cómo quedó."
     },
     {
@@ -472,7 +472,7 @@
       "severidad": "aviso",
       "actuar": true,
       "titulo": "El equipo no hizo el cambio",
-      "explicacion": "Tras mkdir, rename o rm la app vuelve a listar y el cambio no está (el agente no contesta a esas órdenes): sin permiso, nombre no válido o ya existe.",
+      "explicacion": "Tras mkdir, rename, rm, copy o move la app vuelve a listar y el cambio no está (el agente no contesta a esas órdenes): sin permiso, nombre no válido, ya existe o no hay sitio.",
       "que_hacer": "Probar con otro nombre o pedir permisos en el equipo."
     },
     {

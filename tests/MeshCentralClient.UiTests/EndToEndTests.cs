@@ -144,7 +144,7 @@ public sealed class EndToEndTests(ITestOutputHelper output) : IDisposable
         //     El doble clic abre una terminal en el agente de Windows real; una orden se ejecuta y su salida sale en pantalla.
         Find("DeviceList").FindFirstDescendant(cf => cf.ByName(machine))!.DoubleClick();
         var term = FindAnywhere("TerminalWindow");
-        var ready = Retry.WhileFalse(() => term.FindFirstDescendant(cf => cf.ByAutomationId("TerminalStatus"))?.Name.StartsWith("Ctrl+Shift+C") == true,
+        var ready = Retry.WhileFalse(() => term.FindFirstDescendant(cf => cf.ByAutomationId("TerminalStatus"))?.Name.StartsWith("Select to copy") == true,
             TimeSpan.FromSeconds(45), TimeSpan.FromMilliseconds(300)).Result;
         Shot("terminal-open");
         Assert.True(ready, "terminal did not open: " + term.FindFirstDescendant(cf => cf.ByAutomationId("TerminalStatus"))?.Name);
@@ -156,6 +156,31 @@ public sealed class EndToEndTests(ITestOutputHelper output) : IDisposable
             TimeSpan.FromSeconds(30), TimeSpan.FromMilliseconds(500)).Result;
         Shot("terminal-output");
         Assert.NotNull(answer);
+
+        // 3d. Copy and paste as in PuTTY, checked from another process. / Copiar y pegar como en PuTTY, comprobado desde otro proceso.
+        //     A double click selects the word, and selecting copies. / Un doble clic selecciona la palabra, y seleccionar copia.
+        ClipboardTool.SetText("nothing yet");
+        var row = answer!.BoundingRectangle;
+        Mouse.DoubleClick(new System.Drawing.Point(row.Left + 4, row.Top + row.Height / 2));
+        var copied = Retry.WhileFalse(() => ClipboardTool.Text() == "42", TimeSpan.FromSeconds(10), TimeSpan.FromMilliseconds(300)).Result;
+        Shot("terminal-selected");
+        Assert.True(copied, "selecting did not copy: the clipboard has \"" + ClipboardTool.Text() + "\"");
+
+        //     Right click pastes (and runs nothing by itself: Enter is ours). / El clic derecho pega (y no ejecuta nada solo: el Intro es nuestro).
+        ClipboardTool.SetText("set /a 7*8");
+        Find("TerminalView", term).RightClick();
+        Keyboard.Type(VirtualKeyShort.ENTER);
+        Assert.NotNull(Retry.WhileNull(() => term.FindAllDescendants().FirstOrDefault(e => SafeName(e).Replace(" ", " ").Trim() == "56"),
+            TimeSpan.FromSeconds(30), TimeSpan.FromMilliseconds(500)).Result);
+
+        //     Shift+Insert pastes too. / Mayús+Insert también pega.
+        ClipboardTool.SetText("set /a 9*9");
+        Keyboard.TypeSimultaneously(VirtualKeyShort.SHIFT, VirtualKeyShort.INSERT);
+        Keyboard.Type(VirtualKeyShort.ENTER);
+        var pasted = Retry.WhileNull(() => term.FindAllDescendants().FirstOrDefault(e => SafeName(e).Replace(" ", " ").Trim() == "81"),
+            TimeSpan.FromSeconds(30), TimeSpan.FromMilliseconds(500)).Result;
+        Shot("terminal-pasted");
+        Assert.NotNull(pasted);
         term.AsWindow().Close();
 
         // 4. Disconnect and sign in with the two-factor account. / Desconectar y entrar con la cuenta de doble factor.

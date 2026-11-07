@@ -20,6 +20,9 @@ mkdir -p "$WORK"
 
 cleanup() {
   docker stop "$AGENT" "$SRV" "$OIDC" >/dev/null 2>&1 || true
+  # The agent is not --rm, so its state survives a crash: removed here by name.
+  # El agente no es --rm, para que su estado sobreviva a una caída: se borra aquí por su nombre.
+  docker rm -f "$AGENT" >/dev/null 2>&1 || true
   for _ in $(seq 1 20); do docker inspect "$SRV" >/dev/null 2>&1 || docker inspect "$AGENT" >/dev/null 2>&1 || docker inspect "$OIDC" >/dev/null 2>&1 || break; sleep 1; done
   docker network rm "$NET" >/dev/null 2>&1 || true
   # Files written by root inside the containers: removed from a container too.
@@ -53,5 +56,19 @@ docker run --rm --network "$NET" --add-host "mesh.test:$SRV_IP" --cpus 2 --memor
   -e HOME=/tmp -e DOTNET_CLI_HOME=/tmp -e NUGET_PACKAGES=/tmp/nuget -e DOTNET_NOLOGO=1 -e DOTNET_CLI_TELEMETRY_OPTOUT=1 \
   -e MESHTEST_FILTER="${MESHTEST_FILTER:-}" -e MESHTEST_URL="https://mesh.test/" -e MESHTEST_CERT_SHA256="$CERT" -e MESHTEST_OTP_SECRET="$OTP" -e MESHTEST_GROUP_ID="$GROUP" \
   -v "$ROOT:/src" -v "$WORK:/work" -w /src "$SDK_IMAGE" \
-  sh -c 'if [ -n "$MESHTEST_FILTER" ]; then set -- --filter "$MESHTEST_FILTER" --logger "console;verbosity=detailed"; else set -- --logger "console;verbosity=normal"; fi
-         dotnet test tests/MeshCentralClient.Core.Tests --nologo -v q "$@" --results-directory /work/results --artifacts-path /tmp/artifacts'
+  sh -c 't() { dotnet test tests/MeshCentralClient.Core.Tests --nologo -v q "$@" --results-directory /work/results --artifacts-path /tmp/artifacts; }
+         if [ -n "$MESHTEST_FILTER" ]; then t --filter "$MESHTEST_FILTER" --logger "console;verbosity=detailed"; exit; fi
+         # Asking the Linux agent for a desktop when it has no screen crashes the agent itself (MeshAgent, measured on
+         # 1.3.1 with exactly what the website sends), and after two crashes it stops. So the desktop test runs last.
+         # Pedir el escritorio al agente Linux sin pantalla cuelga al propio agente (MeshAgent, medido en 1.3.1 con
+         # exactamente lo que manda la web), y a los dos cuelgues se para. Por eso la prueba del escritorio va la última.
+         t --filter "FullyQualifiedName!~DesktopIntegrationTests" --logger "console;verbosity=normal" &&
+         t --no-build --filter "FullyQualifiedName~DesktopIntegrationTests" --logger "console;verbosity=normal"' || {
+  rc=$?
+  # On failure, what the agent and the server were doing: without it a dropped agent can only be guessed at.
+  # Si falla, qué hacían el agente y el servidor: sin esto, un agente caído solo se puede adivinar.
+  echo "== agent $AGENT: $(docker inspect "$AGENT" --format 'status={{.State.Status}} exit={{.State.ExitCode}} oom={{.State.OOMKilled}}' 2>&1)"
+  docker logs --tail 60 "$AGENT" 2>&1 | sed 's/^/  agent| /'
+  docker logs --tail 80 "$SRV" 2>&1 | sed 's/^/  server| /'
+  exit "$rc"
+}

@@ -39,14 +39,16 @@ official website and `meshctrl`, so it works with **any** MeshCentral installati
   name, system, address, tag or group.
 - **Saved servers**: address and user remembered; the password only if you ask, encrypted for your Windows user (DPAPI).
 - **Terminal**: shell, cmd or PowerShell on the device, with a full terminal (xterm.js, the same engine as the
-  website); copy and paste like Windows Terminal. Double-click a device to open it.
+  website); copy and paste as in PuTTY (select to copy, right click to paste). Double-click a device to open it.
 - **Remote desktop**: see and control the device's screen with mouse and keyboard, choose the display or all of them,
   **one window per remote display on your monitors**, quality presets, Ctrl+Alt+Del and Windows-key buttons, and
   **type the clipboard** on the device (Unicode, whatever its keyboard layout).
 - **Device page**: general data (description and tags editable), network interfaces, the whole hardware and agent
   inventory with a filter, notes and history — also for devices that are offline.
 - **Files**: browse the device's drives and folders, create folders, rename, delete, upload (also by dropping files
-  from Explorer) and download, with progress and cancel.
+  from Explorer) and download, with progress and cancel; **Ctrl+C / Ctrl+X / Ctrl+V with the Windows clipboard**:
+  copy from the device and paste in Explorer, copy in Explorer and paste on the device, folders included, and copy or
+  move between folders of the device.
 - **Open in the browser** from the device's menu.
 - **Light, dark or like Windows**, remembered.
 - **Updates itself**: when a new version is published, it offers it, checks its SHA-256 fingerprint and restarts as
@@ -108,14 +110,16 @@ web oficial y `meshctrl`, así que funciona con **cualquier** instalación de Me
   nombre, sistema, dirección, etiqueta o grupo.
 - **Servidores guardados**: recuerda la dirección y el usuario; la contraseña solo si se lo pides, cifrada para tu usuario de Windows (DPAPI).
 - **Terminal**: shell, cmd o PowerShell en el equipo, con una terminal completa (xterm.js, el mismo motor que la
-  web); copiar y pegar como en Windows Terminal. Doble clic en un equipo para abrirla.
+  web); copiar y pegar como en PuTTY (seleccionar copia, clic derecho pega). Doble clic en un equipo para abrirla.
 - **Escritorio remoto**: ver y manejar la pantalla del equipo con ratón y teclado, elegir la pantalla o todas, **una
   ventana por cada pantalla remota en tus monitores**, calidades predefinidas, botones de Ctrl+Alt+Supr y tecla Windows, y
   **escribir el portapapeles** en el equipo (Unicode, sea cual sea la distribución de su teclado).
 - **Ficha del equipo**: datos generales (descripción y etiquetas editables), interfaces de red, todo el inventario de
   hardware y del agente con filtro, notas e historial; también de equipos desconectados.
 - **Ficheros**: explorar las unidades y carpetas del equipo, crear carpetas, renombrar, borrar, subir (también
-  soltando ficheros desde el Explorador) y bajar, con progreso y botón de cancelar.
+  soltando ficheros desde el Explorador) y bajar, con progreso y botón de cancelar; **Ctrl+C / Ctrl+X / Ctrl+V con el
+  portapapeles de Windows**: copiar del equipo y pegar en el Explorador, copiar en el Explorador y pegar en el equipo,
+  carpetas incluidas, y copiar o mover entre carpetas del equipo.
 - **Abrir en el navegador** desde el menú del equipo.
 - **Claro, oscuro o como Windows**, y lo recuerda.
 - **Se actualiza sola**: cuando se publica una versión nueva, la ofrece, comprueba su huella SHA-256 y se reabre ya
