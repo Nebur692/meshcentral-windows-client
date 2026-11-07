@@ -36,6 +36,12 @@
       "slug": "tunel",
       "nombre": "Los túneles a un equipo (terminal, ficheros, escritorio)",
       "descripcion": "MeshTunnel (src/MeshCentralClient.Core/MeshTunnel.cs): pide el túnel al agente por el canal de control (msg tunnel), abre meshrelay.ashx con la cookie de authcookie, espera «c» y manda opciones y protocolo; encima van TerminalSession y lo que venga."
+    },
+    {
+      "id": 6,
+      "slug": "actualizar",
+      "nombre": "La actualización de la propia app",
+      "descripcion": "UpdateChecker y SelfUpdater (src/MeshCentralClient.Core/Updates): pregunta a releases/latest de GitHub, descarga MeshCentralClient.exe junto al que corre como .new, comprueba su SHA-256 contra MeshCentralClient.exe.sha256 y los cambia renombrando (el viejo queda como .old.exe hasta reabrir)."
     }
   ],
   "acciones": [],
@@ -319,6 +325,66 @@
       "titulo": "Falta WebView2 Runtime en el PC",
       "explicacion": "La terminal (y luego el inicio de sesión único) se pintan con Microsoft Edge WebView2 Runtime, que viene con Windows 11 y casi todos los Windows 10; si falta, CoreWebView2Environment lanza WebView2RuntimeNotFoundException.",
       "que_hacer": "Instalar el Evergreen Runtime de https://go.microsoft.com/fwlink/p/?LinkId=2124703 y volver a abrir."
+    },
+    {
+      "modulo": "actualizar",
+      "accion": "desplegar",
+      "causa": "sin-conexion",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "No se pudo consultar o bajar la versión nueva",
+      "explicacion": "Falló la conexión con GitHub al buscar o descargar la actualización. Al arrancar no se enseña: solo si la persona pulsó Actualizar.",
+      "que_hacer": "Probar más tarde; la app sigue funcionando con la versión que tiene."
+    },
+    {
+      "modulo": "actualizar",
+      "accion": "desplegar",
+      "causa": "limite-de-tasa",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "GitHub limita las consultas de versión",
+      "explicacion": "La API de GitHub contestó 403/429 (60 consultas por hora sin cuenta, por IP). Al arrancar no se enseña.",
+      "que_hacer": "Nada: se vuelve a mirar en el siguiente arranque."
+    },
+    {
+      "modulo": "actualizar",
+      "accion": "desplegar",
+      "causa": "error-remoto",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "GitHub contestó con un error al buscar versiones",
+      "explicacion": "releases/latest devolvió un estado HTTP distinto de 200 y 404.",
+      "que_hacer": "Nada: se vuelve a mirar en el siguiente arranque."
+    },
+    {
+      "modulo": "actualizar",
+      "accion": "desplegar",
+      "causa": "respuesta-ilegible",
+      "severidad": "error",
+      "actuar": true,
+      "titulo": "La versión publicada está incompleta o mal formada",
+      "explicacion": "La release no trae MeshCentralClient.exe y MeshCentralClient.exe.sha256, su etiqueta no es una versión, o el fichero de huella no es un SHA-256. Sin huella no se instala nunca.",
+      "que_hacer": "Revisar la release en GitHub (la publica la tarea release de build.yml) y volver a publicarla."
+    },
+    {
+      "modulo": "actualizar",
+      "accion": "desplegar",
+      "causa": "dato-corrupto",
+      "severidad": "error",
+      "actuar": true,
+      "titulo": "La versión descargada no coincide con su huella",
+      "explicacion": "El SHA-256 del exe descargado no es el publicado: descarga dañada o fichero cambiado por el camino. Se borra lo descargado y no se toca nada.",
+      "que_hacer": "Volver a intentarlo; si se repite, no instalar y revisar la release en GitHub."
+    },
+    {
+      "modulo": "actualizar",
+      "accion": "desplegar",
+      "causa": "permisos-fichero",
+      "severidad": "aviso",
+      "actuar": true,
+      "titulo": "La app no puede reemplazarse en su carpeta",
+      "explicacion": "No se puede escribir junto al exe (p. ej. está en Program Files sin ser administrador) o Windows no dejó renombrarlo. Si el segundo paso falla, se vuelve a dejar el exe de antes.",
+      "que_hacer": "Mover el exe a una carpeta propia (Escritorio, Documentos) o bajar la versión nueva a mano desde Releases."
     }
   ]
 }

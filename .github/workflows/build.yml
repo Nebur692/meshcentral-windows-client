@@ -55,9 +55,11 @@ jobs:
           dotnet-version: '10.0.x'
       - name: Publish the app
         run: dotnet publish src/MeshCentralClient.App -c Release -r win-x64 --self-contained -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:DebugType=none -o out
+      - name: Publish the same app as version 99 (for the self-update test)
+        run: dotnet publish src/MeshCentralClient.App -c Release -r win-x64 --self-contained -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:DebugType=none -p:Version=99.0.0 -o out99
       - name: UI test
         shell: pwsh
-        run: tests/ui/run-ui-test.ps1 -Exe "$PWD\out\MeshCentralClient.exe" -Work "$env:RUNNER_TEMP\meshui"
+        run: tests/ui/run-ui-test.ps1 -Exe "$PWD\out\MeshCentralClient.exe" -Exe99 "$PWD\out99\MeshCentralClient.exe" -Work "$env:RUNNER_TEMP\meshui"
       - name: Server log on failure
         if: failure()
         shell: pwsh
@@ -68,3 +70,29 @@ jobs:
           name: ui-screenshots
           path: ${{ runner.temp }}/meshui/shots
           if-no-files-found: warn
+
+  release:
+    name: Publish the release (tags v*, only if everything passed)
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [integration, windows, ui]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v5
+      - name: The tag must match the version and have its notes
+        run: |
+          tag="${GITHUB_REF_NAME}"
+          version=$(grep -oP '(?<=<Version>)[^<]+' Directory.Build.props)
+          [ "$tag" = "v$version" ] || { echo "tag $tag != v$version (Directory.Build.props)"; exit 1; }
+          [ -s "docs/releases/$tag.md" ] || { echo "missing docs/releases/$tag.md"; exit 1; }
+      - uses: actions/download-artifact@v5
+        with:
+          name: MeshCentralClient-win-x64
+          path: dist
+      - name: Fingerprint
+        run: cd dist && sha256sum MeshCentralClient.exe > MeshCentralClient.exe.sha256 && cat MeshCentralClient.exe.sha256
+      - name: Create the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "${GITHUB_REF_NAME}" dist/MeshCentralClient.exe dist/MeshCentralClient.exe.sha256 --title "${GITHUB_REF_NAME}" --notes-file "docs/releases/${GITHUB_REF_NAME}.md"

@@ -6,6 +6,9 @@
 # interactivo y permisos de administrador (añade «mesh.test» al fichero hosts).
 param(
   [Parameter(Mandatory)] [string] $Exe,
+  # The same app built as version 99.0.0, served by a local release feed to test the self-update.
+  # La misma app compilada como versión 99.0.0, servida por una fuente de versiones local para probar la autoactualización.
+  [Parameter(Mandatory)] [string] $Exe99,
   [Parameter(Mandatory)] [string] $Work,
   [string] $MeshCentralVersion = 'latest'
 )
@@ -59,8 +62,29 @@ Invoke-WebRequest -Uri 'https://mesh.test:4443/meshagents?id=4' -SkipCertificate
 Invoke-WebRequest -Uri "https://mesh.test:4443/meshsettings?id=$mid" -SkipCertificateCheck -OutFile (Join-Path $agent 'meshagent.msh')
 $agentProc = Start-Process (Join-Path $agent 'meshagent.exe') -ArgumentList 'connect' -WorkingDirectory $agent -PassThru -WindowStyle Hidden
 
+Write-Host '== local release feed (version 99)'
+$feed = Join-Path $Work 'feed'
+New-Item -ItemType Directory -Force $feed | Out-Null
+Copy-Item $Exe99 (Join-Path $feed 'MeshCentralClient.exe')
+$sha99 = (Get-FileHash -Algorithm SHA256 (Join-Path $feed 'MeshCentralClient.exe')).Hash.ToLowerInvariant()
+"$sha99  MeshCentralClient.exe" | Set-Content -NoNewline -Encoding ascii (Join-Path $feed 'MeshCentralClient.exe.sha256')
+('0' * 64) + '  MeshCentralClient.exe' | Set-Content -NoNewline -Encoding ascii (Join-Path $feed 'bad.sha256')
+$port = 8099
+function Release($shaFile) {
+  @{ tag_name = 'v99.0.0'; draft = $false; prerelease = $false; html_url = "http://127.0.0.1:$port/";
+     assets = @(@{ name = 'MeshCentralClient.exe'; browser_download_url = "http://127.0.0.1:$port/MeshCentralClient.exe" },
+                @{ name = 'MeshCentralClient.exe.sha256'; browser_download_url = "http://127.0.0.1:$port/$shaFile" }) } | ConvertTo-Json -Depth 4
+}
+Release 'MeshCentralClient.exe.sha256' | Set-Content -Encoding utf8 (Join-Path $feed 'latest.json')
+Release 'bad.sha256' | Set-Content -Encoding utf8 (Join-Path $feed 'latest-bad.json')
+$feedProc = Start-Process python -ArgumentList '-m', 'http.server', $port, '--bind', '127.0.0.1', '--directory', $feed -PassThru -WindowStyle Hidden
+Start-Sleep 2
+
 try {
   Write-Host '== UI test'
+  $env:MESHUI_UPDATE_FEED = "http://127.0.0.1:$port/latest.json"
+  $env:MESHUI_UPDATE_FEED_BAD = "http://127.0.0.1:$port/latest-bad.json"
+  $env:MESHUI_EXE99_SHA = $sha99
   $env:MESHUI_EXE = $Exe
   $env:MESHUI_SERVER = 'mesh.test:4443'
   $env:MESHUI_OTP_SECRET = $otp
@@ -69,5 +93,5 @@ try {
   if ($LASTEXITCODE -ne 0) { throw "UI test failed ($LASTEXITCODE)" }
 }
 finally {
-  foreach ($p in @($agentProc, $server)) { if ($p -and -not $p.HasExited) { Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue } }
+  foreach ($p in @($agentProc, $server, $feedProc)) { if ($p -and -not $p.HasExited) { Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue } }
 }

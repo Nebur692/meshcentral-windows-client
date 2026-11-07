@@ -5,6 +5,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
 using MeshCentralClient.Core;
+using MeshCentralClient.Core.Updates;
 
 namespace MeshCentralClient.App;
 
@@ -19,6 +20,8 @@ public partial class MainWindow : Window
     private UserError? _shownError;
     private bool _emailCodeAvailable;
     private readonly List<Window> _sessionWindows = new();
+    private static readonly Version AppVersion = typeof(MainWindow).Assembly.GetName().Version ?? new Version(0, 0, 0);
+    private AvailableUpdate? _update;
 
     public MainWindow()
     {
@@ -44,6 +47,8 @@ public partial class MainWindow : Window
             if (_saved.Items.Count > 0) ServerBox.SelectedIndex = 0;
             if (problem is not null) ShowError(problem);
             (string.IsNullOrEmpty(ServerBox.Text) ? (Control)ServerBox : PasswordBox).Focus();
+            VersionText.Text = L.F("Version", AppVersion.ToString(3));
+            _ = CheckForUpdateAsync();
         };
         Closing += async (_, _) => { if (_session is not null) await _session.DisposeAsync(); };
     }
@@ -189,6 +194,52 @@ public partial class MainWindow : Window
     {
         if (_shownError is null) return;
         try { Clipboard.SetText(_shownError.CopyText); } catch (Exception) { }
+    }
+
+    // ---------------- Updates / Actualizaciones ----------------
+
+    private static readonly System.Net.Http.HttpClient UpdateHttp = new() { Timeout = TimeSpan.FromMinutes(5) };
+
+    private async Task CheckForUpdateAsync()
+    {
+        var exe = Environment.ProcessPath;
+        if (exe is null) return;
+        _ = SelfUpdater.CleanUpAsync(exe); // what a previous update left / lo que dejó una actualización anterior
+        var feed = UpdateChecker.FeedFromEnvironment(Environment.GetEnvironmentVariable("MESHCLIENT_UPDATE_FEED"));
+        if (feed is null) return;
+        try
+        {
+            _update = await new UpdateChecker(UpdateHttp, feed).CheckAsync(AppVersion);
+        }
+        catch (MeshClientException) { return; } // checking is not worth an error: next start / buscar no merece un error: al siguiente arranque
+        if (_update is null) return;
+        UpdateText.Text = L.F("UpdateAvailable", _update.Version.ToString(3));
+        UpdateBanner.Visibility = Visibility.Visible;
+    }
+
+    private void UpdateLater_Click(object sender, RoutedEventArgs e) => UpdateBanner.Visibility = Visibility.Collapsed;
+
+    private async void UpdateNow_Click(object sender, RoutedEventArgs e)
+    {
+        if (_update is not { } u || Environment.ProcessPath is not { } exe) return;
+        UpdateNowButton.IsEnabled = UpdateLaterButton.IsEnabled = false;
+        UpdateText.Text = L.F("UpdateDownloading", u.Version.ToString(3));
+        UpdateProgress.Visibility = Visibility.Visible;
+        try
+        {
+            var downloaded = await SelfUpdater.DownloadAsync(UpdateHttp, u, exe, new Progress<double>(p => UpdateProgress.Value = p));
+            await CloseSessionAsync();
+            SelfUpdater.Swap(exe, downloaded);
+            Process.Start(new ProcessStartInfo(exe) { UseShellExecute = false, WorkingDirectory = System.IO.Path.GetDirectoryName(exe)! });
+            Application.Current.Shutdown();
+        }
+        catch (MeshClientException ex)
+        {
+            UpdateText.Text = L.F("UpdateAvailable", u.Version.ToString(3));
+            UpdateProgress.Visibility = Visibility.Collapsed;
+            UpdateNowButton.IsEnabled = UpdateLaterButton.IsEnabled = true;
+            ErrorWindow.Show(this, UserError.Update(ex, u.PageUrl));
+        }
     }
 
     // ---------------- Devices / Equipos ----------------

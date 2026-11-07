@@ -9,6 +9,17 @@
       <RowDefinition Height="Auto" />
       <RowDefinition Height="*" />
     </Grid.RowDefinitions>
+    <!-- New version, in both views / Versión nueva, en las dos vistas -->
+    <Border x:Name="UpdateBanner" Visibility="Collapsed" HorizontalAlignment="Left" Margin="16,8,240,0" Padding="10,6" CornerRadius="6"
+            BorderThickness="1" BorderBrush="{DynamicResource {x:Static SystemColors.HighlightBrushKey}}">
+      <StackPanel Orientation="Horizontal">
+        <TextBlock x:Name="UpdateText" VerticalAlignment="Center" TextWrapping="Wrap" MaxWidth="420" />
+        <ProgressBar x:Name="UpdateProgress" Width="120" Height="4" Margin="12,0,0,0" Visibility="Collapsed" Maximum="1" />
+        <Button x:Name="UpdateNowButton" Content="{app:T UpdateNow}" Margin="12,0,0,0" Click="UpdateNow_Click" Style="{DynamicResource AccentButtonStyle}" />
+        <Button x:Name="UpdateLaterButton" Content="{app:T UpdateLater}" Margin="8,0,0,0" Click="UpdateLater_Click" />
+      </StackPanel>
+    </Border>
+
     <!-- Theme, in both views / Tema, en las dos vistas -->
     <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="16,8,16,0">
       <TextBlock Text="{app:T Theme}" VerticalAlignment="Center" Margin="0,0,8,0" Opacity="0.7" />
@@ -53,6 +64,8 @@
             <Button x:Name="ForgetButton" Content="{app:T Forget}" Margin="8,0,0,0" Visibility="Collapsed" Click="ForgetButton_Click" />
           </StackPanel>
           <ProgressBar x:Name="Busy" IsIndeterminate="True" Height="3" Margin="0,12,0,0" Visibility="Collapsed" />
+
+          <TextBlock x:Name="VersionText" Opacity="0.5" FontSize="12" Margin="0,16,0,0" />
 
           <!-- Error / Error -->
           <Border x:Name="ErrorPanel" Visibility="Collapsed" Margin="0,16,0,0" Padding="12" CornerRadius="6"

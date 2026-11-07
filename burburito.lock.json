@@ -1,5 +1,5 @@
 {
-  "generado": "2026-11-07T13:46:39Z",
+  "generado": "2026-11-07T14:07:49Z",
   "aviso": "Generado por bin/burburito. No editar a mano: la fuente de verdad es el burburito.json de al lado.",
   "proyecto": {
     "id": 35,
@@ -7,6 +7,42 @@
     "nombre": "MeshCentral Windows Client, la app de Windows del técnico para cualquier MeshCentral"
   },
   "codigos": {
+    "actualizar/desplegar/sin-conexion": {
+      "codigo": "035-006-141-001",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "No se pudo consultar o bajar la versión nueva"
+    },
+    "actualizar/desplegar/error-remoto": {
+      "codigo": "035-006-141-020",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "GitHub contestó con un error al buscar versiones"
+    },
+    "actualizar/desplegar/respuesta-ilegible": {
+      "codigo": "035-006-141-022",
+      "severidad": "error",
+      "actuar": true,
+      "titulo": "La versión publicada está incompleta o mal formada"
+    },
+    "actualizar/desplegar/limite-de-tasa": {
+      "codigo": "035-006-141-023",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "GitHub limita las consultas de versión"
+    },
+    "actualizar/desplegar/dato-corrupto": {
+      "codigo": "035-006-141-065",
+      "severidad": "error",
+      "actuar": true,
+      "titulo": "La versión descargada no coincide con su huella"
+    },
+    "actualizar/desplegar/permisos-fichero": {
+      "codigo": "035-006-141-081",
+      "severidad": "aviso",
+      "actuar": true,
+      "titulo": "La app no puede reemplazarse en su carpeta"
+    },
     "ajustes/cambiar-ajustes/dato-corrupto": {
       "codigo": "035-003-007-065",
       "severidad": "aviso",

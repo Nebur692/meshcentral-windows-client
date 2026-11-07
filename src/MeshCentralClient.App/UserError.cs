@@ -65,6 +65,23 @@ public sealed record UserError(string Message, bool MustAct, string Footer, stri
                       : "The list of servers could not be saved. Check there is free disk space.",
             true, Burburito.Footer("ajustes/cambiar-ajustes/permisos-fichero", L.Spanish), ex.ToString());
 
+    public static UserError Update(MeshClientException e, Uri? page)
+    {
+        var where = page?.ToString() ?? "https://github.com/Nebur692/meshcentral-windows-client/releases";
+        var (en, es, act) = e.BurburitoKey switch
+        {
+            "actualizar/desplegar/permisos-fichero" => ($"The app cannot replace itself in its folder (for example, Program Files). Move it to a folder of yours, or download the new version from {where}",
+                $"La app no puede reemplazarse en su carpeta (por ejemplo, Archivos de programa). Muévela a una carpeta tuya o baja la versión nueva de {where}", true),
+            "actualizar/desplegar/dato-corrupto" => ("The downloaded version does not match its published fingerprint, so it was NOT installed and nothing changed. Try again later.",
+                "La versión descargada no coincide con su huella publicada, así que NO se ha instalado y no ha cambiado nada. Prueba más tarde.", false),
+            "actualizar/desplegar/respuesta-ilegible" => ($"The published version is incomplete, so it was not installed. You can download it by hand from {where}",
+                $"La versión publicada está incompleta, así que no se ha instalado. Puedes bajarla a mano de {where}", false),
+            _ => ("The new version could not be downloaded. You can keep using this one and try again later.",
+                "No se ha podido bajar la versión nueva. Puedes seguir usando esta y probar más tarde.", false),
+        };
+        return new UserError(L.Spanish ? es : en, act, Burburito.Footer(e.BurburitoKey, L.Spanish), $"{e.Failure}: {e.Message}\n{e.InnerException?.Message}");
+    }
+
     public static UserError MissingWebView(Exception ex) => new(
         L.Spanish ? "Falta Microsoft Edge WebView2 Runtime, que esta función necesita. Instálalo desde https://go.microsoft.com/fwlink/p/?LinkId=2124703 y vuelve a abrirla."
                   : "Microsoft Edge WebView2 Runtime, which this feature needs, is missing. Install it from https://go.microsoft.com/fwlink/p/?LinkId=2124703 and open it again.",

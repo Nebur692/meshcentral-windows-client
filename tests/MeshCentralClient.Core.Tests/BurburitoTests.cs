@@ -5,7 +5,7 @@ using Xunit.Abstractions;
 
 public class BurburitoTests(ITestOutputHelper output)
 {
-    private static readonly string[] Modules = { "conexion", "equipos", "ajustes", "app", "tunel" };
+    private static readonly string[] Modules = { "conexion", "equipos", "ajustes", "app", "tunel", "actualizar" };
 
     internal static string RepoRoot()
     {
