@@ -13,6 +13,9 @@
     <PackageReference Include="FlaUI.UIA3" Version="5.0.0" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\..\src\MeshCentralClient.Core\MeshCentralClient.Core.csproj" />
+  </ItemGroup>
+  <ItemGroup>
     <Compile Include="..\MeshCentralClient.Core.Tests\Totp.cs" Link="Totp.cs" />
   </ItemGroup>
 </Project>

@@ -158,10 +158,10 @@ public sealed class DesktopTests(ITestOutputHelper output) : IDisposable
         var notice = Anywhere("DesktopNotice");
         Until(() => notice.Name.StartsWith("Typed 13 characters"), "the app did not send the text", () => notice.Name);
         Shot("after-type-clipboard");
-        var edit = WaitFor(() => notepad.FindFirstDescendant(cf => cf.ByControlType(ControlType.Edit).Or(cf.ByControlType(ControlType.Document))), "Notepad's text");
-        string Text() { try { return edit.Patterns.Value.IsSupported ? edit.Patterns.Value.Pattern.Value.Value : edit.Patterns.Text.Pattern.DocumentRange.GetText(-1); } catch (Exception) { return ""; } }
-        Until(() => Text().Contains(typed), "the typed text did not reach Notepad", () => $"notepad=\"{Text()}\" foreground=\"{ForegroundTitle()}\"");
-        Shot("typed");
+        // Where the keys land is checked in KeysTests, without any local window: here, pressing the button through UI
+        // Automation activates the viewer (measured: foreground "Remote desktop — …"), so the keys go to it.
+        // Dónde caen las teclas se comprueba en KeysTests, sin ninguna ventana local: aquí, pulsar el botón por UI
+        // Automation activa el visor (medido: al frente «Remote desktop — …»), así que las teclas van a él.
     }
 
     private static bool IsInside(AutomationElement? e, AutomationElement window)

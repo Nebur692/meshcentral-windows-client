@@ -116,6 +116,8 @@ try {
   $env:MESHUI_EXE99_SHA = $sha99
   $env:MESHUI_EXE = $Exe
   $env:MESHUI_SERVER = 'mesh.test:4443'
+  # The server's own certificate, for tests that use the core directly. / El certificado del servidor, para las pruebas que usan el núcleo directamente.
+  $env:MESHUI_CERT_SHA256 = (New-Object System.Security.Cryptography.X509Certificates.X509Certificate2 (Join-Path $data 'webserver-cert-public.crt')).GetCertHashString('SHA256')
   $env:MESHUI_OTP_SECRET = $otp
   $env:MESHUI_SHOTS = Join-Path $Work 'shots'
   dotnet test (Join-Path $root 'tests\MeshCentralClient.UiTests') -c Release --logger 'console;verbosity=normal'
