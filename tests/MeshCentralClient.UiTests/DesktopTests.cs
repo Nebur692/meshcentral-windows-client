@@ -114,7 +114,14 @@ public sealed class DesktopTests(ITestOutputHelper output) : IDisposable
         // agent's injected click can bring Notepad to the front.
         // Ratón: clic EN EL VISOR donde está el Bloc de notas en la pantalla remota. En local ese clic cae en el visor;
         // solo el clic inyectado por el agente puede traer al frente el Bloc de notas.
+        // The app's main window covered Notepad (seen in a screenshot): the remote click landed on it. Minimised now,
+        // so the only thing over that spot is Notepad. / La ventana principal tapaba el Bloc de notas (se vio en una
+        // captura): el clic remoto caía en ella. Ahora se minimiza y en ese punto solo queda el Bloc de notas.
+        win.Patterns.Window.Pattern.SetWindowVisualState(WindowVisualState.Minimized);
+        Thread.Sleep(800);
         var target = notepad.BoundingRectangle;
+        var remoteTop = _automation.FromPoint(new System.Drawing.Point(target.X + target.Width / 2, target.Y + target.Height / 2));
+        Assert.True(IsInside(remoteTop, notepad), "something still covers Notepad: " + SafeName(remoteTop));
         // The image (a Border has no UI Automation element) is exactly where the remote screen is drawn.
         // La imagen (un Border no tiene elemento de UI Automation) es justo donde se pinta la pantalla remota.
         var surface = Anywhere("DesktopImage").BoundingRectangle;
@@ -137,6 +144,12 @@ public sealed class DesktopTests(ITestOutputHelper output) : IDisposable
             "the Start menu did not open", () => string.Join(" | ", _automation.GetDesktop().FindAllChildren().Select(e => SafeClass(e) + ":" + SafeName(e))));
         Shot("start-menu");
         Keyboard.Type(VirtualKeyShort.ESCAPE);
+    }
+
+    private static bool IsInside(AutomationElement? e, AutomationElement window)
+    {
+        for (var x = e; x is not null; x = x.Parent) if (x.Equals(window)) return true;
+        return false;
     }
 
     private static string SafeName(AutomationElement e) { try { return e.Name ?? ""; } catch (Exception) { return ""; } }
