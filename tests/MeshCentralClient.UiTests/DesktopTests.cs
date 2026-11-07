@@ -34,7 +34,7 @@ public sealed class DesktopTests(ITestOutputHelper output) : IDisposable
 
     public void Dispose()
     {
-        try { Keyboard.Type(VirtualKeyShort.ESCAPE); } catch (Exception) { }
+        try { _automation.GetDesktop().FindFirstDescendant(cf => cf.ByAutomationId("DesktopWindow"))?.AsWindow().Close(); Thread.Sleep(1000); } catch (Exception) { }
         try { _app?.Close(); } catch (Exception) { }
         try { _app?.Kill(); } catch (Exception) { }
         _app?.Dispose();
@@ -153,13 +153,14 @@ public sealed class DesktopTests(ITestOutputHelper output) : IDisposable
         Assert.Equal(typed, back);
         Assert.Equal(notepad.Properties.NativeWindowHandle.Value, GetForegroundWindow());
         Anywhere("TypeClipboardButton").AsButton().Invoke();
+        output.WriteLine("foreground right after the button: " + ForegroundTitle());
         // The app says it sent them: if they do not arrive, the cause is past the app. / La app dice que los mandó: si no llegan, la causa está más allá de la app.
         var notice = Anywhere("DesktopNotice");
         Until(() => notice.Name.StartsWith("Typed 13 characters"), "the app did not send the text", () => notice.Name);
         Shot("after-type-clipboard");
         var edit = WaitFor(() => notepad.FindFirstDescendant(cf => cf.ByControlType(ControlType.Edit).Or(cf.ByControlType(ControlType.Document))), "Notepad's text");
         string Text() { try { return edit.Patterns.Value.IsSupported ? edit.Patterns.Value.Pattern.Value.Value : edit.Patterns.Text.Pattern.DocumentRange.GetText(-1); } catch (Exception) { return ""; } }
-        Until(() => Text().Contains(typed), "the typed text did not reach Notepad", Text);
+        Until(() => Text().Contains(typed), "the typed text did not reach Notepad", () => $"notepad=\"{Text()}\" foreground=\"{ForegroundTitle()}\"");
         Shot("typed");
     }
 
@@ -174,4 +175,14 @@ public sealed class DesktopTests(ITestOutputHelper output) : IDisposable
 
     [System.Runtime.InteropServices.DllImport("user32.dll")]
     private static extern IntPtr GetForegroundWindow();
+
+    [System.Runtime.InteropServices.DllImport("user32.dll", CharSet = System.Runtime.InteropServices.CharSet.Unicode)]
+    private static extern int GetWindowText(IntPtr hwnd, System.Text.StringBuilder text, int max);
+
+    private static string ForegroundTitle()
+    {
+        var sb = new System.Text.StringBuilder(256);
+        GetWindowText(GetForegroundWindow(), sb, sb.Capacity);
+        return sb.ToString();
+    }
 }
