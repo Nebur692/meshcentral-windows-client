@@ -154,7 +154,7 @@ public sealed class ActionsTests : IDisposable
 
         // 3. Wake: sent by the agent of this same network. / Encender: lo manda el agente de esta misma red.
         Menu(win, "WakeItem");
-        Until(() => Id(win, "ActionStatus").Name.Contains("wake packets"), "wake status", () => Id(win, "ActionStatus").Name);
+        Until(() => Id(win, "ActionStatus").Name == "Wake up sent by 1 device(s) of their network.", "wake status", () => Id(win, "ActionStatus").Name);
 
         // 4. Restart asks first; "No" sends nothing and the device stays online. / Reiniciar pregunta antes; «No» no manda nada y el equipo sigue conectado.
         var before = Id(win, "ActionStatus").Name;

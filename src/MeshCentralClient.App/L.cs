@@ -41,6 +41,7 @@ public static class L
         ["ConfirmPower"] = ("{0} {1} device(s)?\n\n{2}", "¿{0} {1} equipo(s)?\n\n{2}"),
         ["PowerSent"] = ("{0}: sent to {1} device(s).", "{0}: enviado a {1} equipo(s)."),
         ["WakeSent"] = ("Wake up sent: {0}", "Encendido enviado: {0}"),
+        ["WakeSentBy"] = ("Wake up sent by {0} device(s) of their network.", "Encendido enviado por {0} equipo(s) de su red."),
         ["SkippedDevices"] = ("Left out, without rights or not connected: {0}", "Fuera, sin permiso o sin conexión: {0}"),
         ["NoneCanDoIt"] = ("None of the selected devices allows it: no rights, or the agent is not connected.", "Ninguno de los equipos elegidos lo permite: sin permiso o con el agente sin conectar."),
         ["MessageTitle"] = ("Title", "Título"),

@@ -571,7 +571,14 @@ public partial class MainWindow : Window
         if (_session is not { } s) return;
         var (can, skipped) = Split(a => a.Wake);
         if (can.Count == 0) { ActionStatus.Text = L.T("NoneCanDoIt"); return; }
-        try { Status(L.F("WakeSent", await s.WakeAsync(can)), skipped); }
+        try
+        {
+            // The server answers in English, "Used N device(s) to send wake packets": only the number is kept.
+            // El servidor contesta en inglés, «Used N device(s) to send wake packets»: solo se queda el número.
+            var said = await s.WakeAsync(can);
+            var n = System.Text.RegularExpressions.Regex.Match(said, @"^Used (\d+) device");
+            Status(n.Success ? L.F("WakeSentBy", n.Groups[1].Value) : L.F("WakeSent", said), skipped);
+        }
         catch (MeshClientException ex) { ErrorWindow.Show(this, UserError.From(ex, s.ServerInfo.Version)); }
     }
 
