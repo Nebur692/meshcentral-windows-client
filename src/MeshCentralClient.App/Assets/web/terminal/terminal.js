@@ -11,6 +11,8 @@
   document.documentElement.classList.toggle('dark', dark);
   const term = new Terminal({
     cursorBlink: true, scrollback: 10000, allowProposedApi: false,
+    // Exposes the text to screen readers (and to UI Automation). / Expone el texto a los lectores de pantalla (y a UI Automation).
+    screenReaderMode: true,
     fontFamily: 'Cascadia Mono, Consolas, monospace', fontSize: 14,
     theme: dark ? themes.dark : themes.light,
   });

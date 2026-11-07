@@ -32,6 +32,7 @@ public sealed class TerminalWindow : Window
         Height = 600;
         MinWidth = 400;
         MinHeight = 240;
+        WindowStartupLocation = WindowStartupLocation.CenterScreen;
         System.Windows.Automation.AutomationProperties.SetAutomationId(this, "TerminalWindow");
         System.Windows.Automation.AutomationProperties.SetAutomationId(_view, "TerminalView");
         System.Windows.Automation.AutomationProperties.SetAutomationId(_status, "TerminalStatus");

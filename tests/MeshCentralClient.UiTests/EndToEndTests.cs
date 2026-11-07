@@ -149,7 +149,8 @@ public sealed class EndToEndTests(ITestOutputHelper output) : IDisposable
         Find("TerminalView", term).Click();
         Keyboard.Type("set /a 6*7");
         Keyboard.Type(VirtualKeyShort.ENTER);
-        var answer = Retry.WhileNull(() => term.FindFirstDescendant(cf => cf.ByName("42")) ?? term.FindAllDescendants().FirstOrDefault(e => SafeName(e).Trim() == "42"),
+        // xterm screenReaderMode exposes each row as text. / El screenReaderMode de xterm expone cada fila como texto.
+        var answer = Retry.WhileNull(() => term.FindAllDescendants().FirstOrDefault(e => SafeName(e).Replace("\u00a0", " ").Trim() == "42"),
             TimeSpan.FromSeconds(30), TimeSpan.FromMilliseconds(500)).Result;
         Shot("terminal-output");
         Assert.NotNull(answer);
