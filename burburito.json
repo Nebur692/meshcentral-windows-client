@@ -54,6 +54,12 @@
       "slug": "ficha",
       "nombre": "La ficha de un equipo",
       "descripcion": "MeshServerSession.Device.cs y DeviceWindow: getsysinfo (inventario), lastconnect, getnetworkinfo, getNotes/setNotes, events y changedevice (nombre, descripción, etiquetas) por el canal de control."
+    },
+    {
+      "id": 9,
+      "slug": "acciones",
+      "nombre": "Las acciones sobre equipos",
+      "descripcion": "MeshServerSession.Actions.cs y sus ventanas: wakedevices (encender por red), poweraction (apagar, reiniciar, suspender), toast y msg messagebox (avisos a quien usa el equipo) y runcommands con reply (órdenes con su salida). Los permisos se calculan como la web (GetNodeRights: enlaces del grupo, del equipo y de los grupos de usuarios, menos removeRights) porque poweraction y toast contestan «ok» aunque no se tenga permiso."
     }
   ],
   "acciones": [
@@ -62,6 +68,12 @@
       "slug": "gestionar-ficheros",
       "nombre": "Crear carpetas, renombrar o borrar en un equipo",
       "descripcion": "La persona cambia ficheros de un equipo remoto desde la app (mkdir, rename, rm por el túnel de ficheros). No está en el vocabulario global: el global solo tiene subir y descargar."
+    },
+    {
+      "id": 501,
+      "slug": "ejecutar-ordenes",
+      "nombre": "Ejecutar órdenes en equipos",
+      "descripcion": "La persona manda órdenes de cmd, PowerShell o shell a uno o varios equipos y espera su salida (runcommands con reply). No está en el vocabulario global."
     }
   ],
   "codigos": [
@@ -634,6 +646,156 @@
       "titulo": "Las notas no se guardaron",
       "explicacion": "setNotes no contesta; la app relee las notas y no son las que se guardaron: sin permiso de notas en ese equipo.",
       "que_hacer": "Pedir el permiso de editar notas en ese grupo."
+    },
+    {
+      "modulo": "acciones",
+      "accion": "accionar-dispositivo",
+      "causa": "no-autorizado",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "Sin permiso para encender, apagar o reiniciar ese equipo",
+      "explicacion": "La cuenta no tiene en ese grupo el permiso de despertar equipos (encender) o el de reiniciar y apagar; la app no lo manda porque el servidor contestaría «ok» igualmente.",
+      "que_hacer": "Pedir ese permiso a un administrador del grupo de equipos."
+    },
+    {
+      "modulo": "acciones",
+      "accion": "accionar-dispositivo",
+      "causa": "sin-conexion",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "El equipo no está conectado",
+      "explicacion": "Apagar, reiniciar y suspender los hace el agente, y ese equipo no tiene el agente conectado ahora.",
+      "que_hacer": "Esperar a que se conecte; para encenderlo, usar Encender."
+    },
+    {
+      "modulo": "acciones",
+      "accion": "accionar-dispositivo",
+      "causa": "rechazo-remoto",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "El servidor no pudo mandar la orden",
+      "explicacion": "El servidor contestó con un error al encender por red (equipo desconocido o sin otro equipo de su red conectado que mande el paquete).",
+      "que_hacer": "Comprobar que hay otro equipo conectado en la misma red que pueda despertarlo."
+    },
+    {
+      "modulo": "acciones",
+      "accion": "accionar-dispositivo",
+      "causa": "tiempo-agotado",
+      "severidad": "error",
+      "actuar": true,
+      "titulo": "El servidor no contestó a la orden",
+      "explicacion": "wakedevices o poweraction no tuvo respuesta a tiempo.",
+      "que_hacer": "Volver a intentarlo; si se repite, mirar el estado del servidor."
+    },
+    {
+      "modulo": "acciones",
+      "accion": "accionar-dispositivo",
+      "causa": "conexion-cortada",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "Se cortó la conexión al mandar la orden",
+      "explicacion": "El canal de control se cerró al mandar la orden; puede que llegara o no.",
+      "que_hacer": "Volver a conectar y mirar el estado del equipo."
+    },
+    {
+      "modulo": "acciones",
+      "accion": "enviar-mensaje",
+      "causa": "no-autorizado",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "Sin permiso para mandar avisos a ese equipo",
+      "explicacion": "La notificación pide el permiso de chat y avisos, y la ventana de mensaje el de control remoto; la app no lo manda porque el servidor contestaría «ok» primero.",
+      "que_hacer": "Pedir ese permiso a un administrador del grupo de equipos."
+    },
+    {
+      "modulo": "acciones",
+      "accion": "enviar-mensaje",
+      "causa": "sin-conexion",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "El equipo no está conectado",
+      "explicacion": "El aviso lo enseña el agente, y ese equipo no tiene el agente conectado.",
+      "que_hacer": "Esperar a que el equipo esté conectado."
+    },
+    {
+      "modulo": "acciones",
+      "accion": "enviar-mensaje",
+      "causa": "rechazo-remoto",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "El servidor no pudo entregar el aviso",
+      "explicacion": "El servidor contestó «Unable to route» o «Access Denied»: el agente se desconectó o faltan permisos.",
+      "que_hacer": "Comprobar que el equipo sigue conectado y los permisos."
+    },
+    {
+      "modulo": "acciones",
+      "accion": "enviar-mensaje",
+      "causa": "tiempo-agotado",
+      "severidad": "error",
+      "actuar": true,
+      "titulo": "El servidor no contestó al aviso",
+      "explicacion": "toast o msg messagebox no tuvo respuesta a tiempo.",
+      "que_hacer": "Volver a intentarlo; si se repite, mirar el estado del servidor."
+    },
+    {
+      "modulo": "acciones",
+      "accion": "enviar-mensaje",
+      "causa": "conexion-cortada",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "Se cortó la conexión al mandar el aviso",
+      "explicacion": "El canal de control se cerró al mandarlo; puede que llegara o no.",
+      "que_hacer": "Volver a conectar."
+    },
+    {
+      "modulo": "acciones",
+      "accion": "ejecutar-ordenes",
+      "causa": "no-autorizado",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "Sin permiso para ejecutar órdenes en ese equipo",
+      "explicacion": "Falta el permiso de órdenes remotas en ese grupo (el servidor contesta «Access denied»).",
+      "que_hacer": "Pedir ese permiso a un administrador del grupo de equipos."
+    },
+    {
+      "modulo": "acciones",
+      "accion": "ejecutar-ordenes",
+      "causa": "sin-conexion",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "El equipo no está conectado",
+      "explicacion": "Las órdenes las ejecuta el agente, y ese equipo no tiene el agente conectado (o el servidor contesta «Agent not connected»).",
+      "que_hacer": "Esperar a que se conecte."
+    },
+    {
+      "modulo": "acciones",
+      "accion": "ejecutar-ordenes",
+      "causa": "rechazo-remoto",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "El servidor no aceptó las órdenes",
+      "explicacion": "El servidor contestó con un error: tipo de órdenes que no corresponde al sistema del equipo o equipo desconocido.",
+      "que_hacer": "Elegir cmd o PowerShell para Windows y shell para los demás."
+    },
+    {
+      "modulo": "acciones",
+      "accion": "ejecutar-ordenes",
+      "causa": "tiempo-agotado",
+      "severidad": "aviso",
+      "actuar": true,
+      "titulo": "Las órdenes no terminaron a tiempo",
+      "explicacion": "No llegó la salida: las órdenes siguen corriendo o piden algo por teclado, o el agente ya estaba ejecutando otras (entonces las ignora sin contestar).",
+      "que_hacer": "Usar órdenes que terminen solas y no pidan nada; volver a probar pasado un rato."
+    },
+    {
+      "modulo": "acciones",
+      "accion": "ejecutar-ordenes",
+      "causa": "conexion-cortada",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "Se cortó la conexión mientras corrían las órdenes",
+      "explicacion": "El canal de control se cerró antes de que llegara la salida; puede que las órdenes se ejecutaran.",
+      "que_hacer": "Volver a conectar y mirar el historial del equipo."
     }
   ]
 }

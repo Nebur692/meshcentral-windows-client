@@ -127,10 +127,13 @@
         </DockPanel>
       </Border>
 
-      <TextBlock x:Name="CountText" DockPanel.Dock="Bottom" Margin="16,6,16,10" Opacity="0.65" />
+      <DockPanel DockPanel.Dock="Bottom" Margin="16,6,16,10">
+        <TextBlock x:Name="CountText" DockPanel.Dock="Left" Opacity="0.65" />
+        <TextBlock x:Name="ActionStatus" Margin="24,0,0,0" TextTrimming="CharacterEllipsis" Opacity="0.85" />
+      </DockPanel>
 
       <Grid>
-        <ListView x:Name="DeviceList" Margin="16,0,16,0" MouseDoubleClick="DeviceList_MouseDoubleClick">
+        <ListView x:Name="DeviceList" Margin="16,0,16,0" SelectionMode="Extended" MouseDoubleClick="DeviceList_MouseDoubleClick">
           <ListView.ContextMenu>
             <ContextMenu Opened="DeviceMenu_Opened">
               <MenuItem x:Name="DetailsItem" Header="{app:T OpenDetails}" Click="OpenDetails_Click" />
@@ -139,6 +142,15 @@
               <MenuItem x:Name="TerminalItem" Header="{app:T OpenTerminal}" Click="OpenTerminal_Click" />
               <MenuItem x:Name="PowerShellItem" Header="{app:T OpenPowerShell}" Click="OpenPowerShell_Click" />
               <MenuItem x:Name="FilesItem" Header="{app:T OpenFiles}" Click="OpenFiles_Click" />
+              <Separator />
+              <MenuItem x:Name="WakeItem" Header="{app:T WakeItem}" Click="Wake_Click" />
+              <MenuItem x:Name="PowerMenu" Header="{app:T PowerMenu}">
+                <MenuItem x:Name="RestartItem" Header="{app:T RestartItem}" Click="Restart_Click" />
+                <MenuItem x:Name="PowerOffItem" Header="{app:T PowerOffItem}" Click="PowerOff_Click" />
+                <MenuItem x:Name="SleepItem" Header="{app:T SleepItem}" Click="Sleep_Click" />
+              </MenuItem>
+              <MenuItem x:Name="SendMessageItem" Header="{app:T SendMessageItem}" Click="SendMessage_Click" />
+              <MenuItem x:Name="RunCommandsItem" Header="{app:T RunCommandsItem}" Click="RunCommands_Click" />
               <Separator />
               <MenuItem Header="{app:T OpenInBrowser}" Click="OpenInBrowser_Click" />
               <MenuItem Header="{app:T CopyName}" Click="CopyName_Click" />

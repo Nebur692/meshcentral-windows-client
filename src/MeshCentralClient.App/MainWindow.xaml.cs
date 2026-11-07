@@ -492,6 +492,12 @@ public partial class MainWindow : Window
         PowerShellItem.IsEnabled = row is { CanOpenTerminal: true };
         FilesItem.IsEnabled = row is { CanOpenFiles: true };
         DesktopItem.IsEnabled = row is { CanOpenDesktop: true };
+        // Device actions apply to every selected device that allows them. / Las acciones valen para cada equipo elegido que las permita.
+        var abilities = SelectedDevices().Select(d => _session?.AbilitiesOn(d)).OfType<DeviceAbilities>().ToList();
+        WakeItem.IsEnabled = abilities.Any(a => a.Wake);
+        PowerMenu.IsEnabled = abilities.Any(a => a.Power);
+        SendMessageItem.IsEnabled = abilities.Any(a => a.Notify || a.MessageBox);
+        RunCommandsItem.IsEnabled = abilities.Any(a => a.RunCommands);
     }
 
     private void OpenTerminal_Click(object sender, RoutedEventArgs e) => OpenTerminal(TunnelProtocol.Terminal);
@@ -543,6 +549,74 @@ public partial class MainWindow : Window
         var url = new Uri(_session.Server.BaseUri, "?viewmode=10&gotonode=" + DeviceLinks.HexNodeId(row.Id));
         try { Process.Start(new ProcessStartInfo(url.ToString()) { UseShellExecute = true }); }
         catch (Exception ex) { ErrorWindow.Show(this, UserError.Unexpected(ex)); }
+    }
+
+    // ------------------------------------------------------------------ device actions / acciones sobre equipos
+
+    private List<Device> SelectedDevices() => DeviceList.SelectedItems.OfType<DeviceRow>().Select(r => r.Device).ToList();
+
+    /// <summary>The selected devices that allow an action, and the names of those left out. / Los elegidos que lo permiten y los que quedan fuera.</summary>
+    private (List<Device> Can, List<string> Skipped) Split(Func<DeviceAbilities, bool> can)
+    {
+        var all = SelectedDevices();
+        var ok = all.Where(d => _session is not null && can(_session.AbilitiesOn(d))).ToList();
+        return (ok, all.Except(ok).Select(d => d.Name).ToList());
+    }
+
+    private void Status(string text, List<string> skipped) =>
+        ActionStatus.Text = skipped.Count == 0 ? text : text + "   " + L.F("SkippedDevices", string.Join(", ", skipped));
+
+    private async void Wake_Click(object sender, RoutedEventArgs e)
+    {
+        if (_session is not { } s) return;
+        var (can, skipped) = Split(a => a.Wake);
+        if (can.Count == 0) { ActionStatus.Text = L.T("NoneCanDoIt"); return; }
+        try { Status(L.F("WakeSent", await s.WakeAsync(can)), skipped); }
+        catch (MeshClientException ex) { ErrorWindow.Show(this, UserError.From(ex, s.ServerInfo.Version)); }
+    }
+
+    private void Restart_Click(object sender, RoutedEventArgs e) => _ = Power(PowerAction.Restart, "RestartItem");
+
+    private void PowerOff_Click(object sender, RoutedEventArgs e) => _ = Power(PowerAction.PowerOff, "PowerOffItem");
+
+    private void Sleep_Click(object sender, RoutedEventArgs e) => _ = Power(PowerAction.Sleep, "SleepItem");
+
+    private async Task Power(PowerAction action, string label)
+    {
+        if (_session is not { } s) return;
+        var (can, skipped) = Split(a => a.Power);
+        if (can.Count == 0) { ActionStatus.Text = L.T("NoneCanDoIt"); return; }
+        // Always asked: it cuts whoever is working on those devices. / Siempre se pregunta: corta a quien trabaje en esos equipos.
+        if (MessageBox.Show(this, L.F("ConfirmPower", L.T(label), can.Count, string.Join(", ", can.Select(d => d.Name))), L.T("PowerMenu"),
+                MessageBoxButton.YesNo, MessageBoxImage.Warning, MessageBoxResult.No) != MessageBoxResult.Yes) return;
+        try { await s.PowerAsync(can, action); Status(L.F("PowerSent", L.T(label), can.Count), skipped); }
+        catch (MeshClientException ex) { ErrorWindow.Show(this, UserError.From(ex, s.ServerInfo.Version)); }
+    }
+
+    private async void SendMessage_Click(object sender, RoutedEventArgs e)
+    {
+        if (_session is not { } s) return;
+        if (MessageDialog.Ask(this, SelectedDevices().Select(d => d.Name).ToList()) is not { } m) return;
+        var (can, skipped) = Split(a => m.AsWindow ? a.MessageBox : a.Notify);
+        if (can.Count == 0) { ActionStatus.Text = L.T("NoneCanDoIt"); return; }
+        try
+        {
+            if (m.AsWindow) foreach (var d in can) await s.MessageBoxAsync(d, m.Title, m.Text, TimeSpan.FromMinutes(10));
+            else await s.NotifyAsync(can, m.Title, m.Text);
+            Status(L.F("MessageSent", can.Count), skipped);
+        }
+        catch (MeshClientException ex) { ErrorWindow.Show(this, UserError.From(ex, s.ServerInfo.Version)); }
+    }
+
+    private void RunCommands_Click(object sender, RoutedEventArgs e)
+    {
+        if (_session is not { } s) return;
+        var (can, skipped) = Split(a => a.RunCommands);
+        if (can.Count == 0) { ActionStatus.Text = L.T("NoneCanDoIt"); return; }
+        var w = new CommandsWindow(s, can, skipped);
+        _sessionWindows.Add(w);
+        w.Closed += (_, _) => _sessionWindows.Remove(w);
+        w.Show();
     }
 
     private void CopyName_Click(object sender, RoutedEventArgs e)

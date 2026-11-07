@@ -5,13 +5,23 @@ namespace MeshCentralClient.Core;
 public sealed record ServerInfo(string Name, string Domain, string? Version)
 {
     internal static ServerInfo From(JsonObject o) => new(
-        o.Str("name") ?? "", o.Str("domain") ?? "", o.Str("serverVersion") ?? o.Str("version"));
+        o.Str("name") ?? "", o.Str("domain") ?? "", o.Str("serverVersion") ?? o.Str("version")) { ManageAllDeviceGroups = o.Bool("manageAllDeviceGroups") };
+
+    /// <summary>The server lets this account manage every device group (managealldevicegroups). / El servidor deja a esta cuenta gestionar todos los grupos.</summary>
+    public bool ManageAllDeviceGroups { get; init; }
 }
 
 public sealed record UserInfo(string Id, string Name, bool IsFullAdministrator)
 {
     internal static UserInfo From(JsonObject o) => new(
-        o.Str("_id") ?? "", o.Str("name") ?? o.Str("_id") ?? "", o.Long("siteadmin") == 0xFFFFFFFF);
+        o.Str("_id") ?? "", o.Str("name") ?? o.Str("_id") ?? "", o.Long("siteadmin") == 0xFFFFFFFF)
+    { Links = JsonExtensions.Links(o), RemoveRights = o.Long("removeRights") };
+
+    /// <summary>What the account is linked to (groups, devices, user groups "ugrp/…") and with which rights. / A qué está enlazada la cuenta y con qué permisos.</summary>
+    public IReadOnlyDictionary<string, long> Links { get; init; } = JsonExtensions.NoLinks;
+
+    /// <summary>Rights taken away from this account everywhere (removeRights). / Permisos quitados a la cuenta en todas partes.</summary>
+    public long? RemoveRights { get; init; }
 }
 
 /// <summary>Kind of device group (MeshCentral "mtype"). / Tipo de grupo de equipos («mtype» de MeshCentral).</summary>
@@ -20,7 +30,10 @@ public enum DeviceGroupKind { Unknown = 0, IntelAmtOnly = 1, Agents = 2, LocalDe
 public sealed record DeviceGroup(string Id, string Name, string? Description, DeviceGroupKind Kind)
 {
     internal static DeviceGroup From(JsonObject o) => new(
-        o.Str("_id") ?? "", o.Str("name") ?? "", o.Str("desc"), (DeviceGroupKind)(o.Long("mtype") ?? 0));
+        o.Str("_id") ?? "", o.Str("name") ?? "", o.Str("desc"), (DeviceGroupKind)(o.Long("mtype") ?? 0)) { Links = JsonExtensions.Links(o) };
+
+    /// <summary>Who has rights on the group: accounts and user groups. / Quién tiene permisos en el grupo: cuentas y grupos de usuarios.</summary>
+    public IReadOnlyDictionary<string, long> Links { get; init; } = JsonExtensions.NoLinks;
 }
 
 /// <summary>Connection flags of a device (MeshCentral "conn"). / Formas en que está conectado un equipo («conn»).</summary>
@@ -47,7 +60,13 @@ public sealed record Device(
     DateTimeOffset? LastBoot = null,
     string? AgentCore = null)
 {
+    /// <summary>Rights given on this device alone. / Permisos dados solo en este equipo.</summary>
+    public IReadOnlyDictionary<string, long> Links { get; init; } = JsonExtensions.NoLinks;
+
     public bool IsOnline => Connectivity != DeviceConnectivity.None;
+
+    /// <summary>The agent is connected (power, messages and commands need it). / El agente está conectado (lo necesitan energía, avisos y órdenes).</summary>
+    public bool HasAgent => Connectivity.HasFlag(DeviceConnectivity.Agent);
 
     /// <summary>Windows agents (agenttypes.js, platform win32). / Agentes de Windows (agenttypes.js, plataforma win32).</summary>
     public bool IsWindows => AgentId is 1 or 2 or 3 or 4 or 21 or 22 or 42 or 43 or 10003 or 10004;
@@ -77,7 +96,7 @@ public sealed record Device(
             (int)(agent?.Long("id") ?? 0),
             o.Str("desc"),
             o.Long("lastbootuptime") is long boot and > 0 ? DateTimeOffset.FromUnixTimeMilliseconds(boot) : null,
-            agent?.Str("core"));
+            agent?.Str("core")) { Links = JsonExtensions.Links(o) };
     }
 
     /// <summary>Applies a "changenode" update, which does not carry connection state.
@@ -111,4 +130,15 @@ internal static class JsonExtensions
     }
 
     public static bool Bool(this JsonObject o, string k) => o[k] is JsonValue v && v.TryGetValue<bool>(out var b) && b;
+
+    public static readonly IReadOnlyDictionary<string, long> NoLinks = new Dictionary<string, long>();
+
+    /// <summary>"links": { id: { rights } } → id → rights. / «links»: { id: { rights } } → id → permisos.</summary>
+    public static IReadOnlyDictionary<string, long> Links(JsonObject o)
+    {
+        if (o["links"] is not JsonObject links) return NoLinks;
+        var map = new Dictionary<string, long>();
+        foreach (var (id, v) in links) if (v is JsonObject l && l.Long("rights") is long r) map[id] = r;
+        return map;
+    }
 }

@@ -1,5 +1,5 @@
 {
-  "generado": "2026-11-07T22:07:46Z",
+  "generado": "2026-11-07T23:04:22Z",
   "aviso": "Generado por bin/burburito. No editar a mano: la fuente de verdad es el burburito.json de al lado.",
   "proyecto": {
     "id": 35,
@@ -7,6 +7,96 @@
     "nombre": "MeshCentral Windows Client, la app de Windows del técnico para cualquier MeshCentral"
   },
   "codigos": {
+    "acciones/enviar-mensaje/sin-conexion": {
+      "codigo": "035-009-040-001",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "El equipo no está conectado"
+    },
+    "acciones/enviar-mensaje/tiempo-agotado": {
+      "codigo": "035-009-040-002",
+      "severidad": "error",
+      "actuar": true,
+      "titulo": "El servidor no contestó al aviso"
+    },
+    "acciones/enviar-mensaje/conexion-cortada": {
+      "codigo": "035-009-040-005",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "Se cortó la conexión al mandar el aviso"
+    },
+    "acciones/enviar-mensaje/rechazo-remoto": {
+      "codigo": "035-009-040-021",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "El servidor no pudo entregar el aviso"
+    },
+    "acciones/enviar-mensaje/no-autorizado": {
+      "codigo": "035-009-040-046",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "Sin permiso para mandar avisos a ese equipo"
+    },
+    "acciones/accionar-dispositivo/sin-conexion": {
+      "codigo": "035-009-080-001",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "El equipo no está conectado"
+    },
+    "acciones/accionar-dispositivo/tiempo-agotado": {
+      "codigo": "035-009-080-002",
+      "severidad": "error",
+      "actuar": true,
+      "titulo": "El servidor no contestó a la orden"
+    },
+    "acciones/accionar-dispositivo/conexion-cortada": {
+      "codigo": "035-009-080-005",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "Se cortó la conexión al mandar la orden"
+    },
+    "acciones/accionar-dispositivo/rechazo-remoto": {
+      "codigo": "035-009-080-021",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "El servidor no pudo mandar la orden"
+    },
+    "acciones/accionar-dispositivo/no-autorizado": {
+      "codigo": "035-009-080-046",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "Sin permiso para encender, apagar o reiniciar ese equipo"
+    },
+    "acciones/ejecutar-ordenes/sin-conexion": {
+      "codigo": "035-009-501-001",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "El equipo no está conectado"
+    },
+    "acciones/ejecutar-ordenes/tiempo-agotado": {
+      "codigo": "035-009-501-002",
+      "severidad": "aviso",
+      "actuar": true,
+      "titulo": "Las órdenes no terminaron a tiempo"
+    },
+    "acciones/ejecutar-ordenes/conexion-cortada": {
+      "codigo": "035-009-501-005",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "Se cortó la conexión mientras corrían las órdenes"
+    },
+    "acciones/ejecutar-ordenes/rechazo-remoto": {
+      "codigo": "035-009-501-021",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "El servidor no aceptó las órdenes"
+    },
+    "acciones/ejecutar-ordenes/no-autorizado": {
+      "codigo": "035-009-501-046",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "Sin permiso para ejecutar órdenes en ese equipo"
+    },
     "actualizar/desplegar/sin-conexion": {
       "codigo": "035-006-141-001",
       "severidad": "aviso",

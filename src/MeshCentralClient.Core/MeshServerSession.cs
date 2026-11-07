@@ -154,7 +154,10 @@ public sealed partial class MeshServerSession : IAsyncDisposable
         var reply = await RequestAsync(new JsonObject { ["action"] = "meshes" },
             o => o.Str("action") == "meshes", "equipos/ver-pantalla/tiempo-agotado", "equipos/ver-pantalla/conexion-cortada", cancellationToken).ConfigureAwait(false);
         if (reply["meshes"] is not JsonArray arr) throw Unexpected("equipos/ver-pantalla/respuesta-ilegible", "meshes");
-        return arr.OfType<JsonObject>().Select(DeviceGroup.From).ToList();
+        var groups = arr.OfType<JsonObject>().Select(DeviceGroup.From).ToList();
+        // Kept to work out rights as the website does. / Se guardan para calcular los permisos como la web.
+        _groups = groups.ToDictionary(g => g.Id);
+        return groups;
     }
 
     public async Task<IReadOnlyList<Device>> GetDevicesAsync(CancellationToken cancellationToken = default)
@@ -182,12 +185,13 @@ public sealed partial class MeshServerSession : IAsyncDisposable
         return new RelayCookies(c, r);
     }
 
-    private async Task<JsonObject> RequestAsync(JsonObject request, Func<JsonObject, bool> match, string timeoutKey, string lostKey, CancellationToken ct)
+    private async Task<JsonObject> RequestAsync(JsonObject request, Func<JsonObject, bool> match, string timeoutKey, string lostKey, CancellationToken ct, TimeSpan? timeout = null)
     {
         MeshClientException LostError(Exception? inner) => new(MeshFailure.ConnectionLost, lostKey, "The connection to the server was lost.", inner);
         if (!IsOpen) throw LostError(null);
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct, _life.Token);
-        cts.CancelAfter(_timeout);
+        var limit = timeout ?? _timeout;
+        cts.CancelAfter(limit);
         var wait = WaitFor(match, cts.Token);
         try
         {
@@ -197,7 +201,7 @@ public sealed partial class MeshServerSession : IAsyncDisposable
         catch (OperationCanceledException) when (!ct.IsCancellationRequested)
         {
             if (!IsOpen) throw LostError(null);
-            throw new MeshClientException(MeshFailure.Timeout, timeoutKey, $"The server did not answer \"{request.Str("action")}\" in {_timeout.TotalSeconds:0} s.");
+            throw new MeshClientException(MeshFailure.Timeout, timeoutKey, $"The server did not answer \"{request.Str("action")}\" in {limit.TotalSeconds:0} s.");
         }
         catch (Exception ex) when (ex is WebSocketException or IOException or ObjectDisposedException
                                    || ex is MeshClientException { Failure: MeshFailure.ConnectionLost })
