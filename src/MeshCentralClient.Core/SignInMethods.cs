@@ -26,25 +26,25 @@ public sealed record SingleSignOn(string Strategy)
 
 /// <summary>
 /// Reads which sign-in methods a server offers from its own login page (MeshCentral writes them as
-/// <c>authStrategies = 'oidc,saml'.split(',')</c>). The page names every possible method in its code, so only that
-/// list counts.
+/// <c>authStrategies = 'oidc,saml'.split(',')</c>, or <c>authStrategies="oidc".split(",")</c> when the server minifies
+/// its pages). The page names every possible method in its code, so only that list counts.
 /// Lee qué formas de entrar ofrece un servidor en su propia página de entrada (MeshCentral las escribe como
-/// <c>authStrategies = 'oidc,saml'.split(',')</c>). La página nombra todas las posibles en su código, así que solo
-/// cuenta esa lista.
+/// <c>authStrategies = 'oidc,saml'.split(',')</c>, o <c>authStrategies="oidc".split(",")</c> si el servidor comprime sus
+/// páginas). La página nombra todas las posibles en su código, así que solo cuenta esa lista.
 /// </summary>
 public static partial class SignInMethods
 {
     private static readonly HashSet<string> Known = new(StringComparer.Ordinal)
         { "oidc", "saml", "azure", "google", "github", "twitter", "reddit", "jumpcloud", "intel" };
 
-    [GeneratedRegex(@"authStrategies\s*=\s*'([a-z0-9,\-]*)'\s*\.split", RegexOptions.CultureInvariant)]
+    [GeneratedRegex(@"authStrategies\s*=\s*(['""])([a-z0-9,\-]*)\1\s*\.split", RegexOptions.CultureInvariant)]
     private static partial Regex StrategiesRx();
 
     public static IReadOnlyList<SingleSignOn> ParseLoginPage(string html)
     {
         var m = StrategiesRx().Match(html);
         if (!m.Success) return Array.Empty<SingleSignOn>();
-        return m.Groups[1].Value.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+        return m.Groups[2].Value.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
             .Where(Known.Contains).Distinct().Select(s => new SingleSignOn(s)).ToList();
     }
 

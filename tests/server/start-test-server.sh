@@ -24,7 +24,7 @@ cat > "$DATA/config.json" <<JSON
 {
   "settings": { "cert": "mesh.test", "port": 443, "redirPort": 0, "mpsPort": 0, "selfUpdate": false,
                 "maxInvalidLogin": false },
-  "domains": { "": { "title": "Test", "newAccounts": false $AUTH } }
+  "domains": { "": { "title": "Test", "newAccounts": false, "minify": true $AUTH } }
 }
 JSON
 M=/opt/meshcentral/meshcentral/meshcentral
