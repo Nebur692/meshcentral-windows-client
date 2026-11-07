@@ -19,13 +19,31 @@ $mc = Join-Path $Work 'mc'
 $data = Join-Path $mc 'meshcentral-data'
 New-Item -ItemType Directory -Force $data, (Join-Path $Work 'agent'), (Join-Path $Work 'shots') | Out-Null
 
+Write-Host '== OpenID Connect test provider'
+# Before MeshCentral, which discovers it when it starts. / Antes que MeshCentral, que lo descubre al arrancar.
+$oidc = Join-Path $Work 'oidc'
+New-Item -ItemType Directory -Force $oidc | Out-Null
+Copy-Item (Join-Path $root 'tests\oidc\package.json'), (Join-Path $root 'tests\oidc\package-lock.json'), (Join-Path $root 'tests\oidc\provider.mjs') $oidc
+Push-Location $oidc
+npm ci --no-audit --no-fund --loglevel=error | Out-Host
+$env:ISSUER = 'http://localhost:3000'
+$env:REDIRECT_URI = 'https://mesh.test:4443/auth-oidc-callback'
+$oidcProc = Start-Process node -ArgumentList 'provider.mjs' -PassThru -NoNewWindow -RedirectStandardOutput (Join-Path $Work 'oidc.log') -RedirectStandardError (Join-Path $Work 'oidc.err')
+Pop-Location
+$ok = $false
+for ($i = 0; $i -lt 30 -and -not $ok; $i++) { Start-Sleep 1; try { Invoke-WebRequest 'http://localhost:3000/.well-known/openid-configuration' -TimeoutSec 3 | Out-Null; $ok = $true } catch { } }
+if (-not $ok) { Get-Content (Join-Path $Work 'oidc.err') -Tail 20; throw 'the OIDC provider did not start' }
+
 Write-Host "== MeshCentral $MeshCentralVersion from npm"
 Push-Location $mc
 npm install --no-audit --no-fund --loglevel=error "meshcentral@$MeshCentralVersion" | Out-Host
 @'
 {
   "settings": { "cert": "mesh.test", "port": 4443, "redirPort": 0, "mpsPort": 0, "selfUpdate": false, "maxInvalidLogin": false },
-  "domains": { "": { "title": "Test", "newAccounts": false } }
+  "domains": { "": { "title": "Test", "newAccounts": false,
+    "authStrategies": { "oidc": { "issuer": "http://localhost:3000",
+      "client": { "client_id": "meshcentral-test", "client_secret": "test-secret-not-for-production" },
+      "newAccounts": true, "groups": { "claim": "groups", "required": ["mesh-users"] } } } } }
 }
 '@ | Set-Content -Encoding utf8 (Join-Path $data 'config.json')
 $m = 'node_modules\meshcentral'
@@ -45,8 +63,19 @@ for ($i = 0; $i -lt 150 -and -not $ok; $i++) {
 }
 if (-not $ok) { Get-Content (Join-Path $Work 'mc.log') -Tail 40; throw 'MeshCentral did not answer in 300 s' }
 # otplib is installed by MeshCentral itself on first start (it may restart once). / otplib lo instala MeshCentral al arrancar (puede reiniciarse una vez).
-for ($i = 0; $i -lt 60 -and -not (Test-Path (Join-Path $mc 'node_modules\otplib')); $i++) { Start-Sleep 2 }
-Start-Sleep 5
+# With OIDC it also installs openid-client and restarts: wait for both, then for it to answer again.
+# Con OIDC instala además openid-client y se reinicia: se esperan los dos y que vuelva a contestar.
+foreach ($module in 'otplib', 'openid-client') {
+  for ($i = 0; $i -lt 90 -and -not (Test-Path (Join-Path $mc "node_modules\$module")); $i++) { Start-Sleep 2 }
+  if (-not (Test-Path (Join-Path $mc "node_modules\$module"))) { Get-Content (Join-Path $Work 'mc.log') -Tail 40; throw "MeshCentral did not install $module" }
+}
+Start-Sleep 10
+$ok = $false
+for ($i = 0; $i -lt 60 -and -not $ok; $i++) {
+  try { $page = Invoke-WebRequest -Uri 'https://mesh.test:4443/' -SkipCertificateCheck -TimeoutSec 5; $ok = $page.Content -match "authStrategies = 'oidc'" } catch { }
+  if (-not $ok) { Start-Sleep 2 }
+}
+if (-not $ok) { Get-Content (Join-Path $Work 'mc.log') -Tail 40; throw 'MeshCentral did not come back with OIDC' }
 
 Write-Host '== test data'
 $env:MESHCENTRAL_MODULES = Join-Path $mc 'node_modules'
@@ -93,5 +122,5 @@ try {
   if ($LASTEXITCODE -ne 0) { throw "UI test failed ($LASTEXITCODE)" }
 }
 finally {
-  foreach ($p in @($agentProc, $server, $feedProc)) { if ($p -and -not $p.HasExited) { Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue } }
+  foreach ($p in @($agentProc, $server, $feedProc, $oidcProc)) { if ($p -and -not $p.HasExited) { Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue } }
 }

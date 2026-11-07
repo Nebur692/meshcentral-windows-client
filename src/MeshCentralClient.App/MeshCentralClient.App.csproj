@@ -9,6 +9,8 @@
     <!-- Fluent (Windows 11) theme is still flagged experimental. / El tema Fluent aún figura como experimental. -->
     <NoWarn>$(NoWarn);WPF0001</NoWarn>
     <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
+    <!-- The single-file exe carries .NET and WPF: compressed it is far smaller. / El exe de un fichero lleva .NET y WPF: comprimido pesa mucho menos. -->
+    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
   </PropertyGroup>
   <!-- DPAPI (System.Security.Cryptography.ProtectedData) comes with the Windows Desktop framework.
        DPAPI (System.Security.Cryptography.ProtectedData) viene con el framework de escritorio de Windows. -->

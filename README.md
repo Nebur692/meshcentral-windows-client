@@ -27,9 +27,12 @@ official website and `meshctrl`, so it works with **any** MeshCentral installati
 
 > Unofficial project, not affiliated with the MeshCentral authors. The device side still uses the official MeshCentral agent.
 
-### Features (version 0.3)
+### Features (version 0.4)
 
 - **Sign in** with username and password, with **two-factor** codes (authenticator app, or email code when the server offers it).
+- **Single sign-on**: if the server offers it (OpenID Connect, SAML, Microsoft, Google, GitHub…), a button signs in on
+  the provider's own page, in the Windows browser — the app never sees that password. Leaving username and password
+  empty and pressing Connect does the same.
 - **Certificates**: a certificate Windows trusts is always accepted; for a server with its own certificate the app shows
   the SHA-256 fingerprint, asks once and remembers it — and warns loudly if it ever changes.
 - **Devices live**: every device group and device the account can see, online status updated in real time, search by
@@ -43,8 +46,8 @@ official website and `meshctrl`, so it works with **any** MeshCentral installati
   the new version; a file that does not match is never installed.
 - **English and Spanish** interface, following the Windows language.
 
-The goal is everything the MeshCentral website does. Coming next: single sign-on (OIDC), files, remote desktop,
-device details and actions, groups, users and port mapping — see [the plan](docs/PLAN.md).
+The goal is everything the MeshCentral website does. Coming next: files, remote desktop, device details and actions,
+groups, users and port mapping — see [the plan](docs/PLAN.md).
 
 ### Install
 
@@ -68,7 +71,7 @@ tests/server/run-integration.sh                       # needs Docker: real throw
 
 The integration tests start a disposable MeshCentral server and a real Linux agent in Docker, test every login path
 (right and wrong password, two-factor, untrusted and pinned certificate), the device list, live events, a
-server-side disconnection and the terminal, and remove everything when they end.
+server-side disconnection, the terminal and single sign-on (against a throwaway OpenID Connect provider), and remove everything when they end.
 
 ### License
 
@@ -86,9 +89,12 @@ web oficial y `meshctrl`, así que funciona con **cualquier** instalación de Me
 
 > Proyecto no oficial, sin relación con los autores de MeshCentral. En los equipos se sigue usando el agente oficial de MeshCentral.
 
-### Qué hace (versión 0.3)
+### Qué hace (versión 0.4)
 
 - **Entrar** con usuario y contraseña, con código de **doble factor** (app de autenticación, o código por correo si el servidor lo ofrece).
+- **Inicio de sesión único**: si el servidor lo ofrece (OpenID Connect, SAML, Microsoft, Google, GitHub…), un botón
+  entra en la propia página del proveedor, en el navegador de Windows; la app no ve nunca esa contraseña. Dejar usuario y
+  contraseña vacíos y pulsar Conectar hace lo mismo.
 - **Certificados**: uno en el que confía Windows se acepta siempre; con un servidor con certificado propio la app enseña
   la huella SHA-256, pregunta una vez y la recuerda, y avisa bien claro si algún día cambia.
 - **Equipos en vivo**: todos los grupos y equipos que ve la cuenta, con el estado de conexión al momento y buscador por
@@ -102,8 +108,8 @@ web oficial y `meshctrl`, así que funciona con **cualquier** instalación de Me
   actualizada; un fichero que no coincide no se instala nunca.
 - Interfaz en **inglés y español**, según el idioma de Windows.
 
-La meta es todo lo que hace la web de MeshCentral. Lo siguiente: inicio de sesión único (OIDC), ficheros, escritorio
-remoto, datos y acciones del equipo, grupos, usuarios y redirección de puertos; está en [el plan](docs/PLAN.md).
+La meta es todo lo que hace la web de MeshCentral. Lo siguiente: ficheros, escritorio remoto, datos y acciones del
+equipo, grupos, usuarios y redirección de puertos; está en [el plan](docs/PLAN.md).
 
 ### Instalar
 
@@ -127,7 +133,7 @@ tests/server/run-integration.sh                       # necesita Docker: MeshCen
 
 Las pruebas de integración arrancan en Docker un servidor MeshCentral desechable y un agente Linux de verdad, prueban
 todas las formas de entrar (contraseña buena y mala, doble factor, certificado no fiable y aceptado), la lista de
-equipos, los avisos en vivo, un corte desde el servidor y la terminal, y lo quitan todo al acabar.
+equipos, los avisos en vivo, un corte desde el servidor, la terminal y el inicio de sesión único (contra un proveedor OpenID Connect desechable), y lo quitan todo al acabar.
 
 ### Licencia
 

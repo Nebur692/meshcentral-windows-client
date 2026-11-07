@@ -14,8 +14,11 @@ public sealed class SavedServer
     /// <summary>Password encrypted with DPAPI for this Windows user only. / Contraseña cifrada con DPAPI solo para este usuario de Windows.</summary>
     public string? ProtectedPassword { get; set; }
     public DateTimeOffset LastUsed { get; set; }
+    /// <summary>MeshCentral strategy ("oidc", "saml"…) when this account signs in with single sign-on. / Estrategia cuando la cuenta entra por inicio único.</summary>
+    public string? SingleSignOn { get; set; }
 
-    public override string ToString() => string.IsNullOrEmpty(Username) ? Address : $"{Username} @ {Address}";
+    public override string ToString() =>
+        (string.IsNullOrEmpty(Username) ? Address : $"{Username} @ {Address}") + (SingleSignOn is null ? "" : $" ({L.T("SsoSaved")})");
 
     public string? ReadPassword()
     {

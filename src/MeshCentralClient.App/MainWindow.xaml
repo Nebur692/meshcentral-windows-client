@@ -33,7 +33,7 @@
           <TextBlock Text="{app:T AppTitle}" FontSize="26" FontWeight="SemiBold" Margin="0,0,0,20" />
 
           <TextBlock Text="{app:T Server}" Margin="0,0,0,4" />
-          <ComboBox x:Name="ServerBox" IsEditable="True" IsTextSearchEnabled="False"
+          <ComboBox x:Name="ServerBox" IsEditable="True" IsTextSearchEnabled="False" LostKeyboardFocus="ServerBox_LostKeyboardFocus"
                     SelectionChanged="ServerBox_SelectionChanged" ToolTip="{app:T ServerHint}" />
           <TextBlock Text="{app:T ServerHint}" Opacity="0.6" FontSize="12" Margin="0,2,0,12" />
 
@@ -64,6 +64,13 @@
             <Button x:Name="ForgetButton" Content="{app:T Forget}" Margin="8,0,0,0" Visibility="Collapsed" Click="ForgetButton_Click" />
           </StackPanel>
           <ProgressBar x:Name="Busy" IsIndeterminate="True" Height="3" Margin="0,12,0,0" Visibility="Collapsed" />
+
+          <!-- Single sign-on the server offers / Inicio de sesión único que ofrece el servidor -->
+          <StackPanel x:Name="SsoPanel" Visibility="Collapsed" Margin="0,16,0,0">
+            <TextBlock Text="{app:T OrSignInWith}" Opacity="0.7" Margin="0,0,0,6" />
+            <WrapPanel x:Name="SsoButtons" />
+            <TextBlock Text="{app:T SsoHint}" Opacity="0.55" FontSize="12" TextWrapping="Wrap" Margin="0,6,0,0" />
+          </StackPanel>
 
           <TextBlock x:Name="VersionText" Opacity="0.5" FontSize="12" Margin="0,16,0,0" />
 

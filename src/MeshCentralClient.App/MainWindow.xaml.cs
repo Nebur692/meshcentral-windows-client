@@ -72,6 +72,107 @@ public partial class MainWindow : Window
         RememberBox.IsChecked = pw is not null;
         ForgetButton.Visibility = Visibility.Visible;
         HideTwoFactor();
+        _ = DiscoverSsoAsync(s.Address);
+    }
+
+    // ---------------- Single sign-on / Inicio de sesión único ----------------
+
+    private IReadOnlyList<SingleSignOn> _sso = Array.Empty<SingleSignOn>();
+    private string? _ssoFor;
+
+    private void ServerBox_LostKeyboardFocus(object sender, System.Windows.Input.KeyboardFocusChangedEventArgs e) => _ = DiscoverSsoAsync(ServerBox.Text);
+
+    /// <summary>Shows the buttons of the single sign-on the server offers; silent if it cannot tell.
+    /// Enseña los botones del inicio único que ofrece el servidor; calla si no lo puede saber.</summary>
+    private async Task DiscoverSsoAsync(string text)
+    {
+        if (!ServerAddress.TryParse(text, out var address)) { ShowSso(Array.Empty<SingleSignOn>(), null); return; }
+        var key = address!.ToString();
+        if (key == _ssoFor) return;
+        var found = await SignInMethods.DiscoverAsync(address, new CertificateTrust(_saved.PinFor(key)));
+        if (ServerAddress.TryParse(ServerBox.Text, out var now) && now!.ToString() == key) ShowSso(found, key);
+    }
+
+    private void ShowSso(IReadOnlyList<SingleSignOn> methods, string? key)
+    {
+        _sso = methods;
+        _ssoFor = key;
+        SsoButtons.Children.Clear();
+        foreach (var m in methods)
+        {
+            var b = new Button { Content = L.F("SignInWith", m.DisplayName), Margin = new Thickness(0, 0, 8, 8), MinWidth = 160 };
+            System.Windows.Automation.AutomationProperties.SetAutomationId(b, "Sso_" + m.Strategy);
+            b.Click += async (_, _) => await SignInWithSsoAsync(m);
+            SsoButtons.Children.Add(b);
+        }
+        SsoPanel.Visibility = methods.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    /// <summary>
+    /// Single sign-on: <paramref name="method"/> null means "whatever the server offers" (Connect with no password).
+    /// Inicio de sesión único: <paramref name="method"/> nulo es «lo que ofrezca el servidor» (Conectar sin contraseña).
+    /// </summary>
+    private async Task SignInWithSsoAsync(SingleSignOn? method)
+    {
+        HideError();
+        if (!ServerAddress.TryParse(ServerBox.Text, out var address))
+        {
+            ShowError(UserError.From(new MeshClientException(MeshFailure.InvalidAddress, "conexion/iniciar-sesion/dato-invalido", "Invalid server address.")));
+            return;
+        }
+        var key = address!.ToString();
+        SetBusy(true);
+        try
+        {
+            var trust = new CertificateTrust(_saved.PinFor(key));
+            if (method is null)
+            {
+                var found = await SignInMethods.DiscoverAsync(address, trust);
+                if (found.Count == 0 && trust.RejectedSha256 is { } fp)
+                {
+                    // A server with its own certificate: the same question as with a password. / Un servidor con certificado propio: la misma pregunta que con contraseña.
+                    if (!CertificateWindow.Ask(this, address.Host, trust.RejectedSubject, fp, trust.PinnedSha256 is not null))
+                    {
+                        ShowError(UserError.From(new MeshClientException(MeshFailure.UntrustedCertificate, "conexion/iniciar-sesion/tls", "Certificate not accepted.")));
+                        return;
+                    }
+                    SavePin(key, UserBox.Text.Trim(), fp);
+                    trust = new CertificateTrust(fp);
+                    found = await SignInMethods.DiscoverAsync(address, trust);
+                }
+                ShowSso(found, key);
+                if (found.Count == 0) { ShowError(UserError.NeedPassword()); PasswordBox.Focus(); return; }
+                method = found[0];
+            }
+            var w = new SsoWindow(this, address, method, trust);
+            w.ShowDialog();
+            if (w.Session is { } session)
+            {
+                var saved = _saved.Upsert(key, session.User.Name);
+                saved.SingleSignOn = method.Strategy;
+                saved.CertificateSha256 = trust.PinnedSha256 ?? saved.CertificateSha256;
+                // The entry with no user, made only to keep the certificate before signing in, is not needed any more.
+                // La entrada sin usuario, hecha solo para guardar el certificado antes de entrar, ya no hace falta.
+                _saved.Items.RemoveAll(i => !ReferenceEquals(i, saved) && i.Address == key && i.Username.Length == 0);
+                saved.WritePassword(null);
+                if (_saved.Save() is { } problem) ErrorWindow.Show(this, problem);
+                RefreshSavedList();
+                await OpenSessionAsync(session);
+            }
+            else if (w.Failure is { } f)
+            {
+                ShowError(f.BurburitoKey == "app/abrir-detalle/dependencia-caida" ? UserError.MissingWebView(f) : UserError.From(f));
+            }
+            // closed by the person: nothing to say / la cerró la persona: nada que decir
+        }
+        finally { SetBusy(false); }
+    }
+
+    private void SavePin(string key, string user, string fp)
+    {
+        _saved.Upsert(key, user);
+        foreach (var s in _saved.Items.Where(i => i.Address == key)) s.CertificateSha256 = fp;
+        if (_saved.Save() is { } problem) ErrorWindow.Show(this, problem);
     }
 
     private async void ConnectButton_Click(object sender, RoutedEventArgs e) => await ConnectAsync();
@@ -85,6 +186,8 @@ public partial class MainWindow : Window
         if (ServerBox.SelectedItem is not SavedServer s) return;
         _saved.Items.Remove(s);
         if (_saved.Save() is { } problem) ShowError(problem);
+        // Also what the Windows browser keeps of a single sign-on there. / También lo que guarda el navegador de Windows de un inicio único allí.
+        if (s.SingleSignOn is not null && ServerAddress.TryParse(s.Address, out var forgotten)) _ = SsoWindow.ForgetAsync(forgotten!);
         RefreshSavedList();
         ServerBox.Text = ""; UserBox.Text = ""; PasswordBox.Password = ""; RememberBox.IsChecked = false;
         ForgetButton.Visibility = Visibility.Collapsed;
@@ -101,6 +204,8 @@ public partial class MainWindow : Window
         }
         var user = UserBox.Text.Trim();
         var password = PasswordBox.Password;
+        // No password: single sign-on. A password login always needs one. / Sin contraseña: inicio único. Entrar con contraseña siempre la necesita.
+        if (password.Length == 0 && !emailCode && TwoFactorPanel.Visibility != Visibility.Visible) { await SignInWithSsoAsync(null); return; }
         var code = emailCode ? "**email**" : (TwoFactorPanel.Visibility == Visibility.Visible ? CodeBox.Text.Trim() : null);
         if (code is { Length: 0 }) code = null;
         var key = address!.ToString();

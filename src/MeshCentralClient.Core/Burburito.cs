@@ -56,11 +56,19 @@ public static class Burburito
                 foreach (var group in fs.EnumerateObject())
                     phrases[group.Name] = group.Value.EnumerateArray()
                         .Select(f => new Phrase(f.TryGetProperty("es", out var es) ? es.GetString() ?? "" : "", f.TryGetProperty("en", out var en) ? en.GetString() ?? "" : ""))
-                        .Where(f => f.Es.Length > 0 && f.En.Length > 0).ToList();
+                        .Where(f => f.Es.Length > 0 && f.En.Length > 0)
+                        // This app is for everyone: no phrase that names one particular organisation.
+                        // Esta app es para todos: ninguna frase que nombre a una organización concreta.
+                        .Where(f => !NamesAnOrganisation(f.Es) && !NamesAnOrganisation(f.En))
+                        .ToList();
         }
         catch (Exception) { /* degrade to Unknown / se degrada a Unknown */ }
         return new Catalogue(codes, phrases);
     }
+
+    internal static bool NamesAnOrganisation(string phrase) => phrase.Contains("Burbujalandia", StringComparison.OrdinalIgnoreCase);
+
+    internal static IEnumerable<string> AllPhrases() => Data.Value.Phrases.Values.SelectMany(l => l).SelectMany(p => new[] { p.Es, p.En });
 
     private static Catalogue Load()
     {

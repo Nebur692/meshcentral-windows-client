@@ -82,6 +82,18 @@ public class BurburitoTests(ITestOutputHelper output)
         Assert.Contains("burburito", footer[..footer.IndexOf(label, StringComparison.Ordinal)], StringComparison.OrdinalIgnoreCase);
     }
 
+    /// <summary>The catalogue has a phrase naming an organisation; a public app for everyone must never show it.
+    /// El catálogo tiene una frase que nombra una organización; una app pública para todos no la puede enseñar nunca.</summary>
+    [Fact]
+    public void No_phrase_names_an_organisation()
+    {
+        var all = Burburito.AllPhrases().ToList();
+        Assert.True(all.Count >= 20, $"only {all.Count} phrases left");
+        Assert.DoesNotContain(all, Burburito.NamesAnOrganisation);
+        // MENTIRA: the filter does catch it. / El filtro sí la caza.
+        Assert.True(Burburito.NamesAnOrganisation("Something got burnt in the kitchens of Burbujalandia."));
+    }
+
     [Fact]
     public void Footer_of_an_unknown_key_still_answers() =>
         Assert.EndsWith("Burburito code: " + Burburito.Unknown, Burburito.Footer("x/y/z", false));

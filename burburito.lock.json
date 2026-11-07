@@ -1,5 +1,5 @@
 {
-  "generado": "2026-11-07T14:07:49Z",
+  "generado": "2026-11-07T15:31:43Z",
   "aviso": "Generado por bin/burburito. No editar a mano: la fuente de verdad es el burburito.json de al lado.",
   "proyecto": {
     "id": 35,
@@ -115,6 +115,12 @@
       "actuar": false,
       "titulo": "Usuario o contraseña incorrectos"
     },
+    "conexion/iniciar-sesion/sesion-cerrada": {
+      "codigo": "035-001-001-044",
+      "severidad": "aviso",
+      "actuar": true,
+      "titulo": "El servidor no aceptó la sesión del inicio único"
+    },
     "conexion/iniciar-sesion/no-autorizado": {
       "codigo": "035-001-001-046",
       "severidad": "aviso",
@@ -132,6 +138,12 @@
       "severidad": "aviso",
       "actuar": false,
       "titulo": "La dirección del servidor no vale"
+    },
+    "conexion/iniciar-sesion/no-encontrado": {
+      "codigo": "035-001-001-062",
+      "severidad": "aviso",
+      "actuar": true,
+      "titulo": "Sin contraseña y el servidor no ofrece inicio único"
     },
     "conexion/verificar-identidad/credencial-invalida": {
       "codigo": "035-001-003-041",

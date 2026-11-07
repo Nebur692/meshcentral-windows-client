@@ -385,6 +385,26 @@
       "titulo": "La app no puede reemplazarse en su carpeta",
       "explicacion": "No se puede escribir junto al exe (p. ej. está en Program Files sin ser administrador) o Windows no dejó renombrarlo. Si el segundo paso falla, se vuelve a dejar el exe de antes.",
       "que_hacer": "Mover el exe a una carpeta propia (Escritorio, Documentos) o bajar la versión nueva a mano desde Releases."
+    },
+    {
+      "modulo": "conexion",
+      "accion": "iniciar-sesion",
+      "causa": "sesion-cerrada",
+      "severidad": "aviso",
+      "actuar": true,
+      "titulo": "El servidor no aceptó la sesión del inicio único",
+      "explicacion": "Tras el inicio de sesión único (OIDC, SAML, Microsoft, Google…) el canal de control contestó noauth con las cookies xid: el proveedor dejó entrar pero MeshCentral rechazó la cuenta (sin el grupo o rol que exige), o la sesión ya había caducado.",
+      "que_hacer": "Volver a entrar. Si se repite, pedir a un administrador el grupo o rol que da acceso a MeshCentral en el proveedor."
+    },
+    {
+      "modulo": "conexion",
+      "accion": "iniciar-sesion",
+      "causa": "no-encontrado",
+      "severidad": "aviso",
+      "actuar": true,
+      "titulo": "Sin contraseña y el servidor no ofrece inicio único",
+      "explicacion": "Se pulsó Conectar sin contraseña (eso pide inicio de sesión único) y la página de entrada del servidor no trae ninguna authStrategies.",
+      "que_hacer": "Escribir usuario y contraseña."
     }
   ]
 }

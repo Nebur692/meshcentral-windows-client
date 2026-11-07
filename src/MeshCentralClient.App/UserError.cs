@@ -43,6 +43,8 @@ public sealed record UserError(string Message, bool MustAct, string Footer, stri
             MeshFailure.Timeout => ("The server took too long to answer. Try again in a moment.",
                 "El servidor ha tardado demasiado en contestar. Prueba otra vez dentro de un momento.", false),
             MeshFailure.ConnectionLost => ("The connection to the server was lost.", "Se ha cortado la conexión con el servidor.", false),
+            MeshFailure.SessionExpired => ("The server did not let this account in. Sign in again; if it happens again, ask an administrator for access to this server in your sign-in provider.",
+                "El servidor no ha dejado entrar a esta cuenta. Vuelve a entrar; si se repite, pide a un administrador acceso a este servidor en tu proveedor de inicio de sesión.", true),
             MeshFailure.UnexpectedResponse => ("The server answered something this app does not understand (maybe a newer MeshCentral version).",
                 "El servidor ha contestado algo que esta app no entiende (quizá una versión de MeshCentral más nueva).", true),
             _ => ("Something failed.", "Algo ha fallado.", true),
@@ -81,6 +83,11 @@ public sealed record UserError(string Message, bool MustAct, string Footer, stri
         };
         return new UserError(L.Spanish ? es : en, act, Burburito.Footer(e.BurburitoKey, L.Spanish), $"{e.Failure}: {e.Message}\n{e.InnerException?.Message}");
     }
+
+    public static UserError NeedPassword() => new(
+        L.Spanish ? "Este servidor no ofrece inicio de sesión único: escribe tu usuario y tu contraseña."
+                  : "This server does not offer single sign-on: type your username and password.",
+        true, Burburito.Footer("conexion/iniciar-sesion/no-encontrado", L.Spanish), "No authStrategies on the login page.");
 
     public static UserError MissingWebView(Exception ex) => new(
         L.Spanish ? "Falta Microsoft Edge WebView2 Runtime, que esta función necesita. Instálalo desde https://go.microsoft.com/fwlink/p/?LinkId=2124703 y vuelve a abrirla."

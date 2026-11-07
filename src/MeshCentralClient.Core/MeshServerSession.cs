@@ -56,8 +56,40 @@ public sealed class MeshServerSession : IAsyncDisposable
         ServerAddress server, PasswordCredentials credentials, CertificateTrust trust,
         CancellationToken cancellationToken = default, TimeSpan? timeout = null)
     {
-        ArgumentNullException.ThrowIfNull(server);
         ArgumentNullException.ThrowIfNull(credentials);
+        return await ConnectCoreAsync(server, trust, o => o.SetRequestHeader("x-meshauth", credentials.Header()),
+            close => LoginFailure(close, credentials), cancellationToken, timeout).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Signs in with the session cookies ("xid", "xid.sig") MeshCentral gave a browser after a single sign-on
+    /// (OIDC, SAML, Azure, Google…). The cookie alone does not prove anything: a refused account also gets one, so
+    /// only an accepted control channel means the person is in.
+    /// Entra con las cookies de sesión («xid», «xid.sig») que MeshCentral dio a un navegador tras un inicio de sesión
+    /// único (OIDC, SAML, Azure, Google…). La cookie sola no prueba nada: una cuenta rechazada también la recibe, así
+    /// que solo un canal de control aceptado significa que la persona está dentro.
+    /// </summary>
+    public static async Task<MeshServerSession> ConnectWithSessionCookiesAsync(
+        ServerAddress server, IReadOnlyDictionary<string, string> cookies, CertificateTrust trust,
+        CancellationToken cancellationToken = default, TimeSpan? timeout = null)
+    {
+        ArgumentNullException.ThrowIfNull(cookies);
+        if (!cookies.ContainsKey("xid"))
+            throw new MeshClientException(MeshFailure.SessionExpired, "conexion/iniciar-sesion/sesion-cerrada", "There is no MeshCentral session to use.");
+        return await ConnectCoreAsync(server, trust, o =>
+            {
+                var jar = new CookieContainer();
+                foreach (var (name, value) in cookies) jar.Add(server.BaseUri, new Cookie(name, value, "/"));
+                o.Cookies = jar;
+            },
+            SessionFailure, cancellationToken, timeout).ConfigureAwait(false);
+    }
+
+    private static async Task<MeshServerSession> ConnectCoreAsync(
+        ServerAddress server, CertificateTrust trust, Action<ClientWebSocketOptions> authenticate,
+        Func<JsonObject, MeshClientException> onClose, CancellationToken cancellationToken, TimeSpan? timeout)
+    {
+        ArgumentNullException.ThrowIfNull(server);
         ArgumentNullException.ThrowIfNull(trust);
         var limit = timeout ?? DefaultTimeout;
 
@@ -66,7 +98,7 @@ public sealed class MeshServerSession : IAsyncDisposable
         ws.Options.CollectHttpResponseDetails = true;
         ws.Options.KeepAliveInterval = TimeSpan.FromSeconds(30);
         ws.Options.SetRequestHeader("User-Agent", "MeshCentralWindowsClient/" + typeof(MeshServerSession).Assembly.GetName().Version?.ToString(3));
-        ws.Options.SetRequestHeader("x-meshauth", credentials.Header());
+        authenticate(ws.Options);
 
         using var connectCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         connectCts.CancelAfter(limit);
@@ -96,9 +128,9 @@ public sealed class MeshServerSession : IAsyncDisposable
             try
             {
                 first = await serverInfo.ConfigureAwait(false);
-                if (first.Str("action") == "close") throw LoginFailure(first, credentials);
+                if (first.Str("action") == "close") throw onClose(first);
                 user = await userInfo.ConfigureAwait(false);
-                if (user.Str("action") == "close") throw LoginFailure(user, credentials);
+                if (user.Str("action") == "close") throw onClose(user);
             }
             catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
             {
@@ -320,6 +352,20 @@ public sealed class MeshServerSession : IAsyncDisposable
             ("emailvalidation", _) => E(MeshFailure.EmailValidationRequired, "conexion/iniciar-sesion/falta-dato", "The account's email address has not been verified yet."),
             ("noauth", _) => E(MeshFailure.InvalidCredentials, "conexion/iniciar-sesion/credencial-invalida", "Wrong username or password."),
             _ => E(MeshFailure.Rejected, "conexion/iniciar-sesion/rechazo-remoto", $"The server refused the login ({cause} {msg})."),
+        };
+    }
+
+    internal static MeshClientException SessionFailure(JsonObject close)
+    {
+        var cause = close.Str("cause") ?? "";
+        var msg = close.Str("msg") ?? "";
+        return (cause, msg) switch
+        {
+            ("notools", _) => new MeshClientException(MeshFailure.ToolsNotAllowed, "conexion/iniciar-sesion/no-autorizado", "This account is not allowed to use tools like this one.") { ServerMessage = msg },
+            ("banned", _) or ("locked", _) => new MeshClientException(MeshFailure.TooManyAttempts, "conexion/iniciar-sesion/limite-de-tasa", "The server is refusing logins for a while.") { ServerMessage = msg },
+            ("noauth", _) => new MeshClientException(MeshFailure.SessionExpired, "conexion/iniciar-sesion/sesion-cerrada",
+                "The server did not accept the session: the sign-on was refused or the session has expired.") { ServerMessage = msg },
+            _ => new MeshClientException(MeshFailure.Rejected, "conexion/iniciar-sesion/rechazo-remoto", $"The server refused the session ({cause} {msg}).") { ServerMessage = msg },
         };
     }
 

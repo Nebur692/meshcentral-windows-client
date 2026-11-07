@@ -3,6 +3,8 @@
 # Arranca un servidor MeshCentral desechable para las pruebas de integración.
 #
 # Usage / Uso:  start-test-server.sh <name> <data-dir> [network] [image]
+#   OIDC_ISSUER=http://<oidc>:3000 also enables sign-in with that OpenID Connect provider (tests/oidc), group "mesh-users".
+#   OIDC_ISSUER=http://<oidc>:3000 activa además la entrada con ese proveedor OpenID Connect (tests/oidc), grupo «mesh-users».
 # Prints the container name when the server answers. / Escribe el nombre del contenedor cuando el servidor responde.
 # Test accounts / Cuentas de prueba:
 #   admin / Admin-Pass-1234  (site administrator / administrador del sitio)
@@ -14,11 +16,15 @@ DATA=${2:?data dir}
 NET=${3:-bridge}
 IMAGE=${4:-ghcr.io/ylianst/meshcentral:latest}
 mkdir -p "$DATA"
-cat > "$DATA/config.json" <<'JSON'
+AUTH=""
+if [ -n "${OIDC_ISSUER:-}" ]; then
+  AUTH=', "authStrategies": { "oidc": { "issuer": "'"$OIDC_ISSUER"'", "client": { "client_id": "meshcentral-test", "client_secret": "test-secret-not-for-production" }, "newAccounts": true, "groups": { "claim": "groups", "required": ["mesh-users"] } } }'
+fi
+cat > "$DATA/config.json" <<JSON
 {
   "settings": { "cert": "mesh.test", "port": 443, "redirPort": 0, "mpsPort": 0, "selfUpdate": false,
                 "maxInvalidLogin": false },
-  "domains": { "": { "title": "Test", "newAccounts": false } }
+  "domains": { "": { "title": "Test", "newAccounts": false $AUTH } }
 }
 JSON
 M=/opt/meshcentral/meshcentral/meshcentral
