@@ -73,8 +73,11 @@ public sealed class SsoTests : IDisposable
         Find(win, "ServerBox").AsComboBox().EditableText = Env("MESHUI_SERVER");
         Find(win, "ConnectButton").AsButton().Invoke();
         if (Retry.WhileNull(() => Anywhere("CertTrust"), TimeSpan.FromSeconds(10)).Result is { } trust) trust.AsButton().Invoke();
-        var sso = WaitFor(() => Anywhere("SsoWindow"), "the sign-on window");
+        // When the provider remembers the person, its window opens and closes by itself too fast to watch: the
+        // caller checks the result (signed in) instead. / Cuando el proveedor recuerda a la persona, su ventana se abre
+        // y se cierra sola demasiado rápido para verla: quien llama mira el resultado (dentro).
         if (!expectProviderPage) return;
+        var sso = WaitFor(() => Anywhere("SsoWindow"), "the sign-on window");
         // Both fields are required by the page, as a person would find. / La página exige los dos campos, como se lo encontraría una persona.
         var fields = Retry.WhileFalse(() => sso.FindAllDescendants(cf => cf.ByControlType(ControlType.Edit)).Length >= 2, Timeout, TimeSpan.FromMilliseconds(300)).Result
             ? sso.FindAllDescendants(cf => cf.ByControlType(ControlType.Edit))
