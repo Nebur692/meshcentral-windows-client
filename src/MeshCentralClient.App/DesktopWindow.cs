@@ -237,8 +237,15 @@ public sealed class DesktopWindow : Window
     private async Task TypeClipboardAsync()
     {
         if (_desk is null) return;
-        string text;
-        try { text = Clipboard.GetText(); } catch (Exception) { return; }
+        // The clipboard may be busy for a moment (another program holds it): retry briefly instead of giving up silently.
+        // El portapapeles puede estar ocupado un momento (otro programa lo tiene): se reintenta un poco en vez de rendirse en silencio.
+        var text = "";
+        for (var i = 0; i < 10; i++)
+        {
+            try { text = Clipboard.GetText(); break; }
+            catch (System.Runtime.InteropServices.COMException) { await Task.Delay(100); }
+        }
+        if (text.Length == 0) { _status.Text = L.T("ClipboardEmpty"); return; }
         if (text.Length > 10_000) text = text[..10_000];
         foreach (var c in text)
         {

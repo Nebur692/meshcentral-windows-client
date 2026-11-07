@@ -10,6 +10,9 @@ public enum MouseButton : byte { None = 0x00, Left = 0x02, Right = 0x08, Middle 
 
 public sealed record DesktopTile(int X, int Y, ReadOnlyMemory<byte> Jpeg);
 
+/// <summary>Where one remote display is inside the "all displays" image, in its pixels. / Dónde está una pantalla remota dentro de la imagen de «todas las pantallas».</summary>
+public sealed record DisplayRect(int Id, int X, int Y, int Width, int Height);
+
 public sealed record DesktopDisplays(IReadOnlyList<int> Displays, int Selected)
 {
     /// <summary>65535 = all displays at once. / 65535 = todas las pantallas a la vez.</summary>
@@ -45,6 +48,8 @@ public sealed class DesktopSession : IAsyncDisposable
     /// <summary>Raised from the receive thread; decode and draw it elsewhere. / Desde el hilo de recepción; se decodifica y pinta en otro sitio.</summary>
     public event EventHandler<DesktopTile>? TileReceived;
     public event EventHandler<DesktopDisplays>? DisplaysChanged;
+    /// <summary>The position of every remote display (MNG cmd 82). / La posición de cada pantalla remota (orden 82).</summary>
+    public event EventHandler<IReadOnlyList<DisplayRect>>? LayoutChanged;
     /// <summary>Messages of the agent ("waiting for the user to accept"…). / Mensajes del agente («esperando a que el usuario acepte»…).</summary>
     public event EventHandler<string>? Message;
     public event EventHandler<bool>? InputLockChanged;
@@ -102,6 +107,9 @@ public sealed class DesktopSession : IAsyncDisposable
                     var text = Encoding.UTF8.GetString(v, 4, v.Length - 4);
                     if (!text.StartsWith('.')) Message?.Invoke(this, text);
                     break;
+                case 82:
+                    if (ParseLayout(v) is { Count: > 0 } layout) LayoutChanged?.Invoke(this, layout);
+                    break;
                 case 87 when v.Length == 5:
                     InputLockChanged?.Invoke(this, v[4] != 0);
                     break;
@@ -111,6 +119,33 @@ public sealed class DesktopSession : IAsyncDisposable
             }
         }
         catch (Exception) { /* a subscriber must not kill the stream / un suscriptor no puede tumbar el flujo */ }
+    }
+
+    /// <summary>
+    /// cmd 82: [82][size] then 10 bytes per display: id, x, y, width, height (u16). Windows places monitors left of or
+    /// above the main one at negative coordinates, so x and y are read as signed and moved so the top-left monitor
+    /// starts at 0,0 — where it is in the stitched "all displays" image.
+    /// orden 82: 10 bytes por pantalla: id, x, y, ancho, alto (u16). Windows pone los monitores a la izquierda o encima
+    /// del principal en coordenadas negativas, así que x e y se leen con signo y se desplazan para que el de arriba a la
+    /// izquierda empiece en 0,0, que es donde está en la imagen cosida de «todas las pantallas».
+    /// </summary>
+    internal static IReadOnlyList<DisplayRect>? ParseLayout(ReadOnlySpan<byte> v)
+    {
+        if (v.Length < 14 || (v.Length - 4) % 10 != 0) return null;
+        var raw = new List<DisplayRect>();
+        for (var p = 4; p + 10 <= v.Length; p += 10)
+        {
+            raw.Add(new DisplayRect(
+                BinaryPrimitives.ReadUInt16BigEndian(v[p..]),
+                BinaryPrimitives.ReadInt16BigEndian(v[(p + 2)..]),
+                BinaryPrimitives.ReadInt16BigEndian(v[(p + 4)..]),
+                BinaryPrimitives.ReadUInt16BigEndian(v[(p + 6)..]),
+                BinaryPrimitives.ReadUInt16BigEndian(v[(p + 8)..])));
+        }
+        int minX = raw.Min(d => d.X), minY = raw.Min(d => d.Y);
+        return raw.Where(d => d.Width > 0 && d.Height > 0)
+                  .Select(d => d with { X = d.X - minX, Y = d.Y - minY })
+                  .OrderBy(d => d.Y).ThenBy(d => d.X).ToList();
     }
 
     // ------------------------------------------------------------------ outgoing / saliente

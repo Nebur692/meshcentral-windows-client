@@ -91,3 +91,44 @@ public class DesktopProtocolTests
     public void Wheel_commands(int delta, byte hi, byte lo) =>
         Assert.Equal(new byte[] { 0, 2, 0, 12, 0, 0, 0, 10, 0, 20, hi, lo }, DesktopSession.WheelCommand(10, 20, delta));
 }
+
+public class DisplayLayoutTests
+{
+    private static byte[] Layout(params (int Id, int X, int Y, int W, int H)[] ds)
+    {
+        var size = 4 + ds.Length * 10;
+        var b = new List<byte> { 0, 82, (byte)(size >> 8), (byte)size };
+        foreach (var d in ds)
+            foreach (var v in new[] { d.Id, d.X, d.Y, d.W, d.H }) { b.Add((byte)(v >> 8)); b.Add((byte)v); }
+        return b.ToArray();
+    }
+
+    [Fact]
+    public void Two_monitors_side_by_side()
+    {
+        var l = DesktopSession.ParseLayout(Layout((1, 0, 0, 1920, 1080), (2, 1920, 0, 1280, 1024)))!;
+        Assert.Equal(new[] { new DisplayRect(1, 0, 0, 1920, 1080), new DisplayRect(2, 1920, 0, 1280, 1024) }, l);
+    }
+
+    [Fact]
+    public void A_monitor_left_of_the_main_one_has_negative_x_and_starts_the_image()
+    {
+        // Windows: the secondary on the left is at x = -1280. In the stitched image it starts at 0.
+        // Windows: la secundaria a la izquierda está en x = -1280. En la imagen cosida empieza en 0.
+        var l = DesktopSession.ParseLayout(Layout((1, 0, 0, 1920, 1080), (2, -1280, 56, 1280, 1024)))!;
+        Assert.Equal(new DisplayRect(2, 0, 56, 1280, 1024), l.Single(d => d.Id == 2));
+        Assert.Equal(new DisplayRect(1, 1280, 0, 1920, 1080), l.Single(d => d.Id == 1));
+    }
+
+    [Fact]
+    public void A_monitor_above()
+    {
+        var l = DesktopSession.ParseLayout(Layout((1, 0, 0, 1920, 1080), (2, 0, -1080, 1920, 1080)))!;
+        Assert.Equal(new[] { new DisplayRect(2, 0, 0, 1920, 1080), new DisplayRect(1, 0, 1080, 1920, 1080) }, l); // top first / la de arriba primero
+    }
+
+    [Theory]
+    [InlineData(new byte[] { 0, 82, 0, 4 })]                 // no display / ninguna
+    [InlineData(new byte[] { 0, 82, 0, 9, 0, 1, 0, 0, 0 })]  // not a multiple of 10 / no es múltiplo de 10
+    public void Malformed_layouts_are_ignored(byte[] v) => Assert.Null(DesktopSession.ParseLayout(v));
+}

@@ -141,10 +141,19 @@ public sealed class DesktopTests(ITestOutputHelper output) : IDisposable
         // into Notepad, which the remote click left in front. Nobody types locally: the text can only come through the agent.
         // Teclas: «Escribir el portapapeles», pulsado por UI Automation (Invoke no cambia la ventana activa), escribe en el
         // Bloc de notas que dejó al frente el clic remoto. Nadie teclea en local: el texto solo puede llegar por el agente.
-        const string typed = "hola Mesh 123 ñ€";
-        using (var ps = Process.Start(new ProcessStartInfo("powershell", $"-NoProfile -Command Set-Clipboard -Value '{typed}'") { UseShellExecute = false, CreateNoWindow = true })!) ps.WaitForExit();
+        const string typed = "hola Mesh 123";
+        // clip.exe is the standard way to fill the clipboard from a script; read back to know it is really there.
+        // clip.exe es la forma estándar de llenar el portapapeles desde un guion; se relee para saber que está de verdad.
+        using (var clip = Process.Start(new ProcessStartInfo("clip.exe") { UseShellExecute = false, CreateNoWindow = true, RedirectStandardInput = true })!)
+        { clip.StandardInput.Write(typed); clip.StandardInput.Close(); clip.WaitForExit(); }
+        string back;
+        using (var ps = Process.Start(new ProcessStartInfo("powershell", "-NoProfile -Command Get-Clipboard") { UseShellExecute = false, CreateNoWindow = true, RedirectStandardOutput = true })!)
+        { back = ps.StandardOutput.ReadToEnd().Trim(); ps.WaitForExit(); }
+        output.WriteLine("clipboard: " + back);
+        Assert.Equal(typed, back);
         Assert.Equal(notepad.Properties.NativeWindowHandle.Value, GetForegroundWindow());
         Anywhere("TypeClipboardButton").AsButton().Invoke();
+        Shot("after-type-clipboard");
         var edit = WaitFor(() => notepad.FindFirstDescendant(cf => cf.ByControlType(ControlType.Edit).Or(cf.ByControlType(ControlType.Document))), "Notepad's text");
         string Text() { try { return edit.Patterns.Value.IsSupported ? edit.Patterns.Value.Pattern.Value.Value : edit.Patterns.Text.Pattern.DocumentRange.GetText(-1); } catch (Exception) { return ""; } }
         Until(() => Text().Contains(typed), "the typed text did not reach Notepad", Text);

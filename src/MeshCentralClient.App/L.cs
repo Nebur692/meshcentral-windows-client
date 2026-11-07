@@ -63,6 +63,7 @@ public static class L
         ["OpenFiles"] = ("Open files", "Abrir ficheros"),
         ["OpenDesktop"] = ("Open remote desktop", "Abrir escritorio remoto"),
         ["TypeClipboard"] = ("Type clipboard", "Escribir el portapapeles"),
+        ["ClipboardEmpty"] = ("The clipboard has no text to type.", "El portapapeles no tiene texto que escribir."),
         ["Desktop"] = ("Remote desktop", "Escritorio remoto"),
         ["QualityHigh"] = ("High quality", "Calidad alta"),
         ["QualityMedium"] = ("Balanced", "Equilibrada"),
