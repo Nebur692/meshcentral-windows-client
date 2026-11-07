@@ -31,6 +31,9 @@ public sealed class DesktopWindow : Window
     private readonly Viewbox _box = new() { Stretch = Stretch.Uniform };
     private readonly Border _surface = new() { Background = Brushes.Black, Focusable = true, ClipToBounds = true };
     private readonly TextBlock _status = new() { VerticalAlignment = VerticalAlignment.Center, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(12, 0, 12, 0) };
+    // Notices of an action (typed text, clipboard empty): apart from the status, which the picture keeps rewriting.
+    // Avisos de una acción (texto escrito, portapapeles vacío): aparte del estado, que la imagen va reescribiendo.
+    private readonly TextBlock _notice = new() { VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 12, 0), FontWeight = FontWeights.SemiBold };
     private readonly ComboBox _displays = new() { MinWidth = 130, Visibility = Visibility.Collapsed, Margin = new Thickness(0, 0, 6, 0) };
     private readonly ComboBox _quality = new() { MinWidth = 110, Margin = new Thickness(0, 0, 6, 0) };
     private readonly Button _split = new() { Margin = new Thickness(0, 0, 6, 0), Visibility = Visibility.Collapsed };
@@ -48,7 +51,7 @@ public sealed class DesktopWindow : Window
         Width = 1100; Height = 760; MinWidth = 480; MinHeight = 320;
         WindowStartupLocation = WindowStartupLocation.CenterScreen;
         Id(this, _primary ? "DesktopWindow" : "DesktopDisplayWindow"); Id(_surface, "DesktopSurface"); Id(_image, "DesktopImage");
-        Id(_status, "DesktopStatus"); Id(_displays, "DisplayBox"); Id(_quality, "QualityBox"); Id(_split, "SplitButton");
+        Id(_status, "DesktopStatus"); Id(_notice, "DesktopNotice"); Id(_displays, "DisplayBox"); Id(_quality, "QualityBox"); Id(_split, "SplitButton");
         RenderOptions.SetBitmapScalingMode(_image, BitmapScalingMode.HighQuality);
         _canvas.Children.Add(_image);
         _box.Child = _canvas;
@@ -57,6 +60,7 @@ public sealed class DesktopWindow : Window
         var root = new DockPanel();
         var bar = new DockPanel { Margin = new Thickness(12, 8, 12, 8) };
         var tools = new StackPanel { Orientation = Orientation.Horizontal };
+        tools.Children.Add(_notice);
         if (_primary)
         {
             tools.Children.Add(_split);
@@ -244,7 +248,7 @@ public sealed class DesktopWindow : Window
             try { text = Clipboard.GetText(); break; }
             catch (System.Runtime.InteropServices.COMException) { await Task.Delay(100); }
         }
-        if (text.Length == 0) { _status.Text = L.T("ClipboardEmpty"); return; }
+        if (text.Length == 0) { _notice.Text = L.T("ClipboardEmpty"); return; }
         if (text.Length > 10_000) text = text[..10_000];
         foreach (var c in text)
         {
@@ -252,6 +256,6 @@ public sealed class DesktopWindow : Window
             if (c == '\n') { await s.SendKeyAsync(13, true); await s.SendKeyAsync(13, false); }
             else await s.SendCharAsync(c);
         }
-        _status.Text = L.F("Typed", text.Length);
+        _notice.Text = L.F("Typed", text.Length);
     }
 }

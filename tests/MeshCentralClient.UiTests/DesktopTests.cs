@@ -154,7 +154,8 @@ public sealed class DesktopTests(ITestOutputHelper output) : IDisposable
         Assert.Equal(notepad.Properties.NativeWindowHandle.Value, GetForegroundWindow());
         Anywhere("TypeClipboardButton").AsButton().Invoke();
         // The app says it sent them: if they do not arrive, the cause is past the app. / La app dice que los mandó: si no llegan, la causa está más allá de la app.
-        Until(() => status.Name.StartsWith("Typed 13 characters"), "the app did not send the text", () => status.Name);
+        var notice = Anywhere("DesktopNotice");
+        Until(() => notice.Name.StartsWith("Typed 13 characters"), "the app did not send the text", () => notice.Name);
         Shot("after-type-clipboard");
         var edit = WaitFor(() => notepad.FindFirstDescendant(cf => cf.ByControlType(ControlType.Edit).Or(cf.ByControlType(ControlType.Document))), "Notepad's text");
         string Text() { try { return edit.Patterns.Value.IsSupported ? edit.Patterns.Value.Pattern.Value.Value : edit.Patterns.Text.Pattern.DocumentRange.GetText(-1); } catch (Exception) { return ""; } }
