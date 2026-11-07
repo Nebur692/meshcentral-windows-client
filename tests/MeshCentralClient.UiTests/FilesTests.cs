@@ -43,10 +43,17 @@ public sealed class FilesTests : IDisposable
 
     private AutomationElement Anywhere(string id) => WaitFor(() => _automation.GetDesktop().FindFirstDescendant(cf => cf.ByAutomationId(id)), id);
 
-    private static void Until(Func<bool> condition, string what)
+    private static void Until(Func<bool> condition, string what, Func<string>? seen = null)
     {
-        if (!Retry.WhileFalse(condition, Timeout, TimeSpan.FromMilliseconds(250)).Result) throw new Exception(what);
+        if (Retry.WhileFalse(condition, Timeout, TimeSpan.FromMilliseconds(250)).Result) return;
+        // On failure: a screenshot and what was on screen, so the cause is seen, not guessed.
+        // Al fallar: una captura y lo que había en pantalla, para ver la causa en vez de suponerla.
+        Shot("FAILED-" + string.Concat(what.Where(char.IsLetterOrDigit)));
+        throw new Exception(what + (seen is null ? "" : " — seen: " + seen()));
     }
+
+    private static string Items(AutomationElement list) =>
+        string.Join(" | ", list.FindAllDescendants(cf => cf.ByControlType(ControlType.ListItem)).Select(i => i.Name));
 
     private static void Shot(string name)
     {
@@ -110,7 +117,8 @@ public sealed class FilesTests : IDisposable
         var list = Id(files, "FileList");
 
         // Starts at the drives of the Windows device. / Empieza en las unidades del equipo Windows.
-        Until(() => list.FindAllDescendants(cf => cf.ByControlType(ControlType.ListItem)).Any(i => i.Name.EndsWith(':')), "no drive listed");
+        Until(() => list.FindAllDescendants(cf => cf.ByControlType(ControlType.ListItem)).Any(i => i.Name.EndsWith(':')), "no drive listed",
+            () => Items(list) + " · status: " + (files.FindFirstDescendant(cf => cf.ByAutomationId("FilesStatus"))?.Name ?? "?"));
         Shot("drives");
 
         var path = Id(files, "PathBox");
