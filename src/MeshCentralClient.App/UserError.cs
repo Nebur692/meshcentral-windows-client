@@ -45,6 +45,8 @@ public sealed record UserError(string Message, bool MustAct, string Footer, stri
             MeshFailure.ConnectionLost => ("The connection to the server was lost.", "Se ha cortado la conexión con el servidor.", false),
             MeshFailure.SessionExpired => ("The server did not let this account in. Sign in again; if it happens again, ask an administrator for access to this server in your sign-in provider.",
                 "El servidor no ha dejado entrar a esta cuenta. Vuelve a entrar; si se repite, pide a un administrador acceso a este servidor en tu proveedor de inicio de sesión.", true),
+            MeshFailure.NotFound => ("That file or folder does not exist on the device, or it cannot be opened.",
+                "Ese fichero o carpeta no existe en el equipo, o no se puede abrir.", false),
             MeshFailure.UnexpectedResponse => ("The server answered something this app does not understand (maybe a newer MeshCentral version).",
                 "El servidor ha contestado algo que esta app no entiende (quizá una versión de MeshCentral más nueva).", true),
             _ => ("Something failed.", "Algo ha fallado.", true),

@@ -23,6 +23,9 @@
     <EmbeddedResource Include="Assets\web\**\*" LogicalName="web/%(RecursiveDir)%(Filename)%(Extension)" />
   </ItemGroup>
   <ItemGroup>
+    <InternalsVisibleTo Include="MeshCentralClient.App.Tests" />
+  </ItemGroup>
+  <ItemGroup>
     <ProjectReference Include="..\MeshCentralClient.Core\MeshCentralClient.Core.csproj" />
   </ItemGroup>
 </Project>

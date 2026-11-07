@@ -1,5 +1,5 @@
 {
-  "generado": "2026-11-07T15:31:43Z",
+  "generado": "2026-11-07T16:30:38Z",
   "aviso": "Generado por bin/burburito. No editar a mano: la fuente de verdad es el burburito.json de al lado.",
   "proyecto": {
     "id": 35,
@@ -198,6 +198,90 @@
       "severidad": "error",
       "actuar": true,
       "titulo": "La lista de equipos llegó con un formato inesperado"
+    },
+    "ficheros/ver-pantalla/tiempo-agotado": {
+      "codigo": "035-007-020-002",
+      "severidad": "error",
+      "actuar": true,
+      "titulo": "El equipo no contestó al pedir la carpeta"
+    },
+    "ficheros/ver-pantalla/conexion-cortada": {
+      "codigo": "035-007-020-005",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "Se cortó la conexión con el equipo"
+    },
+    "ficheros/ver-pantalla/no-encontrado": {
+      "codigo": "035-007-020-062",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "La carpeta no existe o no se puede leer"
+    },
+    "ficheros/descargar/tiempo-agotado": {
+      "codigo": "035-007-023-002",
+      "severidad": "error",
+      "actuar": true,
+      "titulo": "El equipo dejó de mandar el fichero"
+    },
+    "ficheros/descargar/conexion-cortada": {
+      "codigo": "035-007-023-005",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "Se cortó la conexión al descargar"
+    },
+    "ficheros/descargar/rechazo-remoto": {
+      "codigo": "035-007-023-021",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "El equipo cortó la descarga"
+    },
+    "ficheros/descargar/no-encontrado": {
+      "codigo": "035-007-023-062",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "El fichero no se puede abrir en el equipo"
+    },
+    "ficheros/descargar/permisos-fichero": {
+      "codigo": "035-007-023-081",
+      "severidad": "aviso",
+      "actuar": true,
+      "titulo": "No se pudo guardar el fichero en este PC"
+    },
+    "ficheros/subir/tiempo-agotado": {
+      "codigo": "035-007-024-002",
+      "severidad": "error",
+      "actuar": true,
+      "titulo": "El equipo dejó de contestar al subir"
+    },
+    "ficheros/subir/conexion-cortada": {
+      "codigo": "035-007-024-005",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "Se cortó la conexión al subir"
+    },
+    "ficheros/subir/rechazo-remoto": {
+      "codigo": "035-007-024-021",
+      "severidad": "aviso",
+      "actuar": true,
+      "titulo": "El equipo no pudo guardar el fichero"
+    },
+    "ficheros/subir/permisos-fichero": {
+      "codigo": "035-007-024-081",
+      "severidad": "aviso",
+      "actuar": true,
+      "titulo": "No se pudo leer el fichero de este PC"
+    },
+    "ficheros/gestionar-ficheros/conexion-cortada": {
+      "codigo": "035-007-500-005",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "Se cortó la conexión al cambiar ficheros"
+    },
+    "ficheros/gestionar-ficheros/rechazo-remoto": {
+      "codigo": "035-007-500-021",
+      "severidad": "aviso",
+      "actuar": true,
+      "titulo": "El equipo no hizo el cambio"
     },
     "tunel/ver-pantalla/conexion-cortada": {
       "codigo": "035-005-020-005",

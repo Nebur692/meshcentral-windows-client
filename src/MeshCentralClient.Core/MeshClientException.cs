@@ -20,6 +20,8 @@ public enum MeshFailure
     UnexpectedResponse,
     /// <summary>A single sign-on session was refused or has expired. / Una sesión de inicio único se rechazó o caducó.</summary>
     SessionExpired,
+    /// <summary>A remote file or folder does not exist or cannot be opened. / Un fichero o carpeta remotos no existe o no se puede abrir.</summary>
+    NotFound,
 }
 
 /// <summary>

@@ -27,7 +27,7 @@ official website and `meshctrl`, so it works with **any** MeshCentral installati
 
 > Unofficial project, not affiliated with the MeshCentral authors. The device side still uses the official MeshCentral agent.
 
-### Features (version 0.4)
+### Features (version 0.5)
 
 - **Sign in** with username and password, with **two-factor** codes (authenticator app, or email code when the server offers it).
 - **Single sign-on**: if the server offers it (OpenID Connect, SAML, Microsoft, Google, GitHub…), a button signs in on
@@ -40,14 +40,16 @@ official website and `meshctrl`, so it works with **any** MeshCentral installati
 - **Saved servers**: address and user remembered; the password only if you ask, encrypted for your Windows user (DPAPI).
 - **Terminal**: shell, cmd or PowerShell on the device, with a full terminal (xterm.js, the same engine as the
   website); copy and paste like Windows Terminal. Double-click a device to open it.
+- **Files**: browse the device's drives and folders, create folders, rename, delete, upload (also by dropping files
+  from Explorer) and download, with progress and cancel.
 - **Open in the browser** from the device's menu.
 - **Light, dark or like Windows**, remembered.
 - **Updates itself**: when a new version is published, it offers it, checks its SHA-256 fingerprint and restarts as
   the new version; a file that does not match is never installed.
 - **English and Spanish** interface, following the Windows language.
 
-The goal is everything the MeshCentral website does. Coming next: files, remote desktop, device details and actions,
-groups, users and port mapping — see [the plan](docs/PLAN.md).
+The goal is everything the MeshCentral website does. Coming next: remote desktop, device details and actions, groups,
+users and port mapping — see [the plan](docs/PLAN.md).
 
 ### Install
 
@@ -71,7 +73,7 @@ tests/server/run-integration.sh                       # needs Docker: real throw
 
 The integration tests start a disposable MeshCentral server and a real Linux agent in Docker, test every login path
 (right and wrong password, two-factor, untrusted and pinned certificate), the device list, live events, a
-server-side disconnection, the terminal and single sign-on (against a throwaway OpenID Connect provider), and remove everything when they end.
+server-side disconnection, the terminal, the files and single sign-on (against a throwaway OpenID Connect provider), and remove everything when they end.
 
 ### License
 
@@ -89,7 +91,7 @@ web oficial y `meshctrl`, así que funciona con **cualquier** instalación de Me
 
 > Proyecto no oficial, sin relación con los autores de MeshCentral. En los equipos se sigue usando el agente oficial de MeshCentral.
 
-### Qué hace (versión 0.4)
+### Qué hace (versión 0.5)
 
 - **Entrar** con usuario y contraseña, con código de **doble factor** (app de autenticación, o código por correo si el servidor lo ofrece).
 - **Inicio de sesión único**: si el servidor lo ofrece (OpenID Connect, SAML, Microsoft, Google, GitHub…), un botón
@@ -102,14 +104,16 @@ web oficial y `meshctrl`, así que funciona con **cualquier** instalación de Me
 - **Servidores guardados**: recuerda la dirección y el usuario; la contraseña solo si se lo pides, cifrada para tu usuario de Windows (DPAPI).
 - **Terminal**: shell, cmd o PowerShell en el equipo, con una terminal completa (xterm.js, el mismo motor que la
   web); copiar y pegar como en Windows Terminal. Doble clic en un equipo para abrirla.
+- **Ficheros**: explorar las unidades y carpetas del equipo, crear carpetas, renombrar, borrar, subir (también
+  soltando ficheros desde el Explorador) y bajar, con progreso y botón de cancelar.
 - **Abrir en el navegador** desde el menú del equipo.
 - **Claro, oscuro o como Windows**, y lo recuerda.
 - **Se actualiza sola**: cuando se publica una versión nueva, la ofrece, comprueba su huella SHA-256 y se reabre ya
   actualizada; un fichero que no coincide no se instala nunca.
 - Interfaz en **inglés y español**, según el idioma de Windows.
 
-La meta es todo lo que hace la web de MeshCentral. Lo siguiente: ficheros, escritorio remoto, datos y acciones del
-equipo, grupos, usuarios y redirección de puertos; está en [el plan](docs/PLAN.md).
+La meta es todo lo que hace la web de MeshCentral. Lo siguiente: escritorio remoto, datos y acciones del equipo,
+grupos, usuarios y redirección de puertos; está en [el plan](docs/PLAN.md).
 
 ### Instalar
 
@@ -133,7 +137,7 @@ tests/server/run-integration.sh                       # necesita Docker: MeshCen
 
 Las pruebas de integración arrancan en Docker un servidor MeshCentral desechable y un agente Linux de verdad, prueban
 todas las formas de entrar (contraseña buena y mala, doble factor, certificado no fiable y aceptado), la lista de
-equipos, los avisos en vivo, un corte desde el servidor, la terminal y el inicio de sesión único (contra un proveedor OpenID Connect desechable), y lo quitan todo al acabar.
+equipos, los avisos en vivo, un corte desde el servidor, la terminal, los ficheros y el inicio de sesión único (contra un proveedor OpenID Connect desechable), y lo quitan todo al acabar.
 
 ### Licencia
 

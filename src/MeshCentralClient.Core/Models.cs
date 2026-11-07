@@ -51,6 +51,8 @@ public sealed record Device(
 
     public bool CanOpenTerminal => IsOnline && Connectivity.HasFlag(DeviceConnectivity.Agent) && Capabilities.HasFlag(AgentCapabilities.Terminal);
 
+    public bool CanOpenFiles => IsOnline && Connectivity.HasFlag(DeviceConnectivity.Agent) && Capabilities.HasFlag(AgentCapabilities.Files);
+
     internal static Device From(JsonObject o, string? groupId = null)
     {
         var tags = (o["tags"] as JsonArray)?.Select(t => t?.ToString()).Where(t => !string.IsNullOrEmpty(t)).Cast<string>().ToList()

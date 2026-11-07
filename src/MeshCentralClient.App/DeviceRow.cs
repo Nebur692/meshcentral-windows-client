@@ -26,6 +26,7 @@ public sealed class DeviceRow : INotifyPropertyChanged
     public string Tags => string.Join(", ", _device.Tags);
     public bool IsOnline => _device.IsOnline;
     public bool CanOpenTerminal => _device.CanOpenTerminal;
+    public bool CanOpenFiles => _device.CanOpenFiles;
     public bool IsWindows => _device.IsWindows;
     public string Status => L.T(_device.IsOnline ? "Online" : "Offline");
 

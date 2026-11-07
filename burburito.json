@@ -42,9 +42,22 @@
       "slug": "actualizar",
       "nombre": "La actualización de la propia app",
       "descripcion": "UpdateChecker y SelfUpdater (src/MeshCentralClient.Core/Updates): pregunta a releases/latest de GitHub, descarga MeshCentralClient.exe junto al que corre como .new, comprueba su SHA-256 contra MeshCentralClient.exe.sha256 y los cambia renombrando (el viejo queda como .old.exe hasta reabrir)."
+    },
+    {
+      "id": 7,
+      "slug": "ficheros",
+      "nombre": "Los ficheros de un equipo",
+      "descripcion": "FilesSession (src/MeshCentralClient.Core/FilesSession.cs) sobre el túnel de protocolo 5: ls, mkdir, rename, rm, upload (bloques de 64 KB con uploadack) y download (bloques de 16 KB con cabecera de 4 bytes y ack). El agente contesta en JSON dentro de mensajes binarios. La ventana de ficheros vuelve a listar tras cada cambio para comprobarlo."
     }
   ],
-  "acciones": [],
+  "acciones": [
+    {
+      "id": 500,
+      "slug": "gestionar-ficheros",
+      "nombre": "Crear carpetas, renombrar o borrar en un equipo",
+      "descripcion": "La persona cambia ficheros de un equipo remoto desde la app (mkdir, rename, rm por el túnel de ficheros). No está en el vocabulario global: el global solo tiene subir y descargar."
+    }
+  ],
   "codigos": [
     {
       "modulo": "conexion",
@@ -405,6 +418,146 @@
       "titulo": "Sin contraseña y el servidor no ofrece inicio único",
       "explicacion": "Se pulsó Conectar sin contraseña (eso pide inicio de sesión único) y la página de entrada del servidor no trae ninguna authStrategies.",
       "que_hacer": "Escribir usuario y contraseña."
+    },
+    {
+      "modulo": "ficheros",
+      "accion": "ver-pantalla",
+      "causa": "no-encontrado",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "La carpeta no existe o no se puede leer",
+      "explicacion": "El agente contestó al ls con dir = null: la ruta no existe, se borró entretanto o la cuenta del agente no puede leerla.",
+      "que_hacer": "Volver a la carpeta de arriba o pulsar Actualizar."
+    },
+    {
+      "modulo": "ficheros",
+      "accion": "ver-pantalla",
+      "causa": "tiempo-agotado",
+      "severidad": "error",
+      "actuar": true,
+      "titulo": "El equipo no contestó al pedir la carpeta",
+      "explicacion": "El ls no tuvo respuesta en 20 segundos: el agente está ocupado o la carpeta es enorme o lenta (unidad de red).",
+      "que_hacer": "Pulsar Actualizar; si se repite, cerrar y volver a abrir los ficheros."
+    },
+    {
+      "modulo": "ficheros",
+      "accion": "ver-pantalla",
+      "causa": "conexion-cortada",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "Se cortó la conexión con el equipo",
+      "explicacion": "El túnel de ficheros se cerró: el equipo se apagó o reinició, o se cortó la red.",
+      "que_hacer": "Volver a abrir los ficheros cuando el equipo esté conectado."
+    },
+    {
+      "modulo": "ficheros",
+      "accion": "gestionar-ficheros",
+      "causa": "conexion-cortada",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "Se cortó la conexión al cambiar ficheros",
+      "explicacion": "El túnel se cerró al mandar mkdir, rename o rm; puede que el cambio se hiciera o no.",
+      "que_hacer": "Volver a abrir los ficheros y mirar cómo quedó."
+    },
+    {
+      "modulo": "ficheros",
+      "accion": "gestionar-ficheros",
+      "causa": "rechazo-remoto",
+      "severidad": "aviso",
+      "actuar": true,
+      "titulo": "El equipo no hizo el cambio",
+      "explicacion": "Tras mkdir, rename o rm la app vuelve a listar y el cambio no está (el agente no contesta a esas órdenes): sin permiso, nombre no válido o ya existe.",
+      "que_hacer": "Probar con otro nombre o pedir permisos en el equipo."
+    },
+    {
+      "modulo": "ficheros",
+      "accion": "subir",
+      "causa": "rechazo-remoto",
+      "severidad": "aviso",
+      "actuar": true,
+      "titulo": "El equipo no pudo guardar el fichero",
+      "explicacion": "El agente contestó uploaderror: no puede crear el fichero (sin permiso, carpeta inexistente) o falló al escribirlo (disco lleno).",
+      "que_hacer": "Subirlo a otra carpeta o liberar espacio en el equipo."
+    },
+    {
+      "modulo": "ficheros",
+      "accion": "subir",
+      "causa": "tiempo-agotado",
+      "severidad": "error",
+      "actuar": true,
+      "titulo": "El equipo dejó de contestar al subir",
+      "explicacion": "Faltó uploadstart, uploadack o uploaddone durante 20 segundos. Se cancela y el agente borra lo subido a medias.",
+      "que_hacer": "Volver a subirlo."
+    },
+    {
+      "modulo": "ficheros",
+      "accion": "subir",
+      "causa": "conexion-cortada",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "Se cortó la conexión al subir",
+      "explicacion": "El túnel se cerró a mitad de la subida; el fichero puede quedar a medias en el equipo.",
+      "que_hacer": "Volver a subirlo cuando el equipo esté conectado."
+    },
+    {
+      "modulo": "ficheros",
+      "accion": "subir",
+      "causa": "permisos-fichero",
+      "severidad": "aviso",
+      "actuar": true,
+      "titulo": "No se pudo leer el fichero de este PC",
+      "explicacion": "El fichero elegido para subir no se pudo abrir en el PC (en uso o sin permiso).",
+      "que_hacer": "Cerrar el programa que lo tenga abierto y volver a intentarlo."
+    },
+    {
+      "modulo": "ficheros",
+      "accion": "descargar",
+      "causa": "no-encontrado",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "El fichero no se puede abrir en el equipo",
+      "explicacion": "El agente contestó cancel al empezar: no existe, es una carpeta o no tiene permiso.",
+      "que_hacer": "Actualizar la carpeta y elegir otro fichero."
+    },
+    {
+      "modulo": "ficheros",
+      "accion": "descargar",
+      "causa": "rechazo-remoto",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "El equipo cortó la descarga",
+      "explicacion": "El agente mandó cancel a mitad de la descarga.",
+      "que_hacer": "Volver a descargarlo."
+    },
+    {
+      "modulo": "ficheros",
+      "accion": "descargar",
+      "causa": "tiempo-agotado",
+      "severidad": "error",
+      "actuar": true,
+      "titulo": "El equipo dejó de mandar el fichero",
+      "explicacion": "No llegó ningún bloque en 20 segundos.",
+      "que_hacer": "Volver a descargarlo."
+    },
+    {
+      "modulo": "ficheros",
+      "accion": "descargar",
+      "causa": "conexion-cortada",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "Se cortó la conexión al descargar",
+      "explicacion": "El túnel se cerró a mitad; lo descargado a medias se borra.",
+      "que_hacer": "Volver a descargarlo cuando el equipo esté conectado."
+    },
+    {
+      "modulo": "ficheros",
+      "accion": "descargar",
+      "causa": "permisos-fichero",
+      "severidad": "aviso",
+      "actuar": true,
+      "titulo": "No se pudo guardar el fichero en este PC",
+      "explicacion": "Falló la escritura del fichero descargado (disco lleno o sin permiso en esa carpeta).",
+      "que_hacer": "Guardarlo en otra carpeta o liberar espacio."
     }
   ]
 }

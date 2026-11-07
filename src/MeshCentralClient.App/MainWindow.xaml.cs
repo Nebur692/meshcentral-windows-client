@@ -490,11 +490,21 @@ public partial class MainWindow : Window
         TerminalItem.IsEnabled = row is { CanOpenTerminal: true };
         PowerShellItem.Visibility = row is { IsWindows: true } ? Visibility.Visible : Visibility.Collapsed;
         PowerShellItem.IsEnabled = row is { CanOpenTerminal: true };
+        FilesItem.IsEnabled = row is { CanOpenFiles: true };
     }
 
     private void OpenTerminal_Click(object sender, RoutedEventArgs e) => OpenTerminal(TunnelProtocol.Terminal);
 
     private void OpenPowerShell_Click(object sender, RoutedEventArgs e) => OpenTerminal(TunnelProtocol.PowerShell);
+
+    private void OpenFiles_Click(object sender, RoutedEventArgs e)
+    {
+        if (DeviceList.SelectedItem is not DeviceRow row || _session is null || !row.CanOpenFiles) return;
+        var w = new FilesWindow(_session, row);
+        _sessionWindows.Add(w);
+        w.Closed += (_, _) => _sessionWindows.Remove(w);
+        w.Show();
+    }
 
     private void OpenTerminal(TunnelProtocol kind)
     {

@@ -135,6 +135,7 @@
             <ContextMenu Opened="DeviceMenu_Opened">
               <MenuItem x:Name="TerminalItem" Header="{app:T OpenTerminal}" Click="OpenTerminal_Click" />
               <MenuItem x:Name="PowerShellItem" Header="{app:T OpenPowerShell}" Click="OpenPowerShell_Click" />
+              <MenuItem x:Name="FilesItem" Header="{app:T OpenFiles}" Click="OpenFiles_Click" />
               <Separator />
               <MenuItem Header="{app:T OpenInBrowser}" Click="OpenInBrowser_Click" />
               <MenuItem Header="{app:T CopyName}" Click="CopyName_Click" />
