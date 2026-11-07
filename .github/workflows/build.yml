@@ -16,7 +16,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Pull images
         run: |
           docker pull ghcr.io/ylianst/meshcentral:latest
@@ -30,15 +30,15 @@ jobs:
     runs-on: windows-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-dotnet@v5
         with:
           dotnet-version: '10.0.x'
       - name: Windows tests (unit only; integration runs on Linux)
         run: dotnet test MeshCentralClient.slnx -c Release --filter "Category!=Integration&Category!=UI" --logger "console;verbosity=normal"
       - name: Publish
         run: dotnet publish src/MeshCentralClient.App -c Release -r win-x64 --self-contained -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:DebugType=none -o out
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v5
         with:
           name: MeshCentralClient-win-x64
           path: out/MeshCentralClient.exe
@@ -49,8 +49,8 @@ jobs:
     runs-on: windows-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-dotnet@v5
         with:
           dotnet-version: '10.0.x'
       - name: Publish the app
@@ -62,7 +62,7 @@ jobs:
         if: failure()
         shell: pwsh
         run: Get-Content "$env:RUNNER_TEMP\meshui\mc.log" -Tail 60 -ErrorAction SilentlyContinue
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v5
         if: always()
         with:
           name: ui-screenshots

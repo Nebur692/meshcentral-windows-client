@@ -42,7 +42,7 @@ for ($i = 0; $i -lt 150 -and -not $ok; $i++) {
 }
 if (-not $ok) { Get-Content (Join-Path $Work 'mc.log') -Tail 40; throw 'MeshCentral did not answer in 300 s' }
 # otplib is installed by MeshCentral itself on first start (it may restart once). / otplib lo instala MeshCentral al arrancar (puede reiniciarse una vez).
-for ($i = 0; $i -lt 60 -and -not (Test-Path (Join-Path $mc 'node_modules\otplib'))); $i++) { Start-Sleep 2 }
+for ($i = 0; $i -lt 60 -and -not (Test-Path (Join-Path $mc 'node_modules\otplib')); $i++) { Start-Sleep 2 }
 Start-Sleep 5
 
 Write-Host '== test data'
