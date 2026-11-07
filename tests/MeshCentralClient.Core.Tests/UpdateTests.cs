@@ -70,48 +70,76 @@ public class UpdateFeedTests
         Assert.Equal(expected, UpdateChecker.FeedFromEnvironment(value)?.ToString());
 }
 
-/// <summary>Download, check and swap against a real local HTTP server. / Descargar, comprobar y cambiar contra un servidor HTTP local de verdad.</summary>
-public sealed class SelfUpdaterTests : IDisposable
+/// <summary>
+/// One real local HTTP server for all the download tests, on a port the system says is free (and another one if it was
+/// taken in between): a random port failed now and then on Windows.
+/// Un único servidor HTTP local de verdad para todas las pruebas de descarga, en un puerto que el sistema da por libre
+/// (y otro si lo ocuparon entretanto): un puerto al azar fallaba de vez en cuando en Windows.
+/// </summary>
+public sealed class LocalHttpServer : IDisposable
 {
-    private readonly HttpListener _listener = new();
-    private readonly Dictionary<string, (int Status, byte[] Body)> _routes = new();
-    private readonly string _base;
-    private readonly DirectoryInfo _dir = Directory.CreateTempSubdirectory("mcc-update-");
-    private readonly HttpClient _http = new();
-    private readonly string _exe;
-    private static readonly byte[] OldExe = Encoding.ASCII.GetBytes("old exe contents");
-    private static readonly byte[] NewExe = RandomNumberGenerator.GetBytes(300_000);
+    private readonly HttpListener _listener;
+    public Dictionary<string, (int Status, byte[] Body)> Routes { get; } = new();
+    public string Base { get; }
 
-    public SelfUpdaterTests()
+    public LocalHttpServer()
     {
-        var port = Random.Shared.Next(20000, 60000);
-        _base = $"http://127.0.0.1:{port}/";
-        _listener.Prefixes.Add(_base);
-        _listener.Start();
+        for (var attempt = 0; ; attempt++)
+        {
+            var probe = new System.Net.Sockets.TcpListener(IPAddress.Loopback, 0);
+            probe.Start();
+            var port = ((IPEndPoint)probe.LocalEndpoint).Port;
+            probe.Stop();
+            var l = new HttpListener();
+            l.Prefixes.Add($"http://127.0.0.1:{port}/");
+            try { l.Start(); _listener = l; Base = $"http://127.0.0.1:{port}/"; break; }
+            catch (HttpListenerException) when (attempt < 10) { l.Close(); }
+        }
         _ = Task.Run(async () =>
         {
             while (_listener.IsListening)
             {
                 HttpListenerContext c;
                 try { c = await _listener.GetContextAsync(); } catch (Exception) { return; }
-                var (status, body) = _routes.TryGetValue(c.Request.Url!.AbsolutePath, out var r) ? r : (404, Array.Empty<byte>());
-                c.Response.StatusCode = status;
-                c.Response.ContentLength64 = body.Length;
-                await c.Response.OutputStream.WriteAsync(body);
-                c.Response.Close();
+                (int, byte[]) r;
+                lock (Routes) r = Routes.TryGetValue(c.Request.Url!.AbsolutePath, out var x) ? x : (404, Array.Empty<byte>());
+                c.Response.StatusCode = r.Item1;
+                c.Response.ContentLength64 = r.Item2.Length;
+                try { await c.Response.OutputStream.WriteAsync(r.Item2); c.Response.Close(); } catch (Exception) { }
             }
         });
+    }
+
+    public void Dispose() { _listener.Stop(); _listener.Close(); }
+}
+
+/// <summary>Download, check and swap against a real local HTTP server. / Descargar, comprobar y cambiar contra un servidor HTTP local de verdad.</summary>
+public sealed class SelfUpdaterTests : IDisposable, IClassFixture<LocalHttpServer>
+{
+    private readonly LocalHttpServer _server;
+    private readonly DirectoryInfo _dir = Directory.CreateTempSubdirectory("mcc-update-");
+    private readonly HttpClient _http = new();
+    private readonly string _exe;
+    private static readonly byte[] OldExe = Encoding.ASCII.GetBytes("old exe contents");
+    private static readonly byte[] NewExe = RandomNumberGenerator.GetBytes(300_000);
+
+    public SelfUpdaterTests(LocalHttpServer server)
+    {
+        _server = server;
         _exe = Path.Combine(_dir.FullName, "MeshCentralClient.exe");
         File.WriteAllBytes(_exe, OldExe);
     }
 
-    public void Dispose() { _listener.Stop(); _listener.Close(); _http.Dispose(); _dir.Delete(true); }
+    public void Dispose() { _http.Dispose(); _dir.Delete(true); }
 
     private AvailableUpdate Serve(string shaText, int exeStatus = 200)
     {
-        _routes["/MeshCentralClient.exe"] = (exeStatus, NewExe);
-        _routes["/MeshCentralClient.exe.sha256"] = (200, Encoding.ASCII.GetBytes(shaText));
-        return new AvailableUpdate(new Version(9, 0, 0), "v9.0.0", new Uri(_base + "MeshCentralClient.exe"), new Uri(_base + "MeshCentralClient.exe.sha256"), null);
+        lock (_server.Routes)
+        {
+            _server.Routes["/MeshCentralClient.exe"] = (exeStatus, NewExe);
+            _server.Routes["/MeshCentralClient.exe.sha256"] = (200, Encoding.ASCII.GetBytes(shaText));
+        }
+        return new AvailableUpdate(new Version(9, 0, 0), "v9.0.0", new Uri(_server.Base + "MeshCentralClient.exe"), new Uri(_server.Base + "MeshCentralClient.exe.sha256"), null);
     }
 
     private static string Sha(byte[] b) => Convert.ToHexString(SHA256.HashData(b)).ToLowerInvariant();
