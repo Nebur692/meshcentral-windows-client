@@ -134,6 +134,9 @@ try {
   Write-Host "OpenSSH.Server: $($cap.Name) $($cap.State)"
   if ($cap.State -ne 'Installed') { Add-WindowsCapability -Online -Name $cap.Name | Out-Null }
   New-LocalUser -Name $sshUser -Password (ConvertTo-SecureString $sshPass -AsPlainText -Force) -AccountNeverExpires -PasswordNeverExpires | Out-Null
+  # As any normal account: in the local Users group (by its well-known SID, whatever the language).
+  # Como cualquier cuenta normal: en el grupo local Usuarios (por su SID conocido, sea cual sea el idioma).
+  Add-LocalGroupMember -SID 'S-1-5-32-545' -Member $sshUser
   Start-Service sshd
   $sshStarted = $true
   Write-Host "sshd running after $([int]$watch.Elapsed.TotalSeconds) s"
@@ -158,7 +161,11 @@ try {
 }
 finally {
   foreach ($p in @($agentProc, $server, $feedProc, $oidcProc)) { if ($p -and -not $p.HasExited) { Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue } }
-  if ($sshStarted) { Stop-Service sshd -ErrorAction SilentlyContinue }
+  if ($sshStarted) {
+    # What the SSH server logged, for when the SSH test fails. / Lo que apuntó el servidor SSH, por si falla su prueba.
+    Get-WinEvent -LogName 'OpenSSH/Operational' -MaxEvents 30 -ErrorAction SilentlyContinue | Sort-Object TimeCreated | ForEach-Object { "  sshd| $($_.TimeCreated.ToString('HH:mm:ss')) $($_.Message)" }
+    Stop-Service sshd -ErrorAction SilentlyContinue
+  }
   Remove-LocalUser -Name $sshUser -ErrorAction SilentlyContinue
   # A test may have restarted a hung agent: whatever runs from this run's agent file is stopped too.
   # Una prueba puede haber reiniciado un agente colgado: también se para lo que corra desde el agente de esta pasada.

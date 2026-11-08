@@ -101,6 +101,25 @@ public sealed class SshTests(ITestOutputHelper output) : IDisposable
         return term;
     }
 
+    /// <summary>The account and the relay alone, without typing anything: tells a sign-in problem from a typing one.
+    /// La cuenta y el relé solos, sin teclear nada: distingue un problema de la cuenta de uno de lo tecleado.</summary>
+    [Fact]
+    public async Task The_core_signs_in_to_this_windows_openssh_through_the_agent()
+    {
+        Assert.True(MeshCentralClient.Core.ServerAddress.TryParse(Env("MESHUI_SERVER"), out var a));
+        await using var s = await MeshCentralClient.Core.MeshServerSession.ConnectAsync(a!, new("admin", "Admin-Pass-1234"), new MeshCentralClient.Core.CertificateTrust(Env("MESHUI_CERT_SHA256")));
+        await s.GetDeviceGroupsAsync();
+        var me = (await s.GetDevicesAsync()).Single(d => d.Name == Environment.MachineName);
+        await using var t = await MeshCentralClient.Core.SshTerminal.OpenAsync(s, me.Id, me.Name, null, 22,
+            new MeshCentralClient.Core.SshLogin(Env("MESHUI_SSH_USER"), Env("MESHUI_SSH_PASS")), _ => true, 100, 30);
+        var seen = new System.Text.StringBuilder();
+        var got = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        t.Output += (_, d) => { lock (seen) { seen.Append(System.Text.Encoding.UTF8.GetString(d.Span)); if (seen.ToString().Contains("\\" + Env("MESHUI_SSH_USER"), StringComparison.OrdinalIgnoreCase)) got.TrySetResult(); } };
+        await t.WriteAsync("whoami\r\n");
+        await got.Task.WaitAsync(TimeSpan.FromSeconds(30));
+        output.WriteLine($"{t.HostKey.Algorithm} {t.HostKey.Fingerprint}");
+    }
+
     [Fact]
     public void A_person_opens_ssh_through_the_device_and_the_second_time_the_identity_is_known()
     {

@@ -42,7 +42,14 @@ official website and `meshctrl`, so it works with **any** MeshCentral installati
   website); copy and paste as in PuTTY (select to copy, right click to paste). Double-click a device to open it.
 - **Remote desktop**: see and control the device's screen with mouse and keyboard, choose the display or all of them,
   **one window per remote display on your monitors**, quality presets, Ctrl+Alt+Del and Windows-key buttons, and
-  **type the clipboard** on the device (Unicode, whatever its keyboard layout).
+  **type the clipboard** on the device (Unicode, whatever its keyboard layout). With Windows devices, **copy and paste
+  of everything — text, images, files and folders — both ways**, as in Remote Desktop.
+- **Port mapping** (what MeshCentral Router does, inside the app): a port on this PC (127.0.0.1 only) whose connections
+  go, through the device's agent, to a port of the device or of another machine on its network; remembered mappings
+  come back at every sign-in. **Windows Remote Desktop** to a device in one click, through a private port that closes
+  with it.
+- **SSH inside the app**, to the device or to a machine its network reaches, with a password or an OpenSSH key, the
+  server's identity checked like OpenSSH does, and the app's own terminal.
 - **Device page**: general data (description and tags editable), network interfaces, the whole hardware and agent
   inventory with a filter, notes and history — also for devices that are offline.
 - **Files**: browse the device's drives and folders, create folders, rename, delete, upload (also by dropping files
@@ -70,7 +77,7 @@ official website and `meshctrl`, so it works with **any** MeshCentral installati
   the new version; a file that does not match is never installed.
 - **English and Spanish** interface, following the Windows language.
 
-The goal is everything the MeshCentral website does. Coming next: port mapping, then session recordings — see [the plan](docs/PLAN.md).
+The goal is everything the MeshCentral website does, plus MeshCentral Router. Coming next: a signed release and an installer, then session recordings — see [the plan](docs/PLAN.md).
 
 ### Install
 
@@ -94,7 +101,8 @@ tests/server/run-integration.sh                       # needs Docker: real throw
 
 The integration tests start a disposable MeshCentral server and a real Linux agent in Docker, test every login path
 (right and wrong password, two-factor, untrusted and pinned certificate), the device list, live events, a
-server-side disconnection, the terminal, the files, the remote desktop and single sign-on (against a throwaway OpenID Connect provider), and remove everything when they end.
+server-side disconnection, the terminal, the files, the remote desktop, port mapping, SSH (against a throwaway SSH server)
+and single sign-on (against a throwaway OpenID Connect provider), and remove everything when they end.
 
 ### License
 
@@ -127,7 +135,14 @@ web oficial y `meshctrl`, así que funciona con **cualquier** instalación de Me
   web); copiar y pegar como en PuTTY (seleccionar copia, clic derecho pega). Doble clic en un equipo para abrirla.
 - **Escritorio remoto**: ver y manejar la pantalla del equipo con ratón y teclado, elegir la pantalla o todas, **una
   ventana por cada pantalla remota en tus monitores**, calidades predefinidas, botones de Ctrl+Alt+Supr y tecla Windows, y
-  **escribir el portapapeles** en el equipo (Unicode, sea cual sea la distribución de su teclado).
+  **escribir el portapapeles** en el equipo (Unicode, sea cual sea la distribución de su teclado). Con equipos Windows,
+  **copiar y pegar de todo —texto, imágenes, ficheros y carpetas— en los dos sentidos**, como en Escritorio remoto.
+- **Redirección de puertos** (lo que hace MeshCentral Router, dentro de la app): un puerto de este PC (solo 127.0.0.1)
+  cuyas conexiones van, por el agente del equipo, a un puerto del equipo o de otra máquina de su red; las que se
+  recuerdan vuelven en cada entrada. **Escritorio remoto de Windows** a un equipo con un clic, por un puerto privado que
+  se cierra con él.
+- **SSH dentro de la app**, al equipo o a una máquina a la que llega su red, con contraseña o clave de OpenSSH, la
+  identidad del servidor comprobada como hace OpenSSH, y la terminal de la propia app.
 - **Ficha del equipo**: datos generales (descripción y etiquetas editables), interfaces de red, todo el inventario de
   hardware y del agente con filtro, notas e historial; también de equipos desconectados.
 - **Ficheros**: explorar las unidades y carpetas del equipo, crear carpetas, renombrar, borrar, subir (también
@@ -156,8 +171,8 @@ web oficial y `meshctrl`, así que funciona con **cualquier** instalación de Me
   actualizada; un fichero que no coincide no se instala nunca.
 - Interfaz en **inglés y español**, según el idioma de Windows.
 
-La meta es todo lo que hace la web de MeshCentral. Lo siguiente: redirección de puertos, y después las grabaciones
-de sesiones; está en [el plan](docs/PLAN.md).
+La meta es todo lo que hace la web de MeshCentral, más MeshCentral Router. Lo siguiente: versión firmada e instalador,
+y después las grabaciones de sesiones; está en [el plan](docs/PLAN.md).
 
 ### Instalar
 
@@ -181,7 +196,9 @@ tests/server/run-integration.sh                       # necesita Docker: MeshCen
 
 Las pruebas de integración arrancan en Docker un servidor MeshCentral desechable y un agente Linux de verdad, prueban
 todas las formas de entrar (contraseña buena y mala, doble factor, certificado no fiable y aceptado), la lista de
-equipos, los avisos en vivo, un corte desde el servidor, la terminal, los ficheros, el escritorio remoto y el inicio de sesión único (contra un proveedor OpenID Connect desechable), y lo quitan todo al acabar.
+equipos, los avisos en vivo, un corte desde el servidor, la terminal, los ficheros, el escritorio remoto, la redirección
+de puertos, SSH (contra un servidor SSH desechable) y el inicio de sesión único (contra un proveedor OpenID Connect
+desechable), y lo quitan todo al acabar.
 
 ### Licencia
 

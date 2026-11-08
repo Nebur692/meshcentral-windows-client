@@ -7,7 +7,7 @@ using Xunit;
 /// <summary>The device clipboard's scripts and answers, without a device. / Los guiones y respuestas del portapapeles del equipo, sin equipo.</summary>
 public class RemoteClipboardTests
 {
-    private static string Answer(JsonObject o) => RemoteClipboard.Marker + Convert.ToBase64String(Encoding.UTF8.GetBytes(o.ToJsonString()));
+    private static string Answer(JsonObject o) => RemoteClipboard.Marker + Convert.ToBase64String(Encoding.UTF8.GetBytes(o.ToJsonString())) + RemoteClipboard.EndMarker;
 
     [Fact]
     public void The_answer_is_found_among_whatever_the_shell_printed()
@@ -19,10 +19,25 @@ public class RemoteClipboardTests
         Assert.Equal("ñandú € «hola»\r\nsegunda", clip.Text);
     }
 
+    /// <summary>A terminal splits the answer at its width and puts escape sequences in it. / Una terminal parte la respuesta a su ancho y le mete secuencias de escape.</summary>
+    [Fact]
+    public void An_answer_split_by_the_terminal_and_full_of_escapes_still_reads()
+    {
+        var o = new JsonObject { ["kind"] = "files", ["files"] = new JsonArray(Enumerable.Range(0, 30).Select(i => (JsonNode)$"C:\\Users\\ana\\Documents\\informe número {i}.docx").ToArray()) };
+        var answer = Answer(o);
+        var split = new StringBuilder("\u001b[?25l\u001b[2J\u001b[mPS C:\\> iex (...)\r\n");
+        for (var i = 0; i < answer.Length; i += 80) split.Append(answer.AsSpan(i, Math.Min(80, answer.Length - i))).Append(i % 160 == 0 ? "\r\n" : "\u001b[K\r\n\u001b[?25h");
+        split.Append("\u001b]0;Windows PowerShell\u0007PS C:\\> exit\r\n");
+        var clip = RemoteClipboard.ToClip(RemoteClipboard.ParseAnswer(split.ToString())!, long.MaxValue);
+        Assert.Equal(30, clip.Files.Count);
+        Assert.Equal("C:\\Users\\ana\\Documents\\informe número 29.docx", clip.Files[29]);
+    }
+
     [Theory]
     [InlineData("")]
     [InlineData("PS C:\\> exit")]
-    [InlineData("MCCCLIP:not-base64!")]
+    [InlineData("MCCCLIP:not-base64!:PILCCCM")]
+    [InlineData("MCCCLIP:eyJraW5kIjoidGV4dCJ9")]
     public void No_answer_or_a_spoiled_one_is_null(string output) => Assert.Null(RemoteClipboard.ParseAnswer(output));
 
     [Fact]
@@ -63,13 +78,17 @@ public class RemoteClipboardTests
         Assert.Equal("'it''s; Remove-Item x'", RemoteClipboard.Quote("it's; Remove-Item x"));
 
     [Fact]
-    public void The_one_line_carries_the_whole_script()
+    public void The_one_line_is_short_carries_the_whole_script_in_an_sta_runspace_and_shows_no_mark()
     {
         var script = RemoteClipboard.ReadScript(123);
         var line = RemoteClipboard.OneLine(script);
         Assert.DoesNotContain('\n', line);
-        Assert.Contains("-STA", line, StringComparison.Ordinal);
-        Assert.Equal(script, Encoding.Unicode.GetString(Convert.FromBase64String(line[(line.LastIndexOf(' ') + 1)..])));
+        Assert.True(line.Length < 1500, $"{line.Length} characters");
+        // The terminal echoes the line: the marks must not be readable in it. / La terminal repite la línea: las marcas no pueden leerse en ella.
+        Assert.DoesNotContain(RemoteClipboard.Marker, line, StringComparison.Ordinal);
+        var unpacked = RemoteClipboard.Unpack(line);
+        Assert.Equal(RemoteClipboard.Wrap(script), unpacked);
+        Assert.Contains("ApartmentState='STA'", unpacked, StringComparison.Ordinal);
     }
 
     /// <summary>
@@ -82,10 +101,15 @@ public class RemoteClipboardTests
     {
         var scripts = new Dictionary<string, string>
         {
-            ["read"] = RemoteClipboard.ReadScript(RemoteClipboard.AutomaticLimit),
-            ["prepare"] = RemoteClipboard.PrepareScript("20261108"),
-            ["files"] = RemoteClipboard.SetFilesScript(new[] { "C:\\Users\\o'brien\\a.txt", "C:\\b" }),
-            ["image"] = RemoteClipboard.SetImageScript("C:\\Users\\x\\image.png"),
+            ["read"] = RemoteClipboard.Unpack(RemoteClipboard.OneLine(RemoteClipboard.ReadScript(RemoteClipboard.AutomaticLimit))),
+            ["prepare"] = RemoteClipboard.Unpack(RemoteClipboard.OneLine(RemoteClipboard.PrepareScript("20261108"))),
+            ["files"] = RemoteClipboard.Unpack(RemoteClipboard.OneLine(RemoteClipboard.SetFilesScript(new[] { "C:\\Users\\o'brien\\a.txt", "C:\\b" }))),
+            ["image"] = RemoteClipboard.Unpack(RemoteClipboard.OneLine(RemoteClipboard.SetImageScript("C:\\Users\\x\\image.png"))),
+            // and the bodies alone, which the here-string hides from the outer parse / y los cuerpos solos, que el here-string esconde al análisis de fuera
+            ["read-body"] = RemoteClipboard.ReadScript(RemoteClipboard.AutomaticLimit),
+            ["files-body"] = RemoteClipboard.SetFilesScript(new[] { "C:\\Users\\o'brien\\a.txt", "C:\\b" }),
+            ["image-body"] = RemoteClipboard.SetImageScript("C:\\Users\\x\\image.png"),
+            ["prepare-body"] = RemoteClipboard.PrepareScript("20261108"),
         };
         var shell = new[] { "pwsh", "powershell" }.FirstOrDefault(Exists) ?? throw new Exception("no PowerShell here to parse the scripts with");
         foreach (var (name, script) in scripts)
@@ -100,6 +124,41 @@ public class RemoteClipboardTests
             }
             finally { File.Delete(file); }
         }
+    }
+
+    /// <summary>
+    /// On Windows (the Windows job runs it), each line goes through Windows PowerShell exactly as the agent sends it:
+    /// "-command -" with the line and exit on standard input. Prepare a folder, put it on the clipboard, read it back.
+    /// En Windows (lo pasa el trabajo de Windows), cada línea va por Windows PowerShell exactamente como la manda el agente.
+    /// </summary>
+    [Fact]
+    public void On_windows_the_lines_run_in_windows_powershell_as_the_agent_sends_them()
+    {
+        if (!OperatingSystem.IsWindows()) return; // Linux has no Windows clipboard; the Windows job runs it / Linux no tiene portapapeles de Windows
+        JsonObject AsTheAgent(string body)
+        {
+            var psi = new ProcessStartInfo(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), "System32", "WindowsPowerShell", "v1.0", "powershell.exe"))
+            { RedirectStandardInput = true, RedirectStandardOutput = true, RedirectStandardError = true, UseShellExecute = false };
+            foreach (var a in new[] { "-noprofile", "-nologo", "-command", "-" }) psi.ArgumentList.Add(a);
+            using var p = Process.Start(psi)!;
+            p.StandardInput.Write(RemoteClipboard.OneLine(body) + "\r\nexit\r\n");
+            p.StandardInput.Close();
+            var output = p.StandardOutput.ReadToEndAsync();
+            var errors = p.StandardError.ReadToEndAsync();
+            Assert.True(p.WaitForExit(60_000), "Windows PowerShell did not finish");
+            var answer = RemoteClipboard.ParseAnswer(output.Result);
+            Assert.True(answer is not null, $"no answer in: {output.Result} {errors.Result}");
+            Assert.NotEqual("error", answer!.Str("kind"));
+            return answer;
+        }
+        var folder = AsTheAgent(RemoteClipboard.PrepareScript("t" + Guid.NewGuid().ToString("N")[..8])).Str("folder")!;
+        File.WriteAllText(Path.Combine(folder, "a.txt"), "hola");
+        var set = RemoteClipboard.ToClip(AsTheAgent(RemoteClipboard.SetFilesScript(new[] { Path.Combine(folder, "a.txt") })), long.MaxValue);
+        var read = RemoteClipboard.ToClip(AsTheAgent(RemoteClipboard.ReadScript(RemoteClipboard.AutomaticLimit)), RemoteClipboard.AutomaticLimit);
+        Assert.Equal(ClipKind.Files, read.Kind);
+        Assert.Equal(set.Signature, read.Signature);
+        Assert.Equal(4, read.Size);
+        Directory.Delete(folder, true);
     }
 
     private static bool Exists(string exe)

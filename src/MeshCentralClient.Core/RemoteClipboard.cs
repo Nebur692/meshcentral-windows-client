@@ -28,9 +28,12 @@ public sealed record RemoteClip(ClipKind Kind, string? Text, IReadOnlyList<strin
 /// The full clipboard of a Windows device (text, images, files), not only MeshCentral's text one. Measured on MeshCentral
 /// 1.3.1: the agent's own getclip/setclip carry only a string, so text goes with setclip and the rest with what the app
 /// already has: a PowerShell run as the signed-in user (runcommands, runAsUser 1) reads or fills the clipboard, and the
-/// files tunnel moves the bytes. The agent passes runcommands to PowerShell on its standard input, so the script travels
-/// as one line (-EncodedCommand) and in its own STA process (the Windows clipboard needs it); its answer comes back in
-/// base64 so no console code page can spoil it.
+/// files tunnel moves the bytes. As the user, the agent types the commands into a PowerShell inside a terminal
+/// (meshcore.js, SpawnTypes.TERM): on GitHub's Windows (08-11) a second PowerShell started from that line did not answer
+/// in 60 s, and while one batch runs the agent drops the next without answering; a terminal also splits long lines at
+/// its width and adds escape sequences. So the script
+/// travels as one short line (gzip + base64, run with iex), runs in an STA runspace of that same PowerShell (the
+/// Windows clipboard needs STA), and its answer goes in base64 between two marks, read across lines.
 /// El portapapeles completo de un equipo Windows (texto, imágenes, ficheros), no solo el de texto de MeshCentral. Medido
 /// en 1.3.1: getclip/setclip del agente solo llevan una cadena, así que el texto va con setclip y lo demás con lo que la
 /// app ya tiene: un PowerShell como el usuario con sesión lee o llena el portapapeles, y el túnel de ficheros mueve los
@@ -44,6 +47,7 @@ public sealed class RemoteClipboard
     public const long AutomaticLimit = 500L * 1024 * 1024;
 
     internal const string Marker = "MCCCLIP:";
+    internal const string EndMarker = ":PILCCCM";
     private readonly MeshServerSession _session;
     private readonly Device _device;
     private readonly SemaphoreSlim _one = new(1, 1);
@@ -68,15 +72,38 @@ public sealed class RemoteClipboard
 
     // ------------------------------------------------------------------ scripts / guiones
 
-    /// <summary>One line that runs <paramref name="script"/> in a new STA Windows PowerShell. / Una línea que ejecuta el guion en un PowerShell STA nuevo.</summary>
-    internal static string OneLine(string script) =>
-        "& \"$env:windir\\System32\\WindowsPowerShell\\v1.0\\powershell.exe\" -NoProfile -NonInteractive -STA -EncodedCommand "
-        + Convert.ToBase64String(Encoding.Unicode.GetBytes(script));
+    /// <summary><paramref name="body"/> run in an STA runspace of the same PowerShell, its output written out.
+    /// El cuerpo ejecutado en un runspace STA del mismo PowerShell, con su salida escrita.</summary>
+    internal static string Wrap(string body) =>
+        "$b=@'\n" + body + "\n'@\n"
+        + "$rs=[runspacefactory]::CreateRunspace(); $rs.ApartmentState='STA'; $rs.ThreadOptions='ReuseThread'; $rs.Open()\n"
+        + "$ps=[powershell]::Create(); $ps.Runspace=$rs; [void]$ps.AddScript($b)\n"
+        + "foreach($x in $ps.Invoke()){ Write-Output $x }\n"
+        + "$ps.Dispose(); $rs.Close()\n";
+
+    /// <summary>One short line that runs <paramref name="body"/> as <see cref="Wrap"/> does. / Una línea corta que ejecuta el cuerpo como Wrap.</summary>
+    internal static string OneLine(string body)
+    {
+        using var packed = new MemoryStream();
+        using (var gz = new System.IO.Compression.GZipStream(packed, System.IO.Compression.CompressionLevel.SmallestSize, leaveOpen: true))
+            gz.Write(Encoding.UTF8.GetBytes(Wrap(body)));
+        return "iex ([IO.StreamReader]::new([IO.Compression.GZipStream]::new([IO.MemoryStream]::new([Convert]::FromBase64String('"
+               + Convert.ToBase64String(packed.ToArray()) + "')),[IO.Compression.CompressionMode]::Decompress))).ReadToEnd()";
+    }
+
+    /// <summary>The script inside a line of <see cref="OneLine"/>. / El guion de dentro de una línea de OneLine.</summary>
+    internal static string Unpack(string line)
+    {
+        var b64 = line[(line.IndexOf("String('", StringComparison.Ordinal) + 8)..line.IndexOf("')", StringComparison.Ordinal)];
+        using var gz = new System.IO.Compression.GZipStream(new MemoryStream(Convert.FromBase64String(b64)), System.IO.Compression.CompressionMode.Decompress);
+        using var reader = new StreamReader(gz, Encoding.UTF8);
+        return reader.ReadToEnd();
+    }
 
     /// <summary>A PowerShell single-quoted literal. / Un literal de PowerShell entre comillas simples.</summary>
     internal static string Quote(string s) => "'" + s.Replace("'", "''", StringComparison.Ordinal) + "'";
 
-    private const string Answer = "'" + Marker + "'+[Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes((ConvertTo-Json $o -Compress -Depth 3)))";
+    private const string Answer = "'" + Marker + "'+[Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes((ConvertTo-Json $o -Compress -Depth 3)))+'" + EndMarker + "'";
 
     private const string ImageHash = "$g=[Windows.Forms.Clipboard]::GetImage(); $m=New-Object IO.MemoryStream; $g.Save($m,[Drawing.Imaging.ImageFormat]::Png); $b=$m.ToArray(); $h=[BitConverter]::ToString([Security.Cryptography.SHA256]::Create().ComputeHash($b)).Replace('-','');";
 
@@ -140,15 +167,23 @@ public sealed class RemoteClipboard
         {{Answer}}
         """;
 
-    /// <summary>Reads the script's answer out of everything the shell printed. / Saca la respuesta del guion de todo lo que escribió el intérprete.</summary>
+    private static readonly System.Text.RegularExpressions.Regex Escapes = new(@"\x1B(\[[0-?]*[ -/]*[@-~]|\][^\x07\x1B]*(\x07|\x1B\\)|[@-Z\\-_])", System.Text.RegularExpressions.RegexOptions.Compiled);
+
+    /// <summary>
+    /// Reads the script's answer out of everything the terminal printed: escape sequences and line breaks (the terminal
+    /// splits long lines) are dropped first, then the base64 between the two marks is decoded.
+    /// Saca la respuesta del guion de todo lo que escribió la terminal: primero se quitan secuencias de escape y saltos
+    /// de línea (la terminal parte las líneas largas), y luego se decodifica el base64 entre las dos marcas.
+    /// </summary>
     internal static JsonObject? ParseAnswer(string output)
     {
-        foreach (var raw in output.Split('\n'))
+        var flat = string.Concat(Escapes.Replace(output, "").Where(c => !char.IsWhiteSpace(c) && !char.IsControl(c)));
+        for (var at = flat.IndexOf(Marker, StringComparison.Ordinal); at >= 0; at = flat.IndexOf(Marker, at + 1, StringComparison.Ordinal))
         {
-            var line = raw.Trim();
-            var at = line.IndexOf(Marker, StringComparison.Ordinal);
-            if (at < 0) continue;
-            try { return JsonNode.Parse(Encoding.UTF8.GetString(Convert.FromBase64String(line[(at + Marker.Length)..]))) as JsonObject; }
+            var start = at + Marker.Length;
+            var end = flat.IndexOf(EndMarker, start, StringComparison.Ordinal);
+            if (end < 0) return null;
+            try { return JsonNode.Parse(Encoding.UTF8.GetString(Convert.FromBase64String(flat[start..end]))) as JsonObject; }
             catch (Exception ex) when (ex is FormatException or JsonException) { }
         }
         return null;
