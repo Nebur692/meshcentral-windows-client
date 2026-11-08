@@ -72,6 +72,12 @@
       "slug": "usuarios",
       "nombre": "Los usuarios, los grupos de usuarios y la propia cuenta",
       "descripcion": "MeshServerSession.Users.cs, UsersWindow y AccountWindow: users, adduser, edituser, changeuserpass, deleteuser; usergroups, createusergroup, editusergroup, deleteusergroup, addusertousergroup, removeuserfromusergroup; changepassword, otpauth-*, otp-hkey-*, loginTokens y createLoginToken. edituser fuera de la máscara de permisos contesta «ok» sin cambiar nada, y changeuserpass, editusergroup y otp-hkey-remove nunca contestan: los permisos se comprueban antes y esas tres se confirman con su aviso en vivo."
+    },
+    {
+      "id": 12,
+      "slug": "servidor",
+      "nombre": "El servidor: sucesos, informes, estado y avisos",
+      "descripcion": "MeshServerSession.Server.cs, EventsWindow, ReportsWindow y ServerWindow: events (todos o de una cuenta), report (los cuatro informes de la web), serverstats y servererrors, y userbroadcast para avisar a quien está conectado. «events» de otra cuenta sin permiso de gestionar usuarios cae sin decir nada en los propios, y «report» y «serverstats» tiran sin contestar lo que no aceptan: se comprueba antes."
     }
   ],
   "acciones": [
@@ -122,6 +128,12 @@
       "slug": "gestionar-grupos-usuarios",
       "nombre": "Crear, cambiar o borrar grupos de usuarios",
       "descripcion": "Un administrador crea grupos de cuentas, les cambia el nombre, mete o saca cuentas, o los borra. No está en el vocabulario global."
+    },
+    {
+      "id": 508,
+      "slug": "informe",
+      "nombre": "Sacar un informe del servidor",
+      "descripcion": "La persona pide uno de los informes de la web (sesiones remotas, tráfico, entradas o registros de la base de datos) entre dos fechas. No está en el vocabulario global."
     }
   ],
   "codigos": [
@@ -1303,6 +1315,136 @@
       "actuar": false,
       "titulo": "Se cortó la conexión mientras se cambiaba tu cuenta",
       "explicacion": "La conexión se cerró antes de saber si el cambio se hizo.",
+      "que_hacer": "Volver a conectar y comprobarlo antes de repetirlo."
+    },
+    {
+      "modulo": "servidor",
+      "accion": "abrir-detalle",
+      "causa": "no-autorizado",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "Sin permiso para ver eso del servidor",
+      "explicacion": "Los sucesos de otra cuenta piden «Gestionar usuarios»; el estado del servidor, copia, restauración o actualización del servidor; y el registro de errores, actualizar el servidor.",
+      "que_hacer": "Pedir ese permiso a un administrador completo."
+    },
+    {
+      "modulo": "servidor",
+      "accion": "abrir-detalle",
+      "causa": "tiempo-agotado",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "El servidor no contestó a tiempo",
+      "explicacion": "No llegaron los sucesos, el estado o el registro de errores pedidos.",
+      "que_hacer": "Mirar la conexión y volver a abrir la ventana."
+    },
+    {
+      "modulo": "servidor",
+      "accion": "abrir-detalle",
+      "causa": "conexion-cortada",
+      "severidad": "error",
+      "actuar": false,
+      "titulo": "Se cortó la conexión con el servidor",
+      "explicacion": "La conexión se cerró mientras se pedían los sucesos o el estado.",
+      "que_hacer": "Volver a conectar."
+    },
+    {
+      "modulo": "servidor",
+      "accion": "informe",
+      "causa": "dato-invalido",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "Las fechas o la agrupación del informe no valen",
+      "explicacion": "El principio tiene que ser antes que el final, y el informe de entradas se agrupa por usuario o por día; el servidor tiraría la petición sin contestar.",
+      "que_hacer": "Corregir las fechas o elegir otra agrupación."
+    },
+    {
+      "modulo": "servidor",
+      "accion": "informe",
+      "causa": "no-autorizado",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "Sin permiso para ese informe",
+      "explicacion": "El de la base de datos es solo para administradores completos, y filtrar por un grupo de equipos pide tener permisos en él.",
+      "que_hacer": "Elegir otro informe o pedir ese permiso."
+    },
+    {
+      "modulo": "servidor",
+      "accion": "informe",
+      "causa": "tiempo-agotado",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "El informe tardó demasiado",
+      "explicacion": "El servidor no lo devolvió en 60 s; con muchos sucesos puede tardar.",
+      "que_hacer": "Pedirlo con un periodo más corto."
+    },
+    {
+      "modulo": "servidor",
+      "accion": "informe",
+      "causa": "respuesta-ilegible",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "El informe llegó vacío o roto",
+      "explicacion": "El servidor contestó sin los datos del informe.",
+      "que_hacer": "Repetirlo; si sigue, avisar al administrador del servidor."
+    },
+    {
+      "modulo": "servidor",
+      "accion": "informe",
+      "causa": "conexion-cortada",
+      "severidad": "error",
+      "actuar": false,
+      "titulo": "Se cortó la conexión mientras se hacía el informe",
+      "explicacion": "La conexión se cerró antes de llegar el informe.",
+      "que_hacer": "Volver a conectar y pedirlo otra vez."
+    },
+    {
+      "modulo": "servidor",
+      "accion": "enviar-mensaje",
+      "causa": "no-autorizado",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "Sin permiso para mandar avisos",
+      "explicacion": "Mandar avisos a otras personas pide el permiso de servidor «Gestionar usuarios».",
+      "que_hacer": "Pedirlo a un administrador del servidor."
+    },
+    {
+      "modulo": "servidor",
+      "accion": "enviar-mensaje",
+      "causa": "dato-invalido",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "El aviso está vacío o es demasiado largo",
+      "explicacion": "Un aviso necesita de 1 a 512 caracteres.",
+      "que_hacer": "Escribir un texto más corto."
+    },
+    {
+      "modulo": "servidor",
+      "accion": "enviar-mensaje",
+      "causa": "rechazo-remoto",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "El servidor no mandó el aviso",
+      "explicacion": "El servidor contestó con un error.",
+      "que_hacer": "Leer el mensaje del servidor en Detalles."
+    },
+    {
+      "modulo": "servidor",
+      "accion": "enviar-mensaje",
+      "causa": "tiempo-agotado",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "El servidor no confirmó el aviso",
+      "explicacion": "No llegó la confirmación de que se mandó.",
+      "que_hacer": "Mirar la conexión; puede que haya llegado igualmente."
+    },
+    {
+      "modulo": "servidor",
+      "accion": "enviar-mensaje",
+      "causa": "conexion-cortada",
+      "severidad": "error",
+      "actuar": false,
+      "titulo": "Se cortó la conexión al mandar el aviso",
+      "explicacion": "La conexión se cerró antes de saber si se mandó.",
       "que_hacer": "Volver a conectar y comprobarlo antes de repetirlo."
     }
   ]

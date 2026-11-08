@@ -359,6 +359,8 @@ public partial class MainWindow : Window
         void ShowUsersButton() => UsersButton.Visibility = session.CanManageUsers || session.CanManageUserGroups ? Visibility.Visible : Visibility.Collapsed;
         ShowUsersButton();
         session.UserChanged += (_, e) => { if (e.UserId == session.User.Id) Dispatcher.BeginInvoke(ShowUsersButton); };
+        // A notification from an administrator shows at once, without taking the keyboard. / Un aviso de un administrador sale al momento.
+        session.NotificationReceived += (_, n) => Dispatcher.BeginInvoke(() => Notifications.Show(this, n));
         session.Closed += (_, e) => Dispatcher.BeginInvoke(() => OnSessionLost(session, e));
         SessionTitle.Text = string.IsNullOrEmpty(session.ServerInfo.Name) ? session.Server.Host : session.ServerInfo.Name;
         SessionSubtitle.Text = $"{session.User.Name} · {session.Server}";
@@ -651,11 +653,48 @@ public partial class MainWindow : Window
     private UsersWindow? _usersWindow;
     private AccountWindow? _accountWindow;
 
+    /// <summary>Names for the server's ids, from this window's device list. / Nombres para los ids del servidor, de la lista de equipos.</summary>
+    private Names NamesFor(MeshServerSession s) => new(s, id => _rows.FirstOrDefault(r => r.Device.Id == id)?.Device.Name);
+
+    private EventsWindow? _eventsWindow;
+    private ReportsWindow? _reportsWindow;
+    private ServerWindow? _serverWindow;
+
+    private void ServerMenu_Click(object sender, RoutedEventArgs e)
+    {
+        if (_session is not { } s) return;
+        var menu = new ContextMenu { PlacementTarget = ServerMenuButton, Placement = System.Windows.Controls.Primitives.PlacementMode.Bottom };
+        MenuItem Item(string key, bool enabled, Action open)
+        {
+            var i = new MenuItem { Header = L.T(key), IsEnabled = enabled };
+            System.Windows.Automation.AutomationProperties.SetAutomationId(i, key);
+            i.Click += (_, _) => open();
+            menu.Items.Add(i);
+            return i;
+        }
+        Item("EventsItem", true, () => OpenOnce(ref _eventsWindow, () => new EventsWindow(s, NamesFor(s))));
+        Item("ReportsItem", true, () => OpenOnce(ref _reportsWindow, () => new ReportsWindow(s, NamesFor(s))));
+        // Only for the administrators the server shows its state to. / Solo para los administradores a los que el servidor enseña su estado.
+        Item("ServerStateItem", s.CanSeeServer, () => OpenOnce(ref _serverWindow, () => new ServerWindow(s)));
+        menu.IsOpen = true;
+    }
+
+    /// <summary>One window of each kind per session: a second click brings it to the front. / Una ventana de cada tipo por sesión.</summary>
+    private void OpenOnce<T>(ref T? field, Func<T> create) where T : Window
+    {
+        if (field is { IsLoaded: true }) { field.Activate(); return; }
+        var w = create();
+        field = w;
+        _sessionWindows.Add(w);
+        w.Closed += (_, _) => _sessionWindows.Remove(w);
+        w.Show();
+    }
+
     private void Users_Click(object sender, RoutedEventArgs e)
     {
         if (_session is not { } s) return;
         if (_usersWindow is { IsLoaded: true }) { _usersWindow.Activate(); return; }
-        var w = _usersWindow = new UsersWindow(s);
+        var w = _usersWindow = new UsersWindow(s, NamesFor(s));
         _sessionWindows.Add(w);
         w.Closed += (_, _) => { _sessionWindows.Remove(w); if (ReferenceEquals(_usersWindow, w)) _usersWindow = null; };
         w.Show();

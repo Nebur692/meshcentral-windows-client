@@ -282,6 +282,7 @@ public sealed partial class MeshServerSession : IAsyncDisposable
         foreach (var w in hit) w.Tcs.TrySetResult(o);
 
         if (o.Str("action") == "event" && o["event"] is JsonObject e) OnEvent(e);
+        else OnServerMessage(o);
     }
 
     private static bool SafeMatch(Waiter w, JsonObject o)
@@ -295,6 +296,7 @@ public sealed partial class MeshServerSession : IAsyncDisposable
         // Primero grupos y la propia cuenta, para que quien escucha usuarios ya vea el User nuevo de la sesión.
         var handled = OnGroupOrAccountEvent(e);
         OnUserEvent(e);
+        OnServerEvent(e);
         if (handled) return;
         var handler = DeviceChanged;
         if (handler is null) return;

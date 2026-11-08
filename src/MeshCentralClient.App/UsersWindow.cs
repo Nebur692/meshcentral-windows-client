@@ -64,7 +64,10 @@ public sealed class UsersWindow : Window
     private readonly Button _editUser = new() { Content = L.T("EditUser"), MinWidth = 90, Margin = new Thickness(0, 0, 8, 0) };
     private readonly Button _password = new() { Content = L.T("SetPassword"), MinWidth = 120, Margin = new Thickness(0, 0, 8, 0) };
     private readonly Button _lock = new() { Content = L.T("LockUser"), MinWidth = 100, Margin = new Thickness(0, 0, 8, 0) };
-    private readonly Button _deleteUser = new() { Content = L.T("DeleteUser"), MinWidth = 90 };
+    private readonly Button _deleteUser = new() { Content = L.T("DeleteUser"), MinWidth = 90, Margin = new Thickness(0, 0, 8, 0) };
+    private readonly Button _history = new() { Content = L.T("UserHistory"), MinWidth = 90, Margin = new Thickness(0, 0, 8, 0) };
+    private readonly Button _notify = new() { Content = L.T("SendNotification"), MinWidth = 130 };
+    private readonly Names _names;
     private readonly ListBox _groups = new() { MinWidth = 220 };
     private readonly Button _newGroup = new() { Content = L.T("NewUserGroup"), Margin = new Thickness(0, 8, 0, 0) };
     private readonly TextBlock _groupEmpty = new() { Opacity = 0.65, Margin = new Thickness(24), TextWrapping = TextWrapping.Wrap };
@@ -82,9 +85,10 @@ public sealed class UsersWindow : Window
     private List<UserInfo> _userList = [];
     private List<UserGroup> _groupList = [];
 
-    public UsersWindow(MeshServerSession session)
+    public UsersWindow(MeshServerSession session, Names names)
     {
         _session = session;
+        _names = names;
         Title = L.F("UsersTitle", string.IsNullOrEmpty(session.ServerInfo.Name) ? session.Server.Host : session.ServerInfo.Name);
         Width = Math.Min(1000, SystemParameters.WorkArea.Width); Height = Math.Min(680, SystemParameters.WorkArea.Height);
         MinWidth = Math.Min(720, Width); MinHeight = Math.Min(460, Height);
@@ -92,7 +96,7 @@ public sealed class UsersWindow : Window
         foreach (var (e, id) in new (FrameworkElement, string)[]
         {
             (this, "UsersWindow"), (_users, "UserList"), (_newUser, "NewUserButton"), (_editUser, "EditUserButton"), (_password, "SetPasswordButton"),
-            (_lock, "LockUserButton"), (_deleteUser, "DeleteUserButton"), (_groups, "UserGroupList"), (_newGroup, "NewUserGroupButton"),
+            (_lock, "LockUserButton"), (_deleteUser, "DeleteUserButton"), (_history, "UserHistoryButton"), (_notify, "SendNotificationButton"), (_groups, "UserGroupList"), (_newGroup, "NewUserGroupButton"),
             (_groupName, "UserGroupNameText"), (_editGroup, "EditUserGroupButton"), (_deleteGroup, "DeleteUserGroupButton"), (_members, "UserGroupMembers"),
             (_addMembers, "AddMembersButton"), (_removeMember, "RemoveMemberButton"), (_groupRights, "UserGroupRightsText"), (_status, "UsersStatus"),
         }) AP.SetAutomationId(e, id);
@@ -107,7 +111,8 @@ public sealed class UsersWindow : Window
         static TextBlock Section(string key) => new() { Text = L.T(key), FontWeight = FontWeights.SemiBold, FontSize = 15, Margin = new Thickness(0, 20, 0, 2) };
 
         var usersTab = new DockPanel { Margin = new Thickness(12) };
-        var userButtons = Row(_newUser, _editUser, _password, _lock, _deleteUser);
+        var userButtons = new WrapPanel { Margin = new Thickness(0, 4, 0, 0) };
+        foreach (var b in new UIElement[] { _newUser, _editUser, _password, _lock, _deleteUser, _history, _notify }) { ((FrameworkElement)b).Margin = new Thickness(0, 4, 8, 0); userButtons.Children.Add(b); }
         DockPanel.SetDock(userButtons, Dock.Bottom);
         usersTab.Children.Add(userButtons);
         usersTab.Children.Add(_users);
@@ -153,6 +158,8 @@ public sealed class UsersWindow : Window
         _password.Click += async (_, _) => await SetPassword();
         _lock.Click += async (_, _) => await ToggleLock();
         _deleteUser.Click += async (_, _) => await DeleteUser();
+        _history.Click += (_, _) => { if (SelectedUser is { } u) new EventsWindow(_session, _names, u) { Owner = this }.Show(); };
+        _notify.Click += async (_, _) => await Notify();
         _groups.SelectionChanged += (_, _) => ShowGroup();
         _members.SelectionChanged += (_, _) => UpdateMemberButtons();
         _newGroup.Click += async (_, _) => await NewGroup();
@@ -217,6 +224,8 @@ public sealed class UsersWindow : Window
         _lock.IsEnabled = can && MeshServerSession.CanSetSiteRights(_session.User, u!, u!.SiteRights ^ (long)SiteRight.Locked);
         _lock.Content = L.T(u?.IsLocked == true ? "UnlockUser" : "LockUser");
         _deleteUser.IsEnabled = can && u!.Id != _session.User.Id;
+        _history.IsEnabled = u is not null;
+        _notify.IsEnabled = _session.CanManageUsers;
     }
 
     private UserGroup? SelectedGroup => (_groups.SelectedItem as GroupItem)?.Group;
@@ -317,6 +326,13 @@ public sealed class UsersWindow : Window
         await _session.DeleteUserAsync(u);
         await ReloadUsers(null);
         return L.F("UserDeleted", u.Name);
+    });
+
+    private Task Notify() => Run(async () =>
+    {
+        if (Notifications.Ask(this, SelectedUser) is not { } n) return null;
+        await _session.SendNotificationAsync(n.Text, n.OnlyUser ? SelectedUser : null);
+        return L.T("NotificationSent");
     });
 
     private Task NewGroup() => Run(async () =>

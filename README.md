@@ -27,7 +27,7 @@ official website and `meshctrl`, so it works with **any** MeshCentral installati
 
 > Unofficial project, not affiliated with the MeshCentral authors. The device side still uses the official MeshCentral agent.
 
-### Features (version 0.10)
+### Features (version 0.11)
 
 - **Sign in** with username and password, with **two-factor** codes (authenticator app, or email code when the server offers it).
 - **Single sign-on**: if the server offers it (OpenID Connect, SAML, Microsoft, Google, GitHub…), a button signs in on
@@ -60,13 +60,17 @@ official website and `meshctrl`, so it works with **any** MeshCentral installati
   and delete them; **user groups** with their members, and rights on device groups for a whole user group.
 - **My account**: change the password, add an **authenticator app** (QR code), backup codes, see and remove security
   keys, and **login tokens** for scripts and tools.
+- **Server** (menu "Server"): the **event log**, live and filterable, also per account; the website's **reports**
+  (remote sessions, traffic, sign-ins, database) between two dates; the **server's live state** and error log for its
+  administrators; and **notifications** to everyone connected or to one account, which the app also shows when they
+  arrive. Everything exports to CSV.
 - **Open in the browser** from the device's menu.
 - **Light, dark or like Windows**, remembered.
 - **Updates itself**: when a new version is published, it offers it, checks its SHA-256 fingerprint and restarts as
   the new version; a file that does not match is never installed.
 - **English and Spanish** interface, following the Windows language.
 
-The goal is everything the MeshCentral website does. Coming next: server events and recordings, and port mapping — see [the plan](docs/PLAN.md).
+The goal is everything the MeshCentral website does. Coming next: port mapping, then session recordings — see [the plan](docs/PLAN.md).
 
 ### Install
 
@@ -108,7 +112,7 @@ web oficial y `meshctrl`, así que funciona con **cualquier** instalación de Me
 
 > Proyecto no oficial, sin relación con los autores de MeshCentral. En los equipos se sigue usando el agente oficial de MeshCentral.
 
-### Qué hace (versión 0.10)
+### Qué hace (versión 0.11)
 
 - **Entrar** con usuario y contraseña, con código de **doble factor** (app de autenticación, o código por correo si el servidor lo ofrece).
 - **Inicio de sesión único**: si el servidor lo ofrece (OpenID Connect, SAML, Microsoft, Google, GitHub…), un botón
@@ -142,14 +146,18 @@ web oficial y `meshctrl`, así que funciona con **cualquier** instalación de Me
   para todo un grupo de usuarios.
 - **Mi cuenta**: cambiar la contraseña, añadir una **app de autenticación** (código QR), códigos de respaldo, ver y
   quitar llaves de seguridad, y **tokens de acceso** para guiones y herramientas.
+- **Servidor** (menú «Servidor»): el **registro de sucesos**, en vivo y con filtro, también por cuenta; los **informes**
+  de la web (sesiones remotas, tráfico, entradas, base de datos) entre dos fechas; el **estado del servidor en vivo** y su
+  registro de errores para sus administradores; y **avisos** a todas las personas conectadas o a una cuenta, que la app
+  también enseña cuando llegan. Todo se exporta a CSV.
 - **Abrir en el navegador** desde el menú del equipo.
 - **Claro, oscuro o como Windows**, y lo recuerda.
 - **Se actualiza sola**: cuando se publica una versión nueva, la ofrece, comprueba su huella SHA-256 y se reabre ya
   actualizada; un fichero que no coincide no se instala nunca.
 - Interfaz en **inglés y español**, según el idioma de Windows.
 
-La meta es todo lo que hace la web de MeshCentral. Lo siguiente: sucesos y grabaciones del servidor, y redirección
-de puertos; está en [el plan](docs/PLAN.md).
+La meta es todo lo que hace la web de MeshCentral. Lo siguiente: redirección de puertos, y después las grabaciones
+de sesiones; está en [el plan](docs/PLAN.md).
 
 ### Instalar
 

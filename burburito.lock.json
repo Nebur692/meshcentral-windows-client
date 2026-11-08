@@ -1,5 +1,5 @@
 {
-  "generado": "2026-11-08T12:36:52Z",
+  "generado": "2026-11-08T13:53:05Z",
   "aviso": "Generado por bin/burburito. No editar a mano: la fuente de verdad es el burburito.json de al lado.",
   "proyecto": {
     "id": 35,
@@ -570,6 +570,84 @@
       "severidad": "aviso",
       "actuar": false,
       "titulo": "La caducidad del enlace no vale"
+    },
+    "servidor/abrir-detalle/tiempo-agotado": {
+      "codigo": "035-012-022-002",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "El servidor no contestó a tiempo"
+    },
+    "servidor/abrir-detalle/conexion-cortada": {
+      "codigo": "035-012-022-005",
+      "severidad": "error",
+      "actuar": false,
+      "titulo": "Se cortó la conexión con el servidor"
+    },
+    "servidor/abrir-detalle/no-autorizado": {
+      "codigo": "035-012-022-046",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "Sin permiso para ver eso del servidor"
+    },
+    "servidor/enviar-mensaje/tiempo-agotado": {
+      "codigo": "035-012-040-002",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "El servidor no confirmó el aviso"
+    },
+    "servidor/enviar-mensaje/conexion-cortada": {
+      "codigo": "035-012-040-005",
+      "severidad": "error",
+      "actuar": false,
+      "titulo": "Se cortó la conexión al mandar el aviso"
+    },
+    "servidor/enviar-mensaje/rechazo-remoto": {
+      "codigo": "035-012-040-021",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "El servidor no mandó el aviso"
+    },
+    "servidor/enviar-mensaje/no-autorizado": {
+      "codigo": "035-012-040-046",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "Sin permiso para mandar avisos"
+    },
+    "servidor/enviar-mensaje/dato-invalido": {
+      "codigo": "035-012-040-061",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "El aviso está vacío o es demasiado largo"
+    },
+    "servidor/informe/tiempo-agotado": {
+      "codigo": "035-012-508-002",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "El informe tardó demasiado"
+    },
+    "servidor/informe/conexion-cortada": {
+      "codigo": "035-012-508-005",
+      "severidad": "error",
+      "actuar": false,
+      "titulo": "Se cortó la conexión mientras se hacía el informe"
+    },
+    "servidor/informe/respuesta-ilegible": {
+      "codigo": "035-012-508-022",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "El informe llegó vacío o roto"
+    },
+    "servidor/informe/no-autorizado": {
+      "codigo": "035-012-508-046",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "Sin permiso para ese informe"
+    },
+    "servidor/informe/dato-invalido": {
+      "codigo": "035-012-508-061",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "Las fechas o la agrupación del informe no valen"
     },
     "tunel/ver-pantalla/conexion-cortada": {
       "codigo": "035-005-020-005",
