@@ -40,6 +40,16 @@ public class RemoteClipboardTests
     [InlineData("MCCCLIP:eyJraW5kIjoidGV4dCJ9")]
     public void No_answer_or_a_spoiled_one_is_null(string output) => Assert.Null(RemoteClipboard.ParseAnswer(output));
 
+    /// <summary>A terminal may paint an earlier answer again: only the one with this request's id counts. / Una terminal puede repintar una respuesta anterior: solo cuenta la que lleva el id de esta petición.</summary>
+    [Fact]
+    public void An_answer_to_another_request_is_not_taken()
+    {
+        var old = Answer(new JsonObject { ["kind"] = "text", ["text"] = "vieja", ["id"] = "aaa" });
+        var now = Answer(new JsonObject { ["kind"] = "text", ["text"] = "nueva", ["id"] = "bbb" });
+        Assert.Null(RemoteClipboard.ParseAnswer(old, "bbb"));
+        Assert.Equal("nueva", RemoteClipboard.ParseAnswer(old + "\r\n" + now, "bbb")!.Str("text"));
+    }
+
     [Fact]
     public void One_file_many_files_and_no_files_read_alike()
     {
@@ -151,6 +161,12 @@ public class RemoteClipboardTests
             Assert.NotEqual("error", answer!.Str("kind"));
             return answer;
         }
+        // A text too long for the terminal's screen goes to a file, named in the answer. / Un texto demasiado largo para la pantalla va a un fichero.
+        var big = new string('x', 5000);
+        var note = AsTheAgent("$rid='r1'\n$o=[ordered]@{kind='text';text='" + big + "'}\n" + RemoteClipboard.AnswerForTests);
+        Assert.Equal("answerfile", note.Str("kind"));
+        Assert.Contains(big, File.ReadAllText(note.Str("path")!), StringComparison.Ordinal);
+        File.Delete(note.Str("path")!);
         var folder = AsTheAgent(RemoteClipboard.PrepareScript("t" + Guid.NewGuid().ToString("N")[..8])).Str("folder")!;
         File.WriteAllText(Path.Combine(folder, "a.txt"), "hola");
         var set = RemoteClipboard.ToClip(AsTheAgent(RemoteClipboard.SetFilesScript(new[] { Path.Combine(folder, "a.txt") })), long.MaxValue);

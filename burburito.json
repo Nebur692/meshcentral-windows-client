@@ -95,7 +95,7 @@
       "id": 15,
       "slug": "portapapeles",
       "nombre": "Copiar y pegar de todo con un equipo Windows",
-      "descripcion": "RemoteClipboard.cs y DesktopClipboard: texto con el setclip de MeshCentral; imágenes y ficheros con un PowerShell como el usuario con sesión (runcommands, runAsUser 1, -STA -EncodedCommand) más el túnel de ficheros. Se lleva al entrar en el visor y se trae al salir o al copiar dentro."
+      "descripcion": "RemoteClipboard.cs y DesktopClipboard: texto con el setclip de MeshCentral; imágenes y ficheros con una terminal PowerShell del usuario con sesión (túnel 9, el de la web: runcommands con runAsUser no contesta, medido) más el túnel de ficheros. Se lleva al entrar en el visor y se trae al salir o al copiar dentro."
     }
   ],
   "acciones": [
@@ -1686,8 +1686,8 @@
       "severidad": "aviso",
       "actuar": false,
       "titulo": "Se cortó la conexión al copiar o pegar",
-      "explicacion": "La conexión con el servidor se cerró a medias.",
-      "que_hacer": "Volver a conectar y copiar otra vez."
+      "explicacion": "La conexión con el servidor se cerró a medias, o el PowerShell del equipo se cerró: puede que no haya nadie con sesión allí.",
+      "que_hacer": "Mirar si hay alguien con sesión en el equipo y copiar otra vez; el texto se puede mandar con «Escribir el portapapeles»."
     }
   ]
 }

@@ -500,7 +500,7 @@ public static class L
         ["ClipFilesFromDevice"] = ("{0} item(s) from the device ready to paste here.", "{0} elemento(s) del equipo listos para pegar aquí."),
         ["ClipTooBigToDevice"] = ("What you copied is {0}: press «Take copy» to send it.", "Lo copiado ocupa {0}: pulsa «Llevar lo copiado» para mandarlo."),
         ["ClipTooBigFromDevice"] = ("The device copied {0}: press «Bring copy» to bring it.", "En el equipo hay {0} copiados: pulsa «Traer lo copiado» para traerlos."),
-        ["ClipOnlyText"] = ("Only text is shared: images and files need the rights to run commands and use files on this device.", "Solo se comparte el texto: imágenes y ficheros piden permiso de ejecutar órdenes y de ficheros en este equipo."),
+        ["ClipOnlyText"] = ("Only text is shared: images and files need the terminal and files on this device.", "Solo se comparte el texto: imágenes y ficheros piden la terminal y los ficheros de este equipo."),
         ["ClipBusy"] = ("Another program is using the clipboard; try again.", "Otro programa está usando el portapapeles; prueba otra vez."),
         // Port mappings, SSH and RDP / Redirecciones, SSH y RDP
         ["PortsButton"] = ("Port mappings", "Redirecciones"),

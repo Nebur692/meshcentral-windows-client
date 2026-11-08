@@ -149,9 +149,12 @@ public sealed class SshTests(ITestOutputHelper output) : IDisposable
         // Second time: no question, the identity is known; the account comes filled in. / Segunda vez: sin pregunta; la cuenta viene puesta.
         term = OpenSsh(win, expectQuestion: false);
         Id(term, "TerminalView").Click();
-        Keyboard.Type("set /a 6*7");
+        // Expanded there, so it cannot be the echo of what was typed. / Expandido allí, así que no puede ser el eco de lo tecleado.
+        Keyboard.Type("echo otra-vez-%USERNAME%");
         Keyboard.Type(VirtualKeyShort.ENTER);
-        Assert.NotNull(Retry.WhileNull(() => Row(term, t => t == "42"), Timeout, TimeSpan.FromMilliseconds(300)).Result);
+        var again = Retry.WhileNull(() => Row(term, t => t.Equals("otra-vez-" + me, StringComparison.OrdinalIgnoreCase)), Timeout, TimeSpan.FromMilliseconds(300)).Result;
+        Shot("second");
+        Assert.True(again is not null, "the second terminal did not answer: " + string.Join(" | ", term.FindAllDescendants().Select(SafeName).Where(n => n.Trim().Length > 0)));
         var saved = File.ReadAllText(Path.Combine(_dir.FullName, "appdata", "MeshCentralClient", "relays.json"));
         Assert.Contains("SHA256:", saved, StringComparison.Ordinal);
         Assert.DoesNotContain(Env("MESHUI_SSH_PASS"), saved, StringComparison.Ordinal);

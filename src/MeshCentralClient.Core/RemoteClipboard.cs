@@ -25,23 +25,26 @@ public sealed record RemoteClip(ClipKind Kind, string? Text, IReadOnlyList<strin
 }
 
 /// <summary>
-/// The full clipboard of a Windows device (text, images, files), not only MeshCentral's text one. Measured on MeshCentral
-/// 1.3.1: the agent's own getclip/setclip carry only a string, so text goes with setclip and the rest with what the app
-/// already has: a PowerShell run as the signed-in user (runcommands, runAsUser 1) reads or fills the clipboard, and the
-/// files tunnel moves the bytes. As the user, the agent types the commands into a PowerShell inside a terminal
-/// (meshcore.js, SpawnTypes.TERM): on GitHub's Windows (08-11) a second PowerShell started from that line did not answer
-/// in 60 s, and while one batch runs the agent drops the next without answering; a terminal also splits long lines at
-/// its width and adds escape sequences. So the script
-/// travels as one short line (gzip + base64, run with iex), runs in an STA runspace of that same PowerShell (the
-/// Windows clipboard needs STA), and its answer goes in base64 between two marks, read across lines.
-/// El portapapeles completo de un equipo Windows (texto, imágenes, ficheros), no solo el de texto de MeshCentral. Medido
-/// en 1.3.1: getclip/setclip del agente solo llevan una cadena, así que el texto va con setclip y lo demás con lo que la
-/// app ya tiene: un PowerShell como el usuario con sesión lee o llena el portapapeles, y el túnel de ficheros mueve los
-/// bytes. El agente pasa runcommands a PowerShell por su entrada estándar, así que el guion viaja en una línea
-/// (-EncodedCommand) y en su propio proceso STA (el portapapeles de Windows lo pide); su respuesta vuelve en base64 para
-/// que ninguna página de códigos de la consola la estropee.
+/// The full clipboard of a Windows device (text, images, files), not only MeshCentral's text one. The agent's own
+/// getclip/setclip carry only a string (meshcore.js), so text goes with setclip and the rest with what the app already
+/// has: a PowerShell of the signed-in user reads or fills the clipboard, and the files tunnel moves the bytes.
+/// Measured on GitHub's Windows (08-11): runcommands with runAsUser never answers, not even to Write-Output, and while it
+/// hangs the agent drops every later batch; the user PowerShell terminal tunnel (what the website opens) answers. So one
+/// such terminal stays open for the viewer. A terminal repaints, splits long lines at its width and adds escape
+/// sequences, so the script travels as one short line (gzip + base64, run with iex) in an STA runspace (the Windows
+/// clipboard needs STA), each answer carries the id of its request, goes in base64 between two marks and is read across
+/// lines; a large one (a long copied text) goes to a file and comes through the files tunnel.
+/// El portapapeles completo de un equipo Windows (texto, imágenes, ficheros), no solo el de texto de MeshCentral.
+/// getclip/setclip del agente solo llevan una cadena, así que el texto va con setclip y lo demás con lo que la app ya
+/// tiene: un PowerShell del usuario con sesión lee o llena el portapapeles, y el túnel de ficheros mueve los bytes.
+/// Medido en el Windows de GitHub (08-11): runcommands con runAsUser no contesta nunca, ni a Write-Output, y mientras se
+/// cuelga el agente tira las tandas siguientes; el túnel de terminal PowerShell del usuario (el que abre la web) sí
+/// contesta. Así que el visor deja abierta una terminal de esas. Una terminal repinta, parte las líneas largas a su ancho
+/// y mete secuencias de escape, así que el guion viaja en una línea corta (gzip + base64, con iex) en un runspace STA (el
+/// portapapeles de Windows lo pide), cada respuesta lleva el id de su petición, va en base64 entre dos marcas y se lee a
+/// través de las líneas; una grande (un texto largo copiado) va a un fichero y llega por el túnel de ficheros.
 /// </summary>
-public sealed class RemoteClipboard
+public sealed class RemoteClipboard : IAsyncDisposable
 {
     /// <summary>Files above this are not moved without the person asking. / Por encima, no se mueven sin que lo pida la persona.</summary>
     public const long AutomaticLimit = 500L * 1024 * 1024;
@@ -51,6 +54,11 @@ public sealed class RemoteClipboard
     private readonly MeshServerSession _session;
     private readonly Device _device;
     private readonly SemaphoreSlim _one = new(1, 1);
+    private readonly StringBuilder _screen = new();
+    private TerminalSession? _shell;
+    private FilesSession? _files;
+    private TaskCompletionSource _changed = new(TaskCreationOptions.RunContinuationsAsynchronously);
+    private bool _shellEnded;
 
     public RemoteClipboard(MeshServerSession session, Device device)
     {
@@ -58,8 +66,17 @@ public sealed class RemoteClipboard
         _device = device;
     }
 
-    /// <summary>Text, images and files: Windows, run commands and files rights. / Texto, imágenes y ficheros: Windows, permiso de ejecutar órdenes y de ficheros.</summary>
-    public bool CanAll => _device.IsWindows && _device.HasAgent && (_session.RightsOn(_device) & (long)MeshRights.RemoteCommand) != 0 && _device.CanOpenFiles;
+    /// <summary>Text, images and files: Windows, with remote control and neither terminal nor files taken away.
+    /// Texto, imágenes y ficheros: Windows, con control remoto y sin quitar terminal ni ficheros.</summary>
+    public bool CanAll
+    {
+        get
+        {
+            var r = _session.RightsOn(_device);
+            return _device.IsWindows && _device.CanOpenTerminal && _device.CanOpenFiles
+                   && (r & (long)MeshRights.RemoteControl) != 0 && (r & (long)(MeshRights.NoTerminal | MeshRights.NoFiles)) == 0;
+        }
+    }
 
     /// <summary>Text only, with MeshCentral's own setclip: remote control. / Solo texto, con el setclip de MeshCentral: control remoto.</summary>
     public bool CanText => _device.HasAgent && (_session.RightsOn(_device) & (long)MeshRights.RemoteControl) != 0;
@@ -103,9 +120,14 @@ public sealed class RemoteClipboard
     /// <summary>A PowerShell single-quoted literal. / Un literal de PowerShell entre comillas simples.</summary>
     internal static string Quote(string s) => "'" + s.Replace("'", "''", StringComparison.Ordinal) + "'";
 
-    private const string Answer = "'" + Marker + "'+[Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes((ConvertTo-Json $o -Compress -Depth 3)))+'" + EndMarker + "'";
+    private const string Answer =
+        "$o.id=$rid; $j=ConvertTo-Json $o -Compress -Depth 3\n"
+        + "if($j.Length -gt 3000){ $d=Join-Path $env:TEMP 'MeshCentralClient'; New-Item -ItemType Directory -Force $d | Out-Null; $p=Join-Path $d ('answer-'+$rid+'.json'); [IO.File]::WriteAllText($p,$j); $j=ConvertTo-Json ([ordered]@{kind='answerfile';id=$rid;path=$p}) -Compress }\n"
+        + "'" + Marker + "'+[Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($j))+'" + EndMarker + "'";
 
     private const string ImageHash = "$g=[Windows.Forms.Clipboard]::GetImage(); $m=New-Object IO.MemoryStream; $g.Save($m,[Drawing.Imaging.ImageFormat]::Png); $b=$m.ToArray(); $h=[BitConverter]::ToString([Security.Cryptography.SHA256]::Create().ComputeHash($b)).Replace('-','');";
+
+    internal const string AnswerForTests = Answer;
 
     internal static string ReadScript(long limit) => $$"""
         $ErrorActionPreference='Stop'
@@ -175,7 +197,7 @@ public sealed class RemoteClipboard
     /// Saca la respuesta del guion de todo lo que escribió la terminal: primero se quitan secuencias de escape y saltos
     /// de línea (la terminal parte las líneas largas), y luego se decodifica el base64 entre las dos marcas.
     /// </summary>
-    internal static JsonObject? ParseAnswer(string output)
+    internal static JsonObject? ParseAnswer(string output, string? id = null)
     {
         var flat = string.Concat(Escapes.Replace(output, "").Where(c => !char.IsWhiteSpace(c) && !char.IsControl(c)));
         for (var at = flat.IndexOf(Marker, StringComparison.Ordinal); at >= 0; at = flat.IndexOf(Marker, at + 1, StringComparison.Ordinal))
@@ -183,7 +205,11 @@ public sealed class RemoteClipboard
             var start = at + Marker.Length;
             var end = flat.IndexOf(EndMarker, start, StringComparison.Ordinal);
             if (end < 0) return null;
-            try { return JsonNode.Parse(Encoding.UTF8.GetString(Convert.FromBase64String(flat[start..end]))) as JsonObject; }
+            try
+            {
+                // An answer to another request (the terminal repaints) is not this one. / La respuesta a otra petición (la terminal repinta) no es esta.
+                if (JsonNode.Parse(Encoding.UTF8.GetString(Convert.FromBase64String(flat[start..end]))) is JsonObject o && (id is null || o.Str("id") == id)) return o;
+            }
             catch (Exception ex) when (ex is FormatException or JsonException) { }
         }
         return null;
@@ -203,14 +229,91 @@ public sealed class RemoteClipboard
         return new RemoteClip(kind, o.Str("text"), files, o.Str("image"), o.Str("hash"), size, size > limit, o.Str("temp"), o.Str("error"));
     }
 
+    private async Task<FilesSession> FilesAsync(CancellationToken ct)
+    {
+        if (_files is { Tunnel.IsOpen: true }) return _files;
+        if (_files is not null) await _files.DisposeAsync().ConfigureAwait(false);
+        return _files = await FilesSession.OpenAsync(_session, _device.Id, ct).ConfigureAwait(false);
+    }
+
+    /// <summary>The user's PowerShell, opened once and waited for until it shows its prompt. / El PowerShell del usuario, abierto una vez y esperado hasta que enseña su indicador.</summary>
+    private async Task<TerminalSession> ShellAsync(CancellationToken ct)
+    {
+        if (_shell is not null && !_shellEnded) return _shell;
+        await CloseShellAsync().ConfigureAwait(false);
+        lock (_screen) { _screen.Clear(); _shellEnded = false; }
+        var shell = await TerminalSession.OpenAsync(_session, _device.Id, TunnelProtocol.UserPowerShell, 200, 50, ct).ConfigureAwait(false);
+        shell.Ended += (_, _) => { lock (_screen) { _shellEnded = true; _changed.TrySetResult(); } };
+        shell.Output += (_, d) => { lock (_screen) { _screen.Append(Encoding.UTF8.GetString(d.Span)); _changed.TrySetResult(); } };
+        _shell = shell;
+        await WaitAsync(() => Escapes.Replace(_screen.ToString(), "").Contains("PS ", StringComparison.Ordinal), TimeSpan.FromSeconds(15), ct).ConfigureAwait(false);
+        return shell;
+    }
+
+    /// <summary>Until <paramref name="done"/> holds on what the terminal has shown, the terminal ends or the time passes. / Hasta que se cumpla, acabe la terminal o pase el tiempo.</summary>
+    private async Task<bool> WaitAsync(Func<bool> done, TimeSpan limit, CancellationToken ct)
+    {
+        using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        cts.CancelAfter(limit);
+        while (true)
+        {
+            Task changed;
+            lock (_screen)
+            {
+                if (done()) return true;
+                if (_shellEnded) return false;
+                if (_changed.Task.IsCompleted) _changed = new(TaskCreationOptions.RunContinuationsAsynchronously);
+                changed = _changed.Task;
+            }
+            try { await changed.WaitAsync(cts.Token).ConfigureAwait(false); }
+            catch (OperationCanceledException) when (!ct.IsCancellationRequested) { return false; }
+        }
+    }
+
+    private async Task CloseShellAsync()
+    {
+        var s = _shell;
+        _shell = null;
+        if (s is not null) { try { await s.DisposeAsync().ConfigureAwait(false); } catch (Exception ex) when (ex is MeshClientException or ObjectDisposedException) { } }
+    }
+
     private async Task<JsonObject> RunAsync(string script, string what, CancellationToken ct)
     {
-        var output = await _session.RunCommandsAsync(_device, OneLine(script), CommandShell.PowerShell, asUser: true, timeout: TimeSpan.FromSeconds(60), ct: ct).ConfigureAwait(false);
-        var o = ParseAnswer(output) ?? throw new MeshClientException(MeshFailure.UnexpectedResponse, "portapapeles/sincronizar/respuesta-ilegible",
-            $"The device's PowerShell did not answer while {what} (is Windows PowerShell blocked there?): {Short(output)}");
-        if (o.Str("kind") == "error")
-            throw new MeshClientException(MeshFailure.Rejected, "portapapeles/sincronizar/rechazo-remoto", $"The device could not {what}: {o.Str("error")}") { ServerMessage = o.Str("error") };
-        return o;
+        var shell = await ShellAsync(ct).ConfigureAwait(false);
+        var id = Guid.NewGuid().ToString("N")[..12];
+        lock (_screen) _screen.Clear();
+        JsonObject? o = null;
+        await shell.WriteAsync(OneLine("$rid=" + Quote(id) + "\n" + script) + "\r", ct).ConfigureAwait(false);
+        var answered = await WaitAsync(() => (o = ParseAnswer(_screen.ToString(), id)) is not null, TimeSpan.FromSeconds(60), ct).ConfigureAwait(false);
+        if (!answered)
+        {
+            string seen;
+            lock (_screen) seen = Escapes.Replace(_screen.ToString(), "");
+            var ended = _shellEnded;
+            await CloseShellAsync().ConfigureAwait(false); // whatever it was doing, the next request starts clean / haga lo que hiciera, la siguiente empieza limpia
+            throw ended
+                ? new MeshClientException(MeshFailure.ConnectionLost, "portapapeles/sincronizar/conexion-cortada", $"The device's PowerShell closed while it was going to {what} (is anyone signed in there?).")
+                : new MeshClientException(MeshFailure.UnexpectedResponse, "portapapeles/sincronizar/respuesta-ilegible", $"The device's PowerShell did not answer while it was going to {what} (is Windows PowerShell blocked there?): {Short(seen)}");
+        }
+        var answer = o!;
+        if (answer.Str("kind") == "answerfile") answer = await ReadAnswerFileAsync(answer, ct).ConfigureAwait(false);
+        if (answer.Str("kind") == "error")
+            throw new MeshClientException(MeshFailure.Rejected, "portapapeles/sincronizar/rechazo-remoto", $"The device could not {what}: {answer.Str("error")}") { ServerMessage = answer.Str("error") };
+        return answer;
+    }
+
+    /// <summary>An answer too large for the terminal's screen, from its file; the file is removed. / Una respuesta demasiado grande para la pantalla de la terminal, de su fichero; se borra.</summary>
+    private async Task<JsonObject> ReadAnswerFileAsync(JsonObject note, CancellationToken ct)
+    {
+        var path = (note.Str("path") ?? "").Replace('\\', '/');
+        var files = await FilesAsync(ct).ConfigureAwait(false);
+        using var json = new MemoryStream();
+        await files.DownloadAsync(path, json, null, ct).ConfigureAwait(false);
+        try { await files.DeleteAsync(Parent(path), new[] { path[(path.LastIndexOf('/') + 1)..] }, recursive: false, ct).ConfigureAwait(false); }
+        catch (MeshClientException) { }
+        try { if (JsonNode.Parse(json.ToArray()) is JsonObject o) return o; }
+        catch (JsonException) { }
+        throw new MeshClientException(MeshFailure.UnexpectedResponse, "portapapeles/sincronizar/respuesta-ilegible", "The device's answer file could not be read.");
     }
 
     private static string Short(string s) => s.Length > 200 ? s[..200] + "…" : s.Trim();
@@ -227,8 +330,9 @@ public sealed class RemoteClipboard
 
     /// <summary>Downloads the files of <paramref name="clip"/> into <paramref name="localFolder"/>; returns the local paths, in order.
     /// Baja los ficheros a la carpeta local; devuelve las rutas locales, en orden.</summary>
-    public async Task<IReadOnlyList<string>> DownloadFilesAsync(FilesSession files, RemoteClip clip, string localFolder, IProgress<TreeProgress>? progress = null, CancellationToken ct = default)
+    public async Task<IReadOnlyList<string>> DownloadFilesAsync(RemoteClip clip, string localFolder, IProgress<TreeProgress>? progress = null, CancellationToken ct = default)
     {
+        var files = await FilesAsync(ct).ConfigureAwait(false);
         Directory.CreateDirectory(localFolder);
         var local = new List<string>();
         foreach (var group in clip.Files.Select(p => p.Replace('\\', '/').TrimEnd('/')).GroupBy(Parent))
@@ -251,8 +355,9 @@ public sealed class RemoteClipboard
     }
 
     /// <summary>The PNG the device saved for its clipboard image; the copy on the device is removed. / El PNG que guardó el equipo; se borra allí.</summary>
-    public async Task<byte[]> DownloadImageAsync(FilesSession files, RemoteClip clip, CancellationToken ct = default)
+    public async Task<byte[]> DownloadImageAsync(RemoteClip clip, CancellationToken ct = default)
     {
+        var files = await FilesAsync(ct).ConfigureAwait(false);
         var path = (clip.ImagePath ?? throw new ArgumentException("no image", nameof(clip))).Replace('\\', '/');
         using var png = new MemoryStream();
         await files.DownloadAsync(path, png, null, ct).ConfigureAwait(false);
@@ -280,11 +385,12 @@ public sealed class RemoteClipboard
 
     /// <summary>Uploads local files and folders and puts them on the device's clipboard; returns its signature.
     /// Sube ficheros y carpetas y los pone en el portapapeles del equipo; devuelve su firma.</summary>
-    public async Task<string> SetFilesAsync(FilesSession files, IReadOnlyList<string> localPaths, IProgress<TreeProgress>? progress = null, CancellationToken ct = default)
+    public async Task<string> SetFilesAsync(IReadOnlyList<string> localPaths, IProgress<TreeProgress>? progress = null, CancellationToken ct = default)
     {
         await _one.WaitAsync(ct).ConfigureAwait(false);
         try
         {
+            var files = await FilesAsync(ct).ConfigureAwait(false);
             var folder = await PrepareAsync(ct).ConfigureAwait(false);
             var items = localPaths.Select(p => (p, Path.GetFileName(p.TrimEnd('\\', '/')))).ToList();
             await files.UploadTreeAsync(items, folder.Replace('\\', '/'), progress, ct).ConfigureAwait(false);
@@ -296,11 +402,12 @@ public sealed class RemoteClipboard
     }
 
     /// <summary>Puts a PNG on the device's clipboard as an image; returns its signature. / Pone un PNG como imagen en el portapapeles del equipo; devuelve su firma.</summary>
-    public async Task<string> SetImageAsync(FilesSession files, byte[] png, CancellationToken ct = default)
+    public async Task<string> SetImageAsync(byte[] png, CancellationToken ct = default)
     {
         await _one.WaitAsync(ct).ConfigureAwait(false);
         try
         {
+            var files = await FilesAsync(ct).ConfigureAwait(false);
             var folder = await PrepareAsync(ct).ConfigureAwait(false);
             await files.UploadAsync(folder.Replace('\\', '/'), "image.png", new MemoryStream(png), null, ct).ConfigureAwait(false);
             var o = await RunAsync(SetImageScript(folder.TrimEnd('\\') + "\\image.png"), "put the image on its clipboard", ct).ConfigureAwait(false);
@@ -313,5 +420,11 @@ public sealed class RemoteClipboard
     {
         var o = await RunAsync(PrepareScript(DateTime.UtcNow.ToString("yyyyMMddHHmmssfff", CultureInfo.InvariantCulture)), "prepare a folder for the copy", ct).ConfigureAwait(false);
         return o.Str("folder") ?? throw new MeshClientException(MeshFailure.UnexpectedResponse, "portapapeles/sincronizar/respuesta-ilegible", "The device did not say where to put the copy.");
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        await CloseShellAsync().ConfigureAwait(false);
+        if (_files is not null) { try { await _files.DisposeAsync().ConfigureAwait(false); } catch (MeshClientException) { } }
     }
 }

@@ -27,7 +27,6 @@ public sealed class DesktopClipboard : IAsyncDisposable
     private readonly RemoteClipboard _remote;
     private readonly SemaphoreSlim _one = new(1, 1);
     private readonly CancellationTokenSource _life = new();
-    private FilesSession? _files;
     private uint _localSynced;
     private string? _remoteSynced;
     private Task _push = Task.CompletedTask;
@@ -50,13 +49,6 @@ public sealed class DesktopClipboard : IAsyncDisposable
     private static string LocalRoot => Path.Combine(AppPaths.Local, "clipboard", "desktop");
 
     private void Say(string text) => Application.Current?.Dispatcher.BeginInvoke(() => Notice?.Invoke(text));
-
-    private async Task<FilesSession> FilesAsync()
-    {
-        if (_files is { Tunnel.IsOpen: true }) return _files;
-        if (_files is not null) await _files.DisposeAsync();
-        return _files = await FilesSession.OpenAsync(_session, _device.Id, _life.Token);
-    }
 
     // ------------------------------------------------------------------ this PC → device / este PC → equipo
 
@@ -108,7 +100,7 @@ public sealed class DesktopClipboard : IAsyncDisposable
             else if (image is not null)
             {
                 Say(L.T("ClipImageGoing"));
-                _remoteSynced = await _remote.SetImageAsync(await FilesAsync(), Png(image), _life.Token);
+                _remoteSynced = await _remote.SetImageAsync(Png(image), _life.Token);
                 Say(L.F("ClipImageToDevice", image.PixelWidth, image.PixelHeight));
             }
             else if (files is { Length: > 0 })
@@ -116,7 +108,7 @@ public sealed class DesktopClipboard : IAsyncDisposable
                 var size = LocalSize(files, RemoteClipboard.AutomaticLimit + 1);
                 if (size > RemoteClipboard.AutomaticLimit && !force) { Say(L.F("ClipTooBigToDevice", ReportFormat.Bytes(size))); return; }
                 var progress = new Progress<TreeProgress>(p => Say(L.F("ClipFilesGoing", p.Name)));
-                _remoteSynced = await _remote.SetFilesAsync(await FilesAsync(), files, progress, _life.Token);
+                _remoteSynced = await _remote.SetFilesAsync(files, progress, _life.Token);
                 Say(L.F("ClipFilesToDevice", files.Length));
             }
             _localSynced = seq;
@@ -177,7 +169,7 @@ public sealed class DesktopClipboard : IAsyncDisposable
                     break;
                 case ClipKind.Image:
                     Say(L.T("ClipImageComing"));
-                    var png = await _remote.DownloadImageAsync(await FilesAsync(), clip, _life.Token);
+                    var png = await _remote.DownloadImageAsync(clip, _life.Token);
                     await OnUi(() =>
                     {
                         var frame = BitmapFrame.Create(new MemoryStream(png), BitmapCreateOptions.PreservePixelFormat, BitmapCacheOption.OnLoad);
@@ -192,7 +184,7 @@ public sealed class DesktopClipboard : IAsyncDisposable
                     var folder = Path.Combine(LocalRoot, DateTime.UtcNow.ToString("yyyyMMddHHmmssfff"));
                     Clean(LocalRoot);
                     var progress = new Progress<TreeProgress>(p => Say(L.F("ClipFilesComing", p.Name)));
-                    var local = await _remote.DownloadFilesAsync(await FilesAsync(), clip, folder, progress, _life.Token);
+                    var local = await _remote.DownloadFilesAsync(clip, folder, progress, _life.Token);
                     await OnUi(() =>
                     {
                         var drop = new StringCollection();
@@ -237,6 +229,6 @@ public sealed class DesktopClipboard : IAsyncDisposable
     public async ValueTask DisposeAsync()
     {
         await _life.CancelAsync();
-        if (_files is not null) await _files.DisposeAsync();
+        await _remote.DisposeAsync();
     }
 }

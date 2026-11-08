@@ -10,6 +10,5 @@
   <ItemGroup>
     <EmbeddedResource Include="..\..\burburito.lock.json" LogicalName="burburito.lock.json" />
     <InternalsVisibleTo Include="MeshCentralClient.Core.Tests" />
-    <InternalsVisibleTo Include="MeshCentralClient.UiTests" />
   </ItemGroup>
 </Project>
