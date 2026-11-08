@@ -11,6 +11,9 @@ public sealed class AgentPowerShellTests(ITestOutputHelper output)
     private static string Env(string n) => Environment.GetEnvironmentVariable(n) is { Length: > 0 } v ? v
         : throw new InvalidOperationException($"{n} is not set: run tests/ui/run-ui-test.ps1");
 
+    private readonly StringBuilder _log = new();
+    private void Log(string line) { _log.AppendLine(line); output.WriteLine(line); }
+
     private static string Show(string s) => new(s.Take(1500).Select(c => c < 32 && c != '\n' ? '¤' : c).ToArray());
 
     private async Task Through(MeshServerSession s, Device me, TunnelProtocol kind)
@@ -25,9 +28,9 @@ public sealed class AgentPowerShellTests(ITestOutputHelper output)
         var answered = await Task.WhenAny(got.Task, Task.Delay(TimeSpan.FromSeconds(25))) == got.Task;
         lock (seen)
         {
-            output.WriteLine($"== {kind}: answered={answered} in {watch.ElapsedMilliseconds} ms, {seen.Length} chars");
-            output.WriteLine(Show(seen.ToString()));
-            if (answered) output.WriteLine("answer: " + RemoteClipboard.ParseAnswer(seen.ToString())!.ToJsonString());
+            Log($"== {kind}: answered={answered} in {watch.ElapsedMilliseconds} ms, {seen.Length} chars");
+            Log(Show(seen.ToString()));
+            if (answered) Log("answer: " + RemoteClipboard.ParseAnswer(seen.ToString())!.ToJsonString());
         }
     }
 
@@ -37,9 +40,9 @@ public sealed class AgentPowerShellTests(ITestOutputHelper output)
         try
         {
             var r = await s.RunCommandsAsync(me, text, CommandShell.PowerShell, asUser, TimeSpan.FromSeconds(25));
-            output.WriteLine($"== runcommands asUser={asUser}: {watch.ElapsedMilliseconds} ms\n{Show(r)}");
+            Log($"== runcommands asUser={asUser}: {watch.ElapsedMilliseconds} ms\n{Show(r)}");
         }
-        catch (MeshClientException e) { output.WriteLine($"== runcommands asUser={asUser}: {watch.ElapsedMilliseconds} ms FAILED {e.BurburitoKey}: {e.Message}"); }
+        catch (MeshClientException e) { Log($"== runcommands asUser={asUser}: {watch.ElapsedMilliseconds} ms FAILED {e.BurburitoKey}: {e.Message}"); }
     }
 
     [Fact]
@@ -55,5 +58,7 @@ public sealed class AgentPowerShellTests(ITestOutputHelper output)
         await Commands(s, me, false, "Write-Output sin-usuario");
         await Commands(s, me, false, RemoteClipboard.OneLine(RemoteClipboard.ReadScript(1000)));
         await Commands(s, me, true, "Write-Output con-usuario");
+        Directory.CreateDirectory(Env("MESHUI_SHOTS"));
+        File.WriteAllText(Path.Combine(Env("MESHUI_SHOTS"), "measure.txt"), _log.ToString());
     }
 }

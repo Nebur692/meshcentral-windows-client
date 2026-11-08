@@ -144,6 +144,10 @@ try {
     Write-Host "sshd_config: $line"
     foreach ($g in ($line -split '\s+' | Select-Object -Skip 1 | Where-Object { $_ })) { Add-LocalGroupMember -Group $g -Member $sshUser -ErrorAction SilentlyContinue }
   }
+  # Its Windows profile is made now: at its first sign-in Windows takes a long time to make it, inside the test.
+  # Su perfil de Windows se hace ahora: en su primera entrada Windows tarda mucho en hacerlo, dentro de la prueba.
+  $sshCred = New-Object System.Management.Automation.PSCredential($sshUser, (ConvertTo-SecureString $sshPass -AsPlainText -Force))
+  Start-Process cmd.exe -ArgumentList '/c', 'exit' -Credential $sshCred -LoadUserProfile -WindowStyle Hidden -Wait
   Start-Service sshd
   $sshStarted = $true
   Write-Host "sshd running after $([int]$watch.Elapsed.TotalSeconds) s"

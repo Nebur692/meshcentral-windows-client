@@ -141,8 +141,9 @@ public sealed class SshTests(ITestOutputHelper output) : IDisposable
         Keyboard.Type("whoami");
         Keyboard.Type(VirtualKeyShort.ENTER);
         var me = Env("MESHUI_SSH_USER").ToLowerInvariant();
-        Assert.NotNull(Retry.WhileNull(() => Row(term, t => t.EndsWith("\\" + me, StringComparison.OrdinalIgnoreCase)), Timeout, TimeSpan.FromMilliseconds(300)).Result);
+        var answer = Retry.WhileNull(() => Row(term, t => t.EndsWith("\\" + me, StringComparison.OrdinalIgnoreCase)), Timeout, TimeSpan.FromMilliseconds(300)).Result;
         Shot("whoami");
+        Assert.True(answer is not null, "whoami did not answer: " + string.Join(" | ", term.FindAllDescendants().Select(SafeName).Where(n => n.Trim().Length > 0)));
         term.AsWindow().Close();
 
         // Second time: no question, the identity is known; the account comes filled in. / Segunda vez: sin pregunta; la cuenta viene puesta.
