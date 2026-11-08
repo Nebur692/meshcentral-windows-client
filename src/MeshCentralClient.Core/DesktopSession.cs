@@ -44,6 +44,9 @@ public sealed class DesktopSession : IAsyncDisposable
     public long TilesReceived => Interlocked.Read(ref _tiles);
     private long _tiles;
 
+    /// <summary>The last screen size the agent gave, for whoever subscribes after it came. / El último tamaño que dio el agente, para quien se suscriba después.</summary>
+    public (int Width, int Height)? ScreenSize { get; private set; }
+
     public event EventHandler<(int Width, int Height)>? ScreenSizeChanged;
     /// <summary>Raised from the receive thread; decode and draw it elsewhere. / Desde el hilo de recepción; se decodifica y pinta en otro sitio.</summary>
     public event EventHandler<DesktopTile>? TileReceived;
@@ -123,6 +126,7 @@ public sealed class DesktopSession : IAsyncDisposable
                     _ = SafeSend(QualityCommand(), Bytes(0, 8, 0, 5, 0), Bytes(0, 87, 0, 5, 2),
                         KeyCommand(16, false, false), KeyCommand(17, false, false), KeyCommand(18, false, false), KeyCommand(91, false, false), KeyCommand(92, false, false),
                         Bytes(0, 14, 0, 4));
+                    ScreenSize = (w, h);
                     if (changed) ScreenSizeChanged?.Invoke(this, (w, h));
                     break;
                 case 11 when v.Length >= 6: // displays / pantallas

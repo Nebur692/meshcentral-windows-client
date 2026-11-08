@@ -50,6 +50,15 @@ public class RemoteClipboardTests
         Assert.Equal("nueva", RemoteClipboard.ParseAnswer(old + "\r\n" + now, "bbb")!.Str("text"));
     }
 
+    [Theory]
+    [InlineData(0xFFFFFFFFL, true)]                                       // full: every bit on / completos: todos los bits a uno
+    [InlineData((long)MeshRights.RemoteControl, true)]
+    [InlineData((long)(MeshRights.RemoteControl | MeshRights.NoTerminal), false)]
+    [InlineData((long)(MeshRights.RemoteControl | MeshRights.NoFiles), false)]
+    [InlineData((long)MeshRights.RemoteViewOnly, false)]
+    [InlineData(0L, false)]
+    public void Which_rights_let_images_and_files_through(long rights, bool allowed) => Assert.Equal(allowed, RemoteClipboard.RightsAllowAll(rights));
+
     [Fact]
     public void One_file_many_files_and_no_files_read_alike()
     {

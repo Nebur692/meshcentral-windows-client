@@ -102,6 +102,20 @@ public class SshIntegrationTests(ITestOutputHelper output)
         Assert.Contains(shown!.Fingerprint, RealFingerprints());
     }
 
+    /// <summary>The terminal sends each key on its own, without waiting. / La terminal manda cada tecla por su cuenta, sin esperar.</summary>
+    [Fact]
+    public async Task Keys_sent_without_waiting_arrive_complete_and_in_order()
+    {
+        var (s, d) = await Admin();
+        await using var _ = s;
+        await using var t = await Open(s, d, new SshLogin("sshuser", "Ssh-Pass-1234"));
+        var seen = new StringBuilder();
+        var got = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        t.Output += (_, b) => { lock (seen) { seen.Append(Encoding.UTF8.GetString(b.Span)); if (seen.ToString().Contains("abcdefghijklmnopqrstuvwxyz-42", StringComparison.Ordinal)) got.TrySetResult(); } };
+        await Task.WhenAll("echo abcdefghijklmnopqrstuvwxyz-$((6*7))\n".Select(c => t.WriteAsync(c.ToString())).ToArray());
+        await got.Task.WaitAsync(TimeSpan.FromSeconds(20));
+    }
+
     [Fact]
     public async Task The_window_size_reaches_the_remote_terminal()
     {

@@ -63,7 +63,6 @@ public sealed class DesktopConnection : IAsyncDisposable
     {
         try { Session = await DesktopSession.OpenAsync(_session, Device.Id); }
         catch (MeshClientException ex) { Fail(ex); return; }
-        if (Device.IsWindows) { Clipboard = new DesktopClipboard(_session, Device.Device); ClipboardReady?.Invoke(); }
         var ui = Application.Current.Dispatcher;
         Session.ScreenSizeChanged += (_, s) => ui.BeginInvoke(() => NewScreen(s.Width, s.Height));
         Session.TileReceived += (_, t) => Decode(t);
@@ -72,6 +71,14 @@ public sealed class DesktopConnection : IAsyncDisposable
         Session.Message += (_, m) => ui.BeginInvoke(() => SetStatus(m));
         Session.Tunnel.Closed += (_, e) => ui.BeginInvoke(() => { if (!_closed) Fail(e); });
         DisplaysChanged?.Invoke();
+        // The agent starts talking as soon as the tunnel opens: what came before these lines is not lost. Seen: a screen
+        // size that came meanwhile left the viewer on "Connecting…" for good.
+        // El agente empieza a hablar en cuanto se abre el túnel: lo que llegó antes de estas líneas no se pierde. Visto: un
+        // tamaño de pantalla llegado entretanto dejó el visor en «Conectando…» para siempre.
+        if (Session.ScreenSize is { } known) NewScreen(known.Width, known.Height);
+        if (Session.TilesReceived > 0) { try { await Session.RefreshAsync(); } catch (MeshClientException) { } }
+        // Last: reading the clipboard takes the UI thread for a moment. / Lo último: leer el portapapeles ocupa un momento el hilo de la interfaz.
+        if (Device.IsWindows) { Clipboard = new DesktopClipboard(_session, Device.Device); ClipboardReady?.Invoke(); }
     }
 
     private void SetStatus(string s) { Status = s; StatusChanged?.Invoke(); }
@@ -84,7 +91,7 @@ public sealed class DesktopConnection : IAsyncDisposable
 
     private void NewScreen(int w, int h)
     {
-        if (w <= 0 || h <= 0) return;
+        if (w <= 0 || h <= 0 || (Bitmap is { } b && b.PixelWidth == w && b.PixelHeight == h)) return;
         Bitmap = new WriteableBitmap(w, h, 96, 96, PixelFormats.Bgra32, null);
         BitmapReplaced?.Invoke();
         UpdateInfo();

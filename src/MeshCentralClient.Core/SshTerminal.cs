@@ -52,6 +52,8 @@ public sealed class SshTerminal : ITerminalConnection
     private EventHandler<ReadOnlyMemory<byte>>? _output;
     private Task? _reading;
     private int _ended;
+    private readonly object _writeOrder = new();
+    private Task _lastWrite = Task.CompletedTask;
 
     private SshTerminal(PortMapping mapping, SshClient client, ShellStream shell)
     {
@@ -171,17 +173,28 @@ public sealed class SshTerminal : ITerminalConnection
         if (Interlocked.Exchange(ref _ended, 1) == 0 && !_life.IsCancellationRequested) Ended?.Invoke(this, why);
     }
 
-    public async Task WriteAsync(string text, CancellationToken ct = default)
+    /// <summary>
+    /// The terminal sends each key on its own, without waiting for the one before, and the SSH stream cannot take two
+    /// writes at once (seen: "whoami" arrived as "whami"): they go one after another, in the order they were called.
+    /// La terminal manda cada tecla por su cuenta, sin esperar a la anterior, y el flujo SSH no admite dos escrituras a la
+    /// vez (visto: «whoami» llegó como «whami»): salen una tras otra, en el orden en que se llamaron.
+    /// </summary>
+    public Task WriteAsync(string text, CancellationToken ct = default)
     {
-        try
+        lock (_writeOrder)
         {
-            var bytes = Encoding.UTF8.GetBytes(text);
-            await _shell.WriteAsync(bytes, ct).ConfigureAwait(false);
-            await _shell.FlushAsync(ct).ConfigureAwait(false);
-        }
-        catch (Exception ex) when (ex is SshException or IOException or ObjectDisposedException)
-        {
-            throw Lost(ex);
+            var before = _lastWrite;
+            return _lastWrite = Next();
+            async Task Next()
+            {
+                try { await before.ConfigureAwait(false); } catch (MeshClientException) { }
+                try
+                {
+                    await _shell.WriteAsync(Encoding.UTF8.GetBytes(text), ct).ConfigureAwait(false);
+                    await _shell.FlushAsync(ct).ConfigureAwait(false);
+                }
+                catch (Exception ex) when (ex is SshException or IOException or ObjectDisposedException) { throw Lost(ex); }
+            }
         }
     }
 
