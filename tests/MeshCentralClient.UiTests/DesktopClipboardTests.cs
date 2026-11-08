@@ -160,7 +160,7 @@ public sealed class DesktopClipboardTests(ITestOutputHelper output) : IDisposabl
         desk.AsWindow().SetForeground();
         Thread.Sleep(1500);
         var longText = string.Concat(Enumerable.Repeat("línea larga ñ€ " + _tag + "\r\n", 800));
-        ClipboardTool.SetText(longText);
+        ClipboardTool.SetLongText(longText);
         win.SetForeground();
         Until(() => System.Text.RegularExpressions.Regex.Match(Notice(), @"^Text copied on the device \((\d+) characters\)") is { Success: true } m && int.Parse(m.Groups[1].Value) > 10_000,
             "the long text brought from the device", Notice);

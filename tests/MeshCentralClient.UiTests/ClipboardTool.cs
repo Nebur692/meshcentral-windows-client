@@ -29,6 +29,14 @@ internal static class ClipboardTool
 
     public static void SetText(string text) => Run("Set-Clipboard -Value " + Quote(text));
 
+    /// <summary>A text too long for a command line goes through a file. / Un texto demasiado largo para una línea de órdenes va por un fichero.</summary>
+    public static void SetLongText(string text)
+    {
+        var file = Path.GetTempFileName();
+        try { File.WriteAllText(file, text); Run("Set-Clipboard -Value ([IO.File]::ReadAllText(" + Quote(file) + "))"); }
+        finally { File.Delete(file); }
+    }
+
     /// <summary>Like Ctrl+C on a file or folder in Explorer. / Como Ctrl+C sobre un fichero o carpeta en el Explorador.</summary>
     public static void SetFiles(string path) => Run("Set-Clipboard -LiteralPath " + Quote(path));
 
