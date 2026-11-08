@@ -74,7 +74,10 @@ public sealed class GroupsWindow : Window
         _session = session;
         _deviceCount = deviceCount;
         Title = L.F("GroupsTitle", string.IsNullOrEmpty(session.ServerInfo.Name) ? session.Server.Host : session.ServerInfo.Name);
-        Width = 980; Height = 760; MinWidth = 720; MinHeight = 520;
+        // Never taller or wider than the screen's work area: on 1024×768 the title bar went off the top (CI screenshot 08-11).
+        // Nunca más alta ni ancha que la zona útil de la pantalla: en 1024×768 la barra de título se salía por arriba.
+        Width = Math.Min(980, SystemParameters.WorkArea.Width); Height = Math.Min(760, SystemParameters.WorkArea.Height);
+        MinWidth = Math.Min(720, Width); MinHeight = Math.Min(520, Height);
         WindowStartupLocation = WindowStartupLocation.CenterScreen;
         foreach (var (e, id) in new (FrameworkElement, string)[]
         {

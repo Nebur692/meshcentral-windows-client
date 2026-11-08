@@ -96,8 +96,10 @@ public sealed class GroupsTests : IDisposable
         Keyboard.Type(text);
     }
 
+    // A ListBox row is a ListItem; a row of a ListView with columns (GridView) is a DataItem (seen on CI 08-11).
+    // Una fila de ListBox es ListItem; una de ListView con columnas (GridView) es DataItem (visto en la CI el 08-11).
     private static AutomationElement Item(AutomationElement list, string name) =>
-        WaitFor(() => list.FindFirstDescendant(cf => cf.ByControlType(ControlType.ListItem).And(cf.ByName(name))), $"\"{name}\" in {list.AutomationId}");
+        WaitFor(() => list.FindFirstDescendant(cf => cf.ByControlType(ControlType.ListItem).Or(cf.ByControlType(ControlType.DataItem)).And(cf.ByName(name))), $"\"{name}\" in {list.AutomationId}");
 
     private void MoveMachineTo(AutomationElement win, string group)
     {
