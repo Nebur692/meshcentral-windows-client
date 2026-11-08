@@ -58,7 +58,9 @@ public static class ReportFormat
     public static string Value(ReportColumn c, JsonNode? v, Names names)
     {
         if (v is null) return "";
-        long? n = v is JsonValue jv && jv.TryGetValue<double>(out var d) ? (long)d : null;
+        // A parsed number answers to double, one built in code only to its own type: both are read.
+        // Un número leído del JSON responde a double, uno hecho en código solo a su tipo: se leen los dos.
+        long? n = v is not JsonValue jv ? null : jv.TryGetValue<long>(out var l) ? l : jv.TryGetValue<double>(out var d) ? (long)d : null;
         return (c.Format, c.Id) switch
         {
             ("datetime", _) when n is long ms => DateTimeOffset.FromUnixTimeMilliseconds(ms).ToLocalTime().ToString("g", CultureInfo.CurrentCulture),

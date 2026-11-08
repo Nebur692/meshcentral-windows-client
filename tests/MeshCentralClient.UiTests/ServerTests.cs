@@ -99,7 +99,8 @@ public sealed class ServerTests : IDisposable
     {
         win.SetForeground();
         Id(win, "ServerMenuButton").AsButton().Invoke();
-        Anywhere(item).Click();
+        // Through its pattern, not a mouse point: the menu is a popup above other windows. / Por su patrón, no con el ratón.
+        Anywhere(item).AsMenuItem().Invoke();
     }
 
     /// <summary>Saves through the Windows save dialog of <paramref name="owner"/>. / Guarda por el diálogo de guardar de Windows.</summary>

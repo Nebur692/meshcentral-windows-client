@@ -660,23 +660,32 @@ public partial class MainWindow : Window
     private ReportsWindow? _reportsWindow;
     private ServerWindow? _serverWindow;
 
+    private ContextMenu? _serverMenu;
+    private MenuItem? _serverStateItem;
+
+    /// <summary>One menu, made once: a new one on every click left old copies of its items for UI Automation to find (CI 08-11).
+    /// Un solo menú, hecho una vez: uno nuevo en cada clic dejaba copias viejas de sus opciones.</summary>
     private void ServerMenu_Click(object sender, RoutedEventArgs e)
     {
-        if (_session is not { } s) return;
-        var menu = new ContextMenu { PlacementTarget = ServerMenuButton, Placement = System.Windows.Controls.Primitives.PlacementMode.Bottom };
-        MenuItem Item(string key, bool enabled, Action open)
+        if (_session is null) return;
+        if (_serverMenu is null)
         {
-            var i = new MenuItem { Header = L.T(key), IsEnabled = enabled };
-            System.Windows.Automation.AutomationProperties.SetAutomationId(i, key);
-            i.Click += (_, _) => open();
-            menu.Items.Add(i);
-            return i;
+            _serverMenu = new ContextMenu { PlacementTarget = ServerMenuButton, Placement = System.Windows.Controls.Primitives.PlacementMode.Bottom };
+            MenuItem Item(string key, Action<MeshServerSession> open)
+            {
+                var i = new MenuItem { Header = L.T(key) };
+                System.Windows.Automation.AutomationProperties.SetAutomationId(i, key);
+                i.Click += (_, _) => { if (_session is { } s) open(s); };
+                _serverMenu.Items.Add(i);
+                return i;
+            }
+            Item("EventsItem", s => OpenOnce(ref _eventsWindow, () => new EventsWindow(s, NamesFor(s))));
+            Item("ReportsItem", s => OpenOnce(ref _reportsWindow, () => new ReportsWindow(s, NamesFor(s))));
+            _serverStateItem = Item("ServerStateItem", s => OpenOnce(ref _serverWindow, () => new ServerWindow(s)));
         }
-        Item("EventsItem", true, () => OpenOnce(ref _eventsWindow, () => new EventsWindow(s, NamesFor(s))));
-        Item("ReportsItem", true, () => OpenOnce(ref _reportsWindow, () => new ReportsWindow(s, NamesFor(s))));
         // Only for the administrators the server shows its state to. / Solo para los administradores a los que el servidor enseña su estado.
-        Item("ServerStateItem", s.CanSeeServer, () => OpenOnce(ref _serverWindow, () => new ServerWindow(s)));
-        menu.IsOpen = true;
+        _serverStateItem!.IsEnabled = _session.CanSeeServer;
+        _serverMenu.IsOpen = true;
     }
 
     /// <summary>One window of each kind per session: a second click brings it to the front. / Una ventana de cada tipo por sesión.</summary>
