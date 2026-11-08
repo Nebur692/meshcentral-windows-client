@@ -90,6 +90,12 @@
       "slug": "ssh",
       "nombre": "SSH dentro de la app",
       "descripcion": "SshTerminal.cs: el cliente SSH propio de la app (SSH.NET) sobre una redirección privada, con la identidad del servidor comprobada como el known_hosts de OpenSSH (RelayStore) y la terminal de la app."
+    },
+    {
+      "id": 15,
+      "slug": "portapapeles",
+      "nombre": "Copiar y pegar de todo con un equipo Windows",
+      "descripcion": "RemoteClipboard.cs y DesktopClipboard: texto con el setclip de MeshCentral; imágenes y ficheros con un PowerShell como el usuario con sesión (runcommands, runAsUser 1, -STA -EncodedCommand) más el túnel de ficheros. Se lleva al entrar en el visor y se trae al salir o al copiar dentro."
     }
   ],
   "acciones": [
@@ -1622,6 +1628,66 @@
       "titulo": "Se cortó la conexión SSH",
       "explicacion": "Se perdió el camino con el servidor SSH (el equipo, su agente o la red).",
       "que_hacer": "Volver a abrir la terminal."
+    },
+    {
+      "modulo": "portapapeles",
+      "accion": "sincronizar",
+      "causa": "respuesta-ilegible",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "El equipo no contestó al copiar y pegar",
+      "explicacion": "Su PowerShell no devolvió lo esperado: puede estar bloqueado por una directiva, o no hay nadie con sesión.",
+      "que_hacer": "Usar «Escribir el portapapeles» para el texto, o pedir a su administrador que permita Windows PowerShell."
+    },
+    {
+      "modulo": "portapapeles",
+      "accion": "sincronizar",
+      "causa": "rechazo-remoto",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "El equipo no pudo copiar o pegar",
+      "explicacion": "Windows en el equipo dio un error al leer o llenar su portapapeles (otro programa lo tenía, por ejemplo).",
+      "que_hacer": "Probar otra vez dentro de un momento; el detalle está en Detalles."
+    },
+    {
+      "modulo": "portapapeles",
+      "accion": "sincronizar",
+      "causa": "no-autorizado",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "Esta cuenta no puede usar el portapapeles de este equipo",
+      "explicacion": "Hace falta permiso de control remoto.",
+      "que_hacer": "Pedir el permiso a un administrador del grupo si hace falta."
+    },
+    {
+      "modulo": "portapapeles",
+      "accion": "sincronizar",
+      "causa": "sin-conexion",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "El equipo no está conectado",
+      "explicacion": "Su agente no está conectado ahora.",
+      "que_hacer": "Esperar a que vuelva a conectarse."
+    },
+    {
+      "modulo": "portapapeles",
+      "accion": "sincronizar",
+      "causa": "tiempo-agotado",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "El equipo no confirmó el texto copiado",
+      "explicacion": "El servidor puede tener desactivado el portapapeles, o el equipo seguía con el anterior.",
+      "que_hacer": "Probar otra vez; si nunca llega, usar «Escribir el portapapeles»."
+    },
+    {
+      "modulo": "portapapeles",
+      "accion": "sincronizar",
+      "causa": "conexion-cortada",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "Se cortó la conexión al copiar o pegar",
+      "explicacion": "La conexión con el servidor se cerró a medias.",
+      "que_hacer": "Volver a conectar y copiar otra vez."
     }
   ]
 }

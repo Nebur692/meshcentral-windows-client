@@ -31,4 +31,15 @@ internal static class ClipboardTool
 
     /// <summary>Like Ctrl+C on a file or folder in Explorer. / Como Ctrl+C sobre un fichero o carpeta en el Explorador.</summary>
     public static void SetFiles(string path) => Run("Set-Clipboard -LiteralPath " + Quote(path));
+
+    /// <summary>An image of one colour, as a screenshot tool would copy it. / Una imagen de un color, como la copiaría una herramienta de capturas.</summary>
+    public static void SetImage(int width, int height, int argb) => Run(
+        "Add-Type -AssemblyName System.Windows.Forms,System.Drawing; " +
+        $"$b=New-Object Drawing.Bitmap({width},{height}); $g=[Drawing.Graphics]::FromImage($b); $g.Clear([Drawing.Color]::FromArgb({argb})); $g.Dispose(); " +
+        "[Windows.Forms.Clipboard]::SetImage($b)");
+
+    /// <summary>"WxH:argb of the centre", or "" without an image. / «AxA:argb del centro», o "" sin imagen.</summary>
+    public static string Image() => Run(
+        "Add-Type -AssemblyName System.Windows.Forms,System.Drawing; $i=[Windows.Forms.Clipboard]::GetImage(); " +
+        "if($i){ $b=New-Object Drawing.Bitmap $i; '{0}x{1}:{2}' -f $b.Width,$b.Height,$b.GetPixel([int]($b.Width/2),[int]($b.Height/2)).ToArgb() }");
 }

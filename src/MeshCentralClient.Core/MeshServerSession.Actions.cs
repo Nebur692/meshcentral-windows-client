@@ -112,6 +112,21 @@ public sealed partial class MeshServerSession
     public bool CanRelayThrough(Device device) =>
         (Has(RightsOn(device), MeshRights.RemoteControl) || Has(RightsOn(device), MeshRights.Relay)) && device.HasAgent;
 
+    /// <summary>
+    /// MeshCentral's own clipboard: text only (meshcore.js setclip). The agent answers {action:'msg', type:'setclip',
+    /// success:true}; a server with clipboardset off, or an agent still busy with the previous one, answers nothing.
+    /// El portapapeles de MeshCentral: solo texto. El agente contesta success; un servidor con clipboardset desactivado, o
+    /// un agente aún ocupado con el anterior, no contesta.
+    /// </summary>
+    public async Task SetDeviceClipboardTextAsync(Device device, string text, CancellationToken ct = default)
+    {
+        if (!Has(RightsOn(device), MeshRights.RemoteControl)) throw Denied("portapapeles/sincronizar/no-autorizado", "use the clipboard");
+        if (!device.HasAgent) throw Offline("portapapeles/sincronizar/sin-conexion");
+        await RequestAsync(new JsonObject { ["action"] = "msg", ["type"] = "setclip", ["nodeid"] = device.Id, ["data"] = text },
+            o => o.Str("action") == "msg" && o.Str("type") == "setclip",
+            "portapapeles/sincronizar/tiempo-agotado", "portapapeles/sincronizar/conexion-cortada", ct, TimeSpan.FromSeconds(15)).ConfigureAwait(false);
+    }
+
     private static MeshClientException Denied(string key, string what) =>
         new(MeshFailure.Rejected, key, $"This account has no rights to {what} on this device.");
 

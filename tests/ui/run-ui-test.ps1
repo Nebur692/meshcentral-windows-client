@@ -120,6 +120,27 @@ Release 'bad.sha256' | Set-Content -Encoding utf8 (Join-Path $feed 'latest-bad.j
 $feedProc = Start-Process python -ArgumentList '-m', 'http.server', $port, '--bind', '127.0.0.1', '--directory', $feed -PassThru -WindowStyle Hidden
 Start-Sleep 2
 
+# Windows' own OpenSSH server with a throwaway local account: the target of the SSH test (SshTests). If it cannot be
+# turned on, the variables stay unset and that test fails saying so: it is not skipped.
+# El servidor OpenSSH de Windows con una cuenta local desechable: el destino de la prueba de SSH. Si no se puede
+# encender, las variables quedan sin poner y esa prueba falla diciéndolo: no se salta.
+Write-Host '== OpenSSH server'
+$sshUser = 'mccssh'
+$sshPass = 'Ssh-' + [guid]::NewGuid().ToString('N').Substring(0, 12) + '-9a!'
+$sshStarted = $false
+try {
+  $watch = [Diagnostics.Stopwatch]::StartNew()
+  $cap = Get-WindowsCapability -Online -Name 'OpenSSH.Server*' | Select-Object -First 1
+  Write-Host "OpenSSH.Server: $($cap.Name) $($cap.State)"
+  if ($cap.State -ne 'Installed') { Add-WindowsCapability -Online -Name $cap.Name | Out-Null }
+  New-LocalUser -Name $sshUser -Password (ConvertTo-SecureString $sshPass -AsPlainText -Force) -AccountNeverExpires -PasswordNeverExpires | Out-Null
+  Start-Service sshd
+  $sshStarted = $true
+  Write-Host "sshd running after $([int]$watch.Elapsed.TotalSeconds) s"
+  $env:MESHUI_SSH_USER = $sshUser
+  $env:MESHUI_SSH_PASS = $sshPass
+} catch { Write-Host "OpenSSH server not available: $_" }
+
 try {
   Write-Host '== UI test'
   $env:MESHUI_UPDATE_FEED = "http://127.0.0.1:$port/latest.json"
@@ -137,6 +158,8 @@ try {
 }
 finally {
   foreach ($p in @($agentProc, $server, $feedProc, $oidcProc)) { if ($p -and -not $p.HasExited) { Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue } }
+  if ($sshStarted) { Stop-Service sshd -ErrorAction SilentlyContinue }
+  Remove-LocalUser -Name $sshUser -ErrorAction SilentlyContinue
   # A test may have restarted a hung agent: whatever runs from this run's agent file is stopped too.
   # Una prueba puede haber reiniciado un agente colgado: también se para lo que corra desde el agente de esta pasada.
   $agentExe = Join-Path $agent 'meshagent.exe'

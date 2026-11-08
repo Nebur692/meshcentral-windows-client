@@ -33,6 +33,10 @@ public sealed class DesktopWindow : Window
     private readonly TextBlock _status = new() { VerticalAlignment = VerticalAlignment.Center, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(12, 0, 12, 0) };
     // Notices of an action (typed text, clipboard empty): apart from the status, which the picture keeps rewriting.
     // Avisos de una acción (texto escrito, portapapeles vacío): aparte del estado, que la imagen va reescribiendo.
+    private readonly Button _clipTo = new() { Content = "⇡ " + L.T("ClipToDevice"), Margin = new Thickness(0, 0, 6, 0), Visibility = Visibility.Collapsed, ToolTip = L.T("ClipToDeviceHelp") };
+    private readonly Button _clipFrom = new() { Content = "⇣ " + L.T("ClipFromDevice"), Margin = new Thickness(0, 0, 6, 0), Visibility = Visibility.Collapsed, ToolTip = L.T("ClipFromDeviceHelp") };
+    // What copy and paste is doing, apart from the other notices. / Lo que hace el copiar y pegar, aparte de los demás avisos.
+    private readonly TextBlock _clipNotice = new() { VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 12, 0), Opacity = 0.85, MaxWidth = 420, TextTrimming = TextTrimming.CharacterEllipsis };
     private readonly TextBlock _notice = new() { VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 12, 0), FontWeight = FontWeights.SemiBold };
     private readonly ComboBox _displays = new() { MinWidth = 130, Visibility = Visibility.Collapsed, Margin = new Thickness(0, 0, 6, 0) };
     private readonly ComboBox _quality = new() { MinWidth = 110, Margin = new Thickness(0, 0, 6, 0) };
@@ -60,6 +64,7 @@ public sealed class DesktopWindow : Window
         var root = new DockPanel();
         var bar = new DockPanel { Margin = new Thickness(12, 8, 12, 8) };
         var tools = new StackPanel { Orientation = Orientation.Horizontal };
+        tools.Children.Add(_clipNotice);
         tools.Children.Add(_notice);
         if (_primary)
         {
@@ -70,6 +75,8 @@ public sealed class DesktopWindow : Window
         tools.Children.Add(Action("CtrlAltDelButton", "Ctrl+Alt+Del", async s => await s.SendCtrlAltDelAsync()));
         tools.Children.Add(Action("WinKeyButton", "⊞ Win", async s => { await s.SendKeyAsync(0x5B, true, true); await s.SendKeyAsync(0x5B, false, true); }));
         tools.Children.Add(Action("TypeClipboardButton", L.T("TypeClipboard"), TypeClipboardAsync));
+        tools.Children.Add(_clipTo);
+        tools.Children.Add(_clipFrom);
         if (_primary) tools.Children.Add(Action("RefreshDesktop", L.T("Refresh"), async s => await s.RefreshAsync()));
         DockPanel.SetDock(tools, Dock.Right);
         bar.Children.Add(tools);
@@ -97,11 +104,25 @@ public sealed class DesktopWindow : Window
         _canvas.MouseDown += (_, e) => { _surface.Focus(); Keyboard.Focus(_surface); _canvas.CaptureMouse(); Mouse(e, Button(e.ChangedButton), true); e.Handled = true; };
         _canvas.MouseUp += (_, e) => { Mouse(e, Button(e.ChangedButton), false); _canvas.ReleaseMouseCapture(); e.Handled = true; };
         _canvas.MouseWheel += async (_, e) => { if (_c.Session is { } s && ToRemote(e.GetPosition(_canvas)) is { } p) await s.SendWheelAsync(p.X, p.Y, e.Delta); e.Handled = true; };
-        _surface.PreviewKeyDown += async (_, e) => await KeyAsync(e, true);
-        _surface.PreviewKeyUp += async (_, e) => await KeyAsync(e, false);
-        // Leaving the window releases whatever was held, or the remote would keep a key down.
-        // Al salir de la ventana se suelta lo pulsado, o el equipo seguiría con una tecla apretada.
-        Deactivated += async (_, _) => await ReleaseAllAsync();
+        _surface.PreviewKeyDown += (_, e) => OnKey(e, true);
+        _surface.PreviewKeyUp += (_, e) => OnKey(e, false);
+        // Leaving the window releases whatever was held, or the remote would keep a key down; and brings what the device copied.
+        // Al salir de la ventana se suelta lo pulsado, o el equipo seguiría con una tecla apretada; y se trae lo que copió el equipo.
+        Deactivated += async (_, _) => { await ReleaseAllAsync(); _c.Clipboard?.Left(); };
+        // Entering takes this PC's clipboard to the device. / Al entrar se lleva al equipo el portapapeles de este PC.
+        Activated += (_, _) => _c.Clipboard?.Entered();
+        Id(_clipNotice, "ClipboardNotice"); Id(_clipTo, "ClipToDeviceButton"); Id(_clipFrom, "ClipFromDeviceButton");
+        _clipTo.Click += (_, _) => { _c.Clipboard?.PushNow(); if (IsActive) _surface.Focus(); };
+        _clipFrom.Click += (_, _) => { _c.Clipboard?.PullNow(); if (IsActive) _surface.Focus(); };
+        void ClipboardReady()
+        {
+            if (_c.Clipboard is not { } clip) return;
+            clip.Notice += t => { _clipNotice.Text = t; _clipNotice.ToolTip = t; };
+            _clipTo.Visibility = _clipFrom.Visibility = clip.CanAll ? Visibility.Visible : Visibility.Collapsed;
+            if (IsActive) clip.Entered();
+        }
+        _c.ClipboardReady += ClipboardReady;
+        ClipboardReady();
 
         _c.BitmapReplaced += Refresh;
         _c.StatusChanged += ShowStatus;
@@ -215,25 +236,50 @@ public sealed class DesktopWindow : Window
 
     private static int Generic(int vk) => vk switch { 0xA0 or 0xA1 => 16, 0xA2 or 0xA3 => 17, 0xA4 or 0xA5 => 18, _ => vk };
 
-    private async Task KeyAsync(KeyEventArgs e, bool down)
+    // Keys go out one after another through this queue, so a Ctrl+V that waits for the clipboard keeps its place.
+    // Las teclas salen una tras otra por esta cola, así que un Ctrl+V que espera al portapapeles conserva su sitio.
+    private Task _keys = Task.CompletedTask;
+
+    private void Queue(Func<Task> send)
+    {
+        var before = _keys;
+        _keys = Next();
+        async Task Next()
+        {
+            try { await before; } catch (Exception) { }
+            try { await send(); } catch (MeshClientException) { } // a closed tunnel is told by the status / un túnel cerrado lo dice el estado
+        }
+    }
+
+    private void OnKey(KeyEventArgs e, bool down)
     {
         if (_c.Session is not { } s) return;
-        var key = e.Key == Key.System ? e.SystemKey : e.Key == Key.ImeProcessed ? e.ImeProcessedKey : e.Key;
+        var key = e.Key == System.Windows.Input.Key.System ? e.SystemKey : e.Key == System.Windows.Input.Key.ImeProcessed ? e.ImeProcessedKey : e.Key;
         // Alt+F4 stays local: it closes this window, as everywhere in Windows. / Alt+F4 se queda en local: cierra esta ventana.
-        if (key == Key.F4 && Keyboard.Modifiers.HasFlag(ModifierKeys.Alt)) return;
+        if (key == System.Windows.Input.Key.F4 && Keyboard.Modifiers.HasFlag(ModifierKeys.Alt)) return;
         var vk = KeyInterop.VirtualKeyFromKey(key);
         if (vk <= 0 || vk > 255) return;
         e.Handled = true;
         if (down) _pressed.Add(vk); else _pressed.Remove(vk);
+        var mods = Keyboard.Modifiers;
+        var clip = _c.Clipboard;
+        // Pasting there waits until this PC's copy has arrived. / Pegar allí espera a que haya llegado lo copiado aquí.
+        if (down && clip is not null && ((mods.HasFlag(ModifierKeys.Control) && key == System.Windows.Input.Key.V) || (mods.HasFlag(ModifierKeys.Shift) && key == System.Windows.Input.Key.Insert)))
+            Queue(clip.BeforePasteAsync);
         // Left and right Shift/Ctrl/Alt travel as the generic key, as the website sends them. / Como los manda la web.
-        await s.SendKeyAsync(Generic(vk), down, Extended.Contains(key));
+        var extended = Extended.Contains(key);
+        Queue(() => s.SendKeyAsync(Generic(vk), down, extended));
+        // Copying there brings it here once the device has it. / Copiar allí lo trae aquí cuando el equipo ya lo tiene.
+        if (!down && clip is not null && mods.HasFlag(ModifierKeys.Control) && key is System.Windows.Input.Key.C or System.Windows.Input.Key.X)
+            Queue(async () => { await Task.Delay(500); await Dispatcher.InvokeAsync(clip.Left); });
     }
 
-    private async Task ReleaseAllAsync()
+    private Task ReleaseAllAsync()
     {
-        if (_c.Session is not { } s) return;
-        foreach (var vk in _pressed.ToList()) await s.SendKeyAsync(Generic(vk), false);
+        if (_c.Session is not { } s) return Task.CompletedTask;
+        foreach (var vk in _pressed.ToList()) Queue(() => s.SendKeyAsync(Generic(vk), false));
         _pressed.Clear();
+        return _keys;
     }
 
     /// <summary>

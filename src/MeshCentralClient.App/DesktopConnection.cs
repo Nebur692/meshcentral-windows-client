@@ -29,6 +29,9 @@ public sealed class DesktopConnection : IAsyncDisposable
 
     public DeviceRow Device { get; }
     public DesktopSession? Session { get; private set; }
+
+    /// <summary>Copy and paste of everything with a Windows device; null elsewhere. / Copiar y pegar de todo con un equipo Windows; null en los demás.</summary>
+    public DesktopClipboard? Clipboard { get; private set; }
     public WriteableBitmap? Bitmap { get; private set; }
     public IReadOnlyList<DisplayRect> Layout { get; private set; } = Array.Empty<DisplayRect>();
     public DesktopDisplays? Displays { get; private set; }
@@ -41,6 +44,7 @@ public sealed class DesktopConnection : IAsyncDisposable
     public event Action? BitmapReplaced;
     public event Action? StatusChanged;
     public event Action? DisplaysChanged;
+    public event Action? ClipboardReady;
 
     public static DesktopWindow Open(MeshServerSession session, DeviceRow device, Action<Window> track)
     {
@@ -59,6 +63,7 @@ public sealed class DesktopConnection : IAsyncDisposable
     {
         try { Session = await DesktopSession.OpenAsync(_session, Device.Id); }
         catch (MeshClientException ex) { Fail(ex); return; }
+        if (Device.IsWindows) { Clipboard = new DesktopClipboard(_session, Device.Device); ClipboardReady?.Invoke(); }
         var ui = Application.Current.Dispatcher;
         Session.ScreenSizeChanged += (_, s) => ui.BeginInvoke(() => NewScreen(s.Width, s.Height));
         Session.TileReceived += (_, t) => Decode(t);
@@ -183,6 +188,7 @@ public sealed class DesktopConnection : IAsyncDisposable
     public async ValueTask DisposeAsync()
     {
         _closed = true;
+        if (Clipboard is not null) await Clipboard.DisposeAsync();
         if (Session is not null) await Session.DisposeAsync();
     }
 }

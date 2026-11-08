@@ -1,5 +1,5 @@
 {
-  "generado": "2026-11-08T16:55:04Z",
+  "generado": "2026-11-08T17:02:25Z",
   "aviso": "Generado por bin/burburito. No editar a mano: la fuente de verdad es el burburito.json de al lado.",
   "proyecto": {
     "id": 35,
@@ -570,6 +570,42 @@
       "severidad": "aviso",
       "actuar": false,
       "titulo": "La caducidad del enlace no vale"
+    },
+    "portapapeles/sincronizar/sin-conexion": {
+      "codigo": "035-015-146-001",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "El equipo no está conectado"
+    },
+    "portapapeles/sincronizar/tiempo-agotado": {
+      "codigo": "035-015-146-002",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "El equipo no confirmó el texto copiado"
+    },
+    "portapapeles/sincronizar/conexion-cortada": {
+      "codigo": "035-015-146-005",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "Se cortó la conexión al copiar o pegar"
+    },
+    "portapapeles/sincronizar/rechazo-remoto": {
+      "codigo": "035-015-146-021",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "El equipo no pudo copiar o pegar"
+    },
+    "portapapeles/sincronizar/respuesta-ilegible": {
+      "codigo": "035-015-146-022",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "El equipo no contestó al copiar y pegar"
+    },
+    "portapapeles/sincronizar/no-autorizado": {
+      "codigo": "035-015-146-046",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "Esta cuenta no puede usar el portapapeles de este equipo"
     },
     "redireccion/redirigir-puerto/sin-permiso": {
       "codigo": "035-013-509-042",
