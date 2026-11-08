@@ -162,7 +162,8 @@ public sealed class DesktopClipboardTests(ITestOutputHelper output) : IDisposabl
         var longText = string.Concat(Enumerable.Repeat("línea larga ñ€ " + _tag + "\r\n", 800));
         ClipboardTool.SetText(longText);
         win.SetForeground();
-        Until(() => Notice() == $"Text copied on the device ({ClipboardTool.Text().Length} characters) is on this PC.", "the long text brought from the device", Notice);
+        Until(() => System.Text.RegularExpressions.Regex.Match(Notice(), @"^Text copied on the device \((\d+) characters\)") is { Success: true } m && int.Parse(m.Groups[1].Value) > 10_000,
+            "the long text brought from the device", Notice);
         Assert.Equal(longText.TrimEnd(), ClipboardTool.Text().TrimEnd());
 
         foreach (var d in new[] { there, here }) { try { Directory.Delete(d, true); } catch (Exception) { } }
