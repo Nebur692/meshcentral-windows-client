@@ -145,7 +145,7 @@ public sealed class PortsWindow : Window
         _relays = relays;
         _devices = devices;
         Title = L.T("PortsTitle");
-        Width = 900; Height = 440; MinWidth = 620; MinHeight = 280;
+        Width = 1000; Height = 440; MinWidth = 620; MinHeight = 280;
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
         AP.SetAutomationId(this, "PortsWindow");
         AP.SetAutomationId(_list, "MappingList");

@@ -62,10 +62,10 @@ public sealed class DesktopWindow : Window
         _surface.Child = _box;
 
         var root = new DockPanel();
-        var bar = new DockPanel { Margin = new Thickness(12, 8, 12, 8) };
-        var tools = new StackPanel { Orientation = Orientation.Horizontal };
-        tools.Children.Add(_clipNotice);
-        tools.Children.Add(_notice);
+        // The buttons wrap when the window is narrow, and the status and notices have their own line: nothing is cut off.
+        // Los botones saltan de fila si la ventana es estrecha, y estado y avisos tienen su línea: no se corta nada.
+        var bar = new StackPanel { Margin = new Thickness(12, 8, 12, 8) };
+        var tools = new WrapPanel { HorizontalAlignment = HorizontalAlignment.Right };
         if (_primary)
         {
             tools.Children.Add(_split);
@@ -78,9 +78,13 @@ public sealed class DesktopWindow : Window
         tools.Children.Add(_clipTo);
         tools.Children.Add(_clipFrom);
         if (_primary) tools.Children.Add(Action("RefreshDesktop", L.T("Refresh"), async s => await s.RefreshAsync()));
-        DockPanel.SetDock(tools, Dock.Right);
         bar.Children.Add(tools);
-        bar.Children.Add(_status);
+        var info = new DockPanel { Margin = new Thickness(0, 6, 0, 0) };
+        DockPanel.SetDock(_notice, Dock.Right); DockPanel.SetDock(_clipNotice, Dock.Right);
+        info.Children.Add(_notice);
+        info.Children.Add(_clipNotice);
+        info.Children.Add(_status);
+        bar.Children.Add(info);
         DockPanel.SetDock(bar, Dock.Top);
         root.Children.Add(bar);
         root.Children.Add(_surface);
