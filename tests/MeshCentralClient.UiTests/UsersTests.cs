@@ -105,6 +105,12 @@ public sealed class UsersTests : IDisposable
         Keyboard.TypeSimultaneously(VirtualKeyShort.CONTROL, VirtualKeyShort.KEY_A);
         Keyboard.Type(VirtualKeyShort.DELETE);
         Keyboard.Type(text);
+        // Typed keys are queued: pressing OK right after once created the token "script be5" for "script be5764" (CI 08-11).
+        // Wait until the box holds the whole text (a password box hides it, so only the queue there).
+        // Las teclas van a una cola: pulsar Aceptar enseguida creó una vez el token «script be5» por «script be5764».
+        Wait.UntilInputIsProcessed();
+        if (box.ControlType == ControlType.Edit && box.Patterns.Value.PatternOrDefault is { } v && !box.Properties.IsPassword.ValueOrDefault)
+            Until(() => v.Value.Value == text, $"\"{text}\" typed in {box.AutomationId}", () => v.Value.Value);
     }
 
     private static AutomationElement Item(AutomationElement list, string name) =>
@@ -150,7 +156,8 @@ public sealed class UsersTests : IDisposable
         Id(win, "UsersButton").AsButton().Invoke();
         var uw = Anywhere("UsersWindow");
         var list = Id(uw, "UserList");
-        Item(list, "admin");
+        // The test server's administrator is called "Admin" (its name; it signs in as "admin"). / Se llama «Admin»; entra como «admin».
+        Item(list, "Admin");
 
         // 1. A new account with one server right. / Una cuenta nueva con un permiso de servidor.
         Id(uw, "NewUserButton").Click();
