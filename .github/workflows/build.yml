@@ -22,8 +22,17 @@ jobs:
           docker pull ghcr.io/ylianst/meshcentral:latest
           docker pull mcr.microsoft.com/dotnet/sdk:10.0
           docker pull debian:12-slim
+      # The agents the test server hands out, kept between runs (tests/server/fetch-agents.mjs checks each one).
+      # Los agentes que da el servidor de pruebas, guardados entre pasadas (tests/server/fetch-agents.mjs comprueba cada uno).
+      - uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/agentcache
+          key: meshtest-agents-${{ runner.os }}-${{ github.run_id }}
+          restore-keys: meshtest-agents-${{ runner.os }}-
       - name: Tests
         run: tests/server/run-integration.sh "$RUNNER_TEMP/mctest"
+        env:
+          MESHTEST_AGENT_CACHE: ${{ runner.temp }}/agentcache
 
   windows:
     name: Windows tests + single-file app
@@ -57,8 +66,17 @@ jobs:
         run: dotnet publish src/MeshCentralClient.App -c Release -r win-x64 --self-contained -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:DebugType=none -o out
       - name: Publish the same app as version 99 (for the self-update test)
         run: dotnet publish src/MeshCentralClient.App -c Release -r win-x64 --self-contained -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:DebugType=none -p:Version=99.0.0 -o out99
+      # The agents the test server hands out, kept between runs (tests/server/fetch-agents.mjs checks each one).
+      # Los agentes que da el servidor de pruebas, guardados entre pasadas (tests/server/fetch-agents.mjs comprueba cada uno).
+      - uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/agentcache
+          key: meshtest-agents-${{ runner.os }}-${{ github.run_id }}
+          restore-keys: meshtest-agents-${{ runner.os }}-
       - name: UI test
         shell: pwsh
+        env:
+          MESHTEST_AGENT_CACHE: ${{ runner.temp }}/agentcache
         run: tests/ui/run-ui-test.ps1 -Exe "$PWD\out\MeshCentralClient.exe" -Exe99 "$PWD\out99\MeshCentralClient.exe" -Work "$env:RUNNER_TEMP\meshui"
       - name: Server log on failure
         if: failure()

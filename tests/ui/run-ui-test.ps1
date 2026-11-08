@@ -39,7 +39,7 @@ Push-Location $mc
 npm install --no-audit --no-fund --loglevel=error "meshcentral@$MeshCentralVersion" | Out-Host
 @'
 {
-  "settings": { "cert": "mesh.test", "port": 4443, "redirPort": 0, "mpsPort": 0, "selfUpdate": false, "maxInvalidLogin": false },
+  "settings": { "cert": "mesh.test", "port": 4443, "redirPort": 0, "mpsPort": 0, "selfUpdate": false, "maxInvalidLogin": false, "agentDownloads": { "enabled": false } },
   "domains": { "": { "title": "Test", "newAccounts": false,
     "authStrategies": { "oidc": { "issuer": "http://localhost:3000",
       "client": { "client_id": "meshcentral-test", "client_secret": "test-secret-not-for-production" },
@@ -47,6 +47,11 @@ npm install --no-audit --no-fund --loglevel=error "meshcentral@$MeshCentralVersi
 }
 '@ | Set-Content -Encoding utf8 (Join-Path $data 'config.json')
 $m = 'node_modules\meshcentral'
+# The Windows agent the tests use, supplied before it starts instead of the server downloading 119 MiB itself: see tests/server/fetch-agents.mjs.
+# El agente de Windows que usan las pruebas, puesto antes de arrancar en vez de que el servidor baje él 119 MiB: ver tests/server/fetch-agents.mjs.
+$agentCache = if ($env:MESHTEST_AGENT_CACHE) { $env:MESHTEST_AGENT_CACHE } else { Join-Path $Work 'agentcache' }
+node (Join-Path $root 'tests\server\fetch-agents.mjs') (Join-Path $m 'agents\agent-defaults.json') $data $agentCache MeshService64.exe
+if ($LASTEXITCODE -ne 0) { throw 'the Windows agent could not be supplied to MeshCentral' }
 node $m --createaccount admin --pass Admin-Pass-1234 --name Admin | Out-Host
 node $m --adminaccount admin | Out-Host
 node $m --createaccount user --pass User-Pass-1234 --name User | Out-Host

@@ -27,7 +27,7 @@ cleanup() {
   docker network rm "$NET" >/dev/null 2>&1 || true
   # Files written by root inside the containers: removed from a container too.
   # Ficheros que escribió root dentro de los contenedores: se borran también desde un contenedor.
-  docker run --rm -v "$WORK:/w" --entrypoint sh "$SDK_IMAGE" -c 'rm -rf /w/meshdata /w/agent /w/results /w/oidc' >/dev/null 2>&1 || true
+  docker run --rm -v "$WORK:/w" --entrypoint sh "$SDK_IMAGE" -c 'rm -rf /w/meshdata /w/agent /w/results /w/oidc /w/agentcache' >/dev/null 2>&1 || true
   rmdir "$WORK" 2>/dev/null || true
 }
 trap cleanup EXIT
