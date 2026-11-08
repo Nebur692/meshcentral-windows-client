@@ -55,8 +55,27 @@ public sealed class UsersTests : IDisposable
         foreach (var u in (await s.GetUsersAsync()).Where(u => u.Name.Contains(_tag))) await s.DeleteUserAsync(u);
     }
 
-    private static AutomationElement WaitFor(Func<AutomationElement?> find, string what) =>
-        Retry.WhileNull(find, Timeout, TimeSpan.FromMilliseconds(250)).Result ?? throw new Exception(what + " did not appear");
+    private static AutomationElement WaitFor(Func<AutomationElement?> find, string what)
+    {
+        if (Retry.WhileNull(find, Timeout, TimeSpan.FromMilliseconds(250)).Result is { } found) return found;
+        Shot("FAILED-" + string.Concat(what.Where(char.IsLetterOrDigit)));
+        throw new Exception(what + " did not appear");
+    }
+
+    /// <summary>
+    /// Presses a button the way a person reaches it: focused first, which makes WPF scroll it into view, then the space
+    /// bar. A plain click on a button below the visible part of a scrolled window lands somewhere else (seen on CI 08-11:
+    /// "New token…" never opened its form); Invoke would block while the button's modal dialog is open.
+    /// Pulsa un botón como llega a él una persona: primero el foco, que hace que WPF lo desplace a la vista, y luego la
+    /// barra espaciadora. Un clic sin más en un botón por debajo de lo visible cae en otro sitio; Invoke se quedaría
+    /// esperando mientras está abierto el diálogo del botón.
+    /// </summary>
+    private static void Press(AutomationElement button)
+    {
+        button.Focus();
+        Wait.UntilInputIsProcessed();
+        Keyboard.Type(VirtualKeyShort.SPACE);
+    }
 
     private static AutomationElement Id(AutomationElement root, string id) => WaitFor(() => root.FindFirstDescendant(cf => cf.ByAutomationId(id)), id);
 
@@ -90,6 +109,14 @@ public sealed class UsersTests : IDisposable
 
     private static AutomationElement Item(AutomationElement list, string name) =>
         WaitFor(() => list.FindFirstDescendant(cf => cf.ByControlType(ControlType.ListItem).Or(cf.ByControlType(ControlType.DataItem)).And(cf.ByName(name))), $"\"{name}\" in {list.AutomationId}");
+
+    /// <summary>Selects a row whether or not it is in view (selection, not a click at a screen point). / Elige una fila esté o no a la vista.</summary>
+    private static void Pick(AutomationElement list, string name)
+    {
+        var row = Item(list, name);
+        row.Patterns.ScrollItem.PatternOrDefault?.ScrollIntoView();
+        row.Patterns.SelectionItem.Pattern.Select();
+    }
 
     private void ClickYes(AutomationElement owner, string what)
     {
@@ -147,18 +174,18 @@ public sealed class UsersTests : IDisposable
 
         // 2. Locked, then a new password, then unlocked: the server agrees and signing in proves it.
         //    Bloqueada, contraseña nueva y desbloqueada: el servidor lo confirma y entrar lo demuestra.
-        Item(list, name).Click();
+        Pick(list, name);
         Id(uw, "LockUserButton").AsButton().Invoke();
         Until(() => Text(Item(list, name)).Contains("Locked"), "the locked state", () => Text(list));
         await Assert.ThrowsAsync<MeshClientException>(() => As(name, "Ana-Pass-1234"));
-        Item(list, name).Click();
+        Pick(list, name);
         Id(uw, "SetPasswordButton").Click();
         var pf = Anywhere("PasswordForm");
         Type(Id(pf, "NewPasswordBox"), "Ana-New-5678");
         Type(Id(pf, "RepeatPasswordBox"), "Ana-New-5678");
         Id(pf, "PasswordFormOk").AsButton().Invoke();
         Until(() => Id(uw, "UsersStatus").Name == $"New password set for {name}.", "the password status", () => Id(uw, "UsersStatus").Name);
-        Item(list, name).Click();
+        Pick(list, name);
         Id(uw, "LockUserButton").AsButton().Invoke();
         Until(() => !Text(Item(list, name)).Contains("Locked"), "the unlocked state", () => Text(list));
         await using (var ana = await As(name, "Ana-New-5678")) Assert.Equal(name, ana.User.Name);
@@ -186,7 +213,7 @@ public sealed class UsersTests : IDisposable
         ClickYes(uw, "the user group delete confirmation");
         Until(() => Id(uw, "UsersStatus").Name == $"User group {groupName} deleted.", "the group delete status", () => Id(uw, "UsersStatus").Name);
         Id(uw, "UsersTab").AsTabItem().Select();
-        Item(list, name).Click();
+        Pick(list, name);
         Id(uw, "DeleteUserButton").Click();
         ClickYes(uw, "the account delete confirmation");
         Until(() => Id(uw, "UsersStatus").Name == $"Account {name} deleted.", "the delete status", () => Id(uw, "UsersStatus").Name);
@@ -221,7 +248,7 @@ public sealed class UsersTests : IDisposable
         // 2. Authenticator app: the key shown next to the QR code makes the code, as a phone would.
         //    App de autenticación: la clave que sale junto al QR da el código, como lo haría un móvil.
         Assert.False(Id(aw, "ShowCodesButton").IsEnabled);
-        Id(aw, "AddAuthenticatorButton").AsButton().Invoke();
+        Press(Id(aw, "AddAuthenticatorButton"));
         var ad = Anywhere("AuthenticatorDialog");
         Id(ad, "AuthenticatorQr");
         var secret = Id(ad, "AuthenticatorKey").AsTextBox().Text.Replace(" ", "");
@@ -237,14 +264,14 @@ public sealed class UsersTests : IDisposable
         Assert.Equal(MeshFailure.TwoFactorRequired, asked.Failure);
 
         // 3. Backup codes: ten, and one of them signs in. / Códigos de respaldo: diez, y uno sirve para entrar.
-        Id(aw, "NewCodesButton").AsButton().Invoke();
+        Press(Id(aw, "NewCodesButton"));
         Until(() => Id(aw, "CodesBox").AsTextBox().Text.Split('\n').Length == 10, "the ten codes", () => Id(aw, "CodesBox").AsTextBox().Text);
         var first = Id(aw, "CodesBox").AsTextBox().Text.Split('\n')[0].Trim();
         Shot("codes");
         await using (var viaCode = await As(name, "Mine-New-5678", first)) Assert.Equal(name, viaCode.User.Name);
 
         // 4. A login token, shown once, that signs in; then removed. / Un token, enseñado una vez, que entra; luego quitado.
-        Id(aw, "NewTokenButton").Click();
+        Press(Id(aw, "NewTokenButton"));
         var tf = Anywhere("TokenForm");
         Type(Id(tf, "TokenNameBox"), "script " + _tag);
         Id(tf, "TokenFormOk").AsButton().Invoke();
@@ -255,14 +282,14 @@ public sealed class UsersTests : IDisposable
         created.AsWindow().Close();
         await using (var viaToken = await As(tokenUser, tokenPass)) Assert.Equal(name, viaToken.User.Name);
         var tokens = Id(aw, "TokenList");
-        Item(tokens, "script " + _tag).Click();
-        Id(aw, "RemoveTokenButton").AsButton().Invoke();
+        Pick(tokens, "script " + _tag);
+        Press(Id(aw, "RemoveTokenButton"));
         ClickYes(aw, "the token remove confirmation");
         Until(() => tokens.FindFirstDescendant(cf => cf.ByName("script " + _tag)) is null, "the token leaving the list");
         await Assert.ThrowsAsync<MeshClientException>(() => As(tokenUser, tokenPass));
 
         // 5. Authenticator removed: signing in no longer asks for a code. / App quitada: entrar ya no pide código.
-        Id(aw, "RemoveAuthenticatorButton").AsButton().Invoke();
+        Press(Id(aw, "RemoveAuthenticatorButton"));
         ClickYes(aw, "the authenticator remove confirmation");
         Until(() => Id(aw, "AuthenticatorState").Name.StartsWith("Off", StringComparison.Ordinal), "the authenticator off", () => Id(aw, "AuthenticatorState").Name);
         await using (var plain = await As(name, "Mine-New-5678")) Assert.Equal(name, plain.User.Name);

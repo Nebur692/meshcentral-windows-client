@@ -24,7 +24,7 @@ public sealed record UserInfo(string Id, string Name, bool IsFullAdministrator)
         Created = Seconds(o.Long("creation")), LastLogin = Seconds(o.Long("login")),
         MustChangePassword = o.Long("passchange") == -1,
         // The server sends a flag or a count instead of each secret (CloneSafeUser). / El servidor manda una marca o un número en vez de cada secreto.
-        HasAuthenticator = o.Long("otpsecret") is > 0, BackupCodesLeft = (int)(o.Long("otpkeys") ?? 0), SecurityKeys = (int)(o.Long("otphkeys") ?? 0),
+        HasAuthenticator = o.Long("otpsecret") is > 0, HasBackupCodes = o.Long("otpkeys") is > 0, SecurityKeys = (int)(o.Long("otphkeys") ?? 0),
         HasOtherTwoFactor = o.Long("otpekey") is > 0 || o.Long("otpduo") is > 0 || o.Long("otpdev") is > 0 || o.Str("phone") is { Length: > 0 },
     };
 
@@ -37,7 +37,9 @@ public sealed record UserInfo(string Id, string Name, bool IsFullAdministrator)
     /// <summary>The account must choose a new password at its next sign-in. / La cuenta tiene que poner contraseña nueva al entrar.</summary>
     public bool MustChangePassword { get; init; }
     public bool HasAuthenticator { get; init; }
-    public int BackupCodesLeft { get; init; }
+    /// <summary>Some backup code is still unused. The server sends only that, not how many (CloneSafeUser sets otpkeys to 1).
+    /// Queda algún código de respaldo sin usar. El servidor manda solo eso, no cuántos (CloneSafeUser pone otpkeys a 1).</summary>
+    public bool HasBackupCodes { get; init; }
     public int SecurityKeys { get; init; }
     /// <summary>Email, SMS, push or Duo codes. / Códigos por correo, SMS, aviso o Duo.</summary>
     public bool HasOtherTwoFactor { get; init; }

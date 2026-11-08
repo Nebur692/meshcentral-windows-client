@@ -142,16 +142,16 @@ public sealed class AccountWindow : Window
         var u = _session.User;
         var locked = _session.OwnSettingsLocked;
         _who.Text = string.IsNullOrEmpty(u.RealName) ? u.Name : $"{u.RealName} ({u.Name})";
-        _facts.Text = string.Join(" · ", new[] { u.Email, SiteRightsText.Summary(u.SiteRights) }.Where(x => !string.IsNullOrEmpty(x)));
+        _facts.Text = string.Join(" · ", new[] { u.Email, u.SiteRights == 0 ? null : SiteRightsText.Summary(u.SiteRights) }.Where(x => !string.IsNullOrEmpty(x)));
         _locked.Visibility = locked ? Visibility.Visible : Visibility.Collapsed;
         _change.IsEnabled = !locked;
         _authState.Text = L.T(u.HasAuthenticator ? "AuthenticatorOn" : "AuthenticatorOff");
         _addAuth.IsEnabled = !locked && !u.HasAuthenticator;
         _removeAuth.IsEnabled = !locked && u.HasAuthenticator;
-        _codesState.Text = u.HasTwoFactor ? L.F("CodesLeft", u.BackupCodesLeft) : L.T("BackupNeedsFactor");
+        _codesState.Text = L.T(!u.HasTwoFactor ? "BackupNeedsFactor" : u.HasBackupCodes ? "CodesThere" : "NoCodes");
         _showCodes.IsEnabled = u.HasTwoFactor;
         _newCodes.IsEnabled = !locked && u.HasTwoFactor;
-        _clearCodes.IsEnabled = !locked && u.HasTwoFactor && u.BackupCodesLeft > 0;
+        _clearCodes.IsEnabled = !locked && u.HasTwoFactor && u.HasBackupCodes;
         if (!u.HasTwoFactor) { _codes.Text = ""; _codes.Visibility = Visibility.Collapsed; }
         _removeKey.IsEnabled = !locked && _keys.SelectedItem is KeyItem;
         _removeToken.IsEnabled = _tokens.SelectedItem is TokenRow;
@@ -194,7 +194,7 @@ public sealed class AccountWindow : Window
 
     private Task Codes(BackupCodeAction action) => Run(async () =>
     {
-        if (action == BackupCodeAction.New && _session.User.BackupCodesLeft > 0 && !Confirm(L.T("ConfirmNewCodes"), L.T("BackupSection"))) return null;
+        if (action == BackupCodeAction.New && _session.User.HasBackupCodes && !Confirm(L.T("ConfirmNewCodes"), L.T("BackupSection"))) return null;
         if (action == BackupCodeAction.Clear && !Confirm(L.T("ConfirmClearCodes"), L.T("BackupSection"))) return null;
         var codes = await _session.BackupCodesAsync(action);
         _codes.Text = string.Join("\n", codes.Select(c => c.Used ? L.F("CodeUsed", c.Code) : c.Code));

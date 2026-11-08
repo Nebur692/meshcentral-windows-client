@@ -231,11 +231,14 @@ public class UsersIntegrationTests(ITestOutputHelper output)
             var codes = await s.BackupCodesAsync(BackupCodeAction.New);
             Assert.Equal(10, codes.Count);
             Assert.All(codes, c => Assert.Matches("^[0-9]{8}$", c.Code));
+            // The account only says that some code is unused, not how many. / La cuenta solo dice que queda alguno, no cuántos.
+            await GroupsIntegrationTests.Until(() => s.User.HasBackupCodes ? "yes" : null, "the own account showing backup codes");
             Assert.Equal(codes.Select(c => c.Code), (await s.BackupCodesAsync(BackupCodeAction.Show)).Select(c => c.Code));
             // A backup code signs in instead of the app's code. / Un código de respaldo sirve para entrar en vez del de la app.
             await using (var withBackup = await As(name, "Mine-New-5678", codes[0].Code)) Assert.Equal(id, withBackup.User.Id);
             Assert.True((await s.BackupCodesAsync(BackupCodeAction.Show))[0].Used);
             Assert.Empty(await s.BackupCodesAsync(BackupCodeAction.Clear));
+            await GroupsIntegrationTests.Until(() => s.User.HasBackupCodes ? null : "gone", "the backup codes leaving the own account");
 
             var token = await s.CreateLoginTokenAsync("script " + Tag(), TimeSpan.FromHours(1));
             Assert.False(string.IsNullOrEmpty(token.Password));
