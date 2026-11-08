@@ -37,13 +37,17 @@ docker run -d --rm --name "$NAME" --network "$NET" --cpus 1 --memory 768m \
     node $M --configfile $CFG --createaccount user --pass User-Pass-1234 --name User &&
     node $M --configfile $CFG --createaccount otp --pass Otp-Pass-1234 --name Otp &&
     exec node $M --configfile $CFG" >/dev/null
-for _ in $(seq 1 90); do
-  if docker exec "$NAME" sh -c 'wget -q --no-check-certificate -O /dev/null https://localhost/ 2>/dev/null'; then
+# Ready means the page answers AND the agents the tests use are served: the server starts before its default agents
+# finish downloading from GitHub, and until then it answers 404 for them (Linux x64 = 6, Windows x64 = 4).
+# Listo es que conteste la página Y que dé los agentes que usan las pruebas: el servidor arranca antes de acabar de bajar
+# de GitHub sus agentes y hasta entonces contesta 404 por ellos (Linux x64 = 6, Windows x64 = 4).
+for _ in $(seq 1 150); do
+  if docker exec "$NAME" sh -c 'for u in / "/meshagents?id=6" "/meshagents?id=4"; do wget -q --no-check-certificate -O /dev/null "https://localhost$u" 2>/dev/null || exit 1; done'; then
     echo "$NAME"; exit 0
   fi
   if ! docker inspect "$NAME" >/dev/null 2>&1; then echo "server exited / el servidor se cerró" >&2; exit 1; fi
   sleep 2
 done
-echo "server did not answer in 180 s / el servidor no respondió en 180 s" >&2
+echo "server or its agents not ready in 300 s / el servidor o sus agentes no estaban listos en 300 s" >&2
 docker logs --tail 40 "$NAME" >&2 || true
 exit 1

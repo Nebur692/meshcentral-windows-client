@@ -87,7 +87,13 @@ $mid = $group -replace '^mesh//', ''
 
 Write-Host '== Windows agent'
 $agent = Join-Path $Work 'agent'
-Invoke-WebRequest -Uri 'https://mesh.test:4443/meshagents?id=4' -SkipCertificateCheck -OutFile (Join-Path $agent 'meshagent.exe')
+# The server starts before its default agents finish downloading from GitHub and answers 404 until then: wait for it.
+# El servidor arranca antes de acabar de bajar de GitHub sus agentes y hasta entonces contesta 404: se espera.
+$ok = $false
+for ($i = 0; $i -lt 150 -and -not $ok; $i++) {
+  try { Invoke-WebRequest -Uri 'https://mesh.test:4443/meshagents?id=4' -SkipCertificateCheck -TimeoutSec 60 -OutFile (Join-Path $agent 'meshagent.exe'); $ok = $true } catch { Start-Sleep 2 }
+}
+if (-not $ok) { Get-Content (Join-Path $Work 'mc.log') -Tail 40; throw 'MeshCentral did not serve the Windows agent in 300 s' }
 Invoke-WebRequest -Uri "https://mesh.test:4443/meshsettings?id=$mid" -SkipCertificateCheck -OutFile (Join-Path $agent 'meshagent.msh')
 $agentProc = Start-Process (Join-Path $agent 'meshagent.exe') -ArgumentList 'connect' -WorkingDirectory $agent -PassThru -WindowStyle Hidden
 
