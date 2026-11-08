@@ -60,6 +60,16 @@ public class RemoteClipboardTests
     [InlineData(0L, false)]
     public void Which_rights_let_images_and_files_through(long rights, bool allowed) => Assert.Equal(allowed, RemoteClipboard.RightsAllowAll(rights));
 
+    /// <summary>Without this, what a service agent uploads cannot be opened by the user (measured on a real one). / Sin esto, lo que sube un agente de servicio no lo puede abrir el usuario (medido en uno real).</summary>
+    [Fact]
+    public void The_folders_the_agent_uploads_into_are_opened_to_the_user_first()
+    {
+        Assert.Contains(RemoteClipboard.GrantToUser, RemoteClipboard.PrepareScript("x"), StringComparison.Ordinal);
+        Assert.Contains(RemoteClipboard.GrantToUser, RemoteClipboard.AnswerForTests, StringComparison.Ordinal);
+        Assert.Contains("GetCurrent().Name+':(OI)(CI)F'", RemoteClipboard.GrantToUser, StringComparison.Ordinal);
+        Assert.Contains("*S-1-5-18:(OI)(CI)F", RemoteClipboard.GrantToUser, StringComparison.Ordinal); // SYSTEM too, or the agent cannot read the answers / SYSTEM también, o el agente no lee las respuestas
+    }
+
     [Fact]
     public void One_file_many_files_and_no_files_read_alike()
     {

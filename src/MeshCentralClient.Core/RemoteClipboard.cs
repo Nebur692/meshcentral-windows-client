@@ -124,8 +124,22 @@ public sealed class RemoteClipboard : IAsyncDisposable
     /// <summary>A PowerShell single-quoted literal. / Un literal de PowerShell entre comillas simples.</summary>
     internal static string Quote(string s) => "'" + s.Replace("'", "''", StringComparison.Ordinal) + "'";
 
+    /// <summary>
+    /// Makes folder $d readable by this user for whatever lands in it. Measured on a real service agent (Pc-Salon, 08-11):
+    /// folders there have no inheritable permissions, so what the agent (SYSTEM) uploads gets none for the user, and pasting
+    /// it would say access denied. The user owns $d, so can add it, for SYSTEM too: with an inheritable permission only for
+    /// the user, what the user writes there stops being readable by the agent (seen). In a connect-mode agent both are the
+    /// same account. Always, not only on creating it: an earlier version may have left the folder without it.
+    /// Hace que lo que caiga en la carpeta $d lo pueda leer este usuario. Medido en un agente de servicio real: allí las
+    /// carpetas no tienen permisos heredables, así que lo que sube el agente (SYSTEM) no le da ninguno al usuario, y pegarlo
+    /// daría acceso denegado. El usuario es dueño de $d, así que puede añadirlo, también para SYSTEM: con un heredable solo
+    /// para el usuario, lo que escribe él deja de poder leerlo el agente (visto). Siempre, no solo al crearla: una versión
+    /// anterior pudo dejar la carpeta sin él.
+    /// </summary>
+    internal const string GrantToUser = "icacls $d /grant ([Security.Principal.WindowsIdentity]::GetCurrent().Name+':(OI)(CI)F') '*S-1-5-18:(OI)(CI)F' | Out-Null";
+
     private const string Answer =
-        "$o.id=$rid; $d=Join-Path $env:TEMP 'MeshCentralClient\\answers'; New-Item -ItemType Directory -Force $d | Out-Null\n"
+        "$o.id=$rid; $d=Join-Path $env:TEMP 'MeshCentralClient\\answers'; New-Item -ItemType Directory -Force $d | Out-Null; " + GrantToUser + "\n"
         + "$p=Join-Path $d ($rid+'.json'); [IO.File]::WriteAllText($p+'.tmp',(ConvertTo-Json $o -Compress -Depth 3)); [IO.File]::Move($p+'.tmp',$p)\n"
         + "'" + Marker + "'+[Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes((ConvertTo-Json ([ordered]@{id=$rid;path=$p}) -Compress)))+'" + EndMarker + "'";
 
@@ -162,7 +176,7 @@ public sealed class RemoteClipboard : IAsyncDisposable
         try {
           $root=Join-Path $env:TEMP 'MeshCentralClient\clip'; New-Item -ItemType Directory -Force $root | Out-Null
           Get-ChildItem -LiteralPath $root -Directory -Force | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
-          $d=Join-Path $root {{Quote(id)}}; New-Item -ItemType Directory -Force $d | Out-Null; $o.folder=$d
+          $d=Join-Path $root {{Quote(id)}}; New-Item -ItemType Directory -Force $d | Out-Null; {{GrantToUser}}; $o.folder=$d
         } catch { $o.kind='error'; $o.error=$_.Exception.Message }
         {{Answer}}
         """;
@@ -288,8 +302,26 @@ public sealed class RemoteClipboard : IAsyncDisposable
         var shell = await ShellAsync(ct).ConfigureAwait(false);
         var id = Guid.NewGuid().ToString("N")[..12];
         lock (_screen) _screen.Clear();
-        await shell.WriteAsync(OneLine("$rid=" + Quote(id) + "\n" + script) + "\r", ct).ConfigureAwait(false);
+        var body = "$rid=" + Quote(id) + "\n" + script;
+        string? uploaded = null;
+        if (_answers is null)
+        {
+            // The first one has no folder yet, so it goes typed. / La primera aún no tiene carpeta, así que va tecleada.
+            await shell.WriteAsync("Clear-Host; " + OneLine(body) + "\r", ct).ConfigureAwait(false);
+        }
+        else
+        {
+            // PSReadLine repaints the whole line at each key: a long line took 8 s on Pc-Salon, and without PSReadLine it was
+            // not even taken. So the script goes as a file and a very short line runs it.
+            // PSReadLine repinta la línea entera a cada tecla: una línea larga tardaba 8 s en Pc-Salon, y sin PSReadLine ni se
+            // aceptaba. Así que el guion va como fichero y lo ejecuta una línea muy corta.
+            var files = await FilesAsync(ct).ConfigureAwait(false);
+            uploaded = id + ".ps1";
+            await files.UploadAsync(_answers, uploaded, new MemoryStream(Encoding.UTF8.GetBytes(Wrap(body))), null, ct).ConfigureAwait(false);
+            await shell.WriteAsync("Clear-Host; iex ([IO.File]::ReadAllText(" + Quote((_answers + "/" + uploaded).Replace('/', '\\')) + "))\r", ct).ConfigureAwait(false);
+        }
         var path = await WaitForAnswerAsync(id, ct).ConfigureAwait(false);
+        if (uploaded is not null) { try { await (await FilesAsync(ct).ConfigureAwait(false)).DeleteAsync(_answers!, new[] { uploaded }, recursive: false, ct).ConfigureAwait(false); } catch (MeshClientException) { } }
         if (path is null)
         {
             string seen;
