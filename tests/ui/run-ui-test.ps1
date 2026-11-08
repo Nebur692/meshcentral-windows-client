@@ -155,6 +155,26 @@ try {
   $env:MESHUI_SSH_PASS = $sshPass
 } catch { Write-Host "OpenSSH server not available: $_" }
 
+# Measured 08-11: a real mstsc killed at its credentials prompt can bring the agent down some seconds later (FATAL EXCEPTION
+# in its ILibParsers.c, in a connect-mode agent nothing restarts); simple relay closes do not (RDP, SSH, HTTPS, reset).
+# As a service would, it comes back, and every time is counted and printed at the end: not hidden, and the other tests
+# do not fail for it.
+# Medido el 08-11: un mstsc real matado en su pantalla de credenciales puede tumbar al agente segundos después; los cierres
+# simples del relé no. Como un servicio, vuelve, y cada vez se cuenta y se escribe al final: sin esconderlo, y sin que
+# fallen por ello las demás pruebas.
+$agentExe = Join-Path $agent 'meshagent.exe'
+$agentDowns = Join-Path $Work 'agent-downs.txt'
+$agentWatch = Start-Job -ArgumentList $agentExe, $agent, $agentDowns -ScriptBlock {
+  param($exe, $dir, $downs)
+  while ($true) {
+    Start-Sleep 2
+    if (-not (Get-Process meshagent -ErrorAction SilentlyContinue | Where-Object { $_.Path -eq $exe })) {
+      Add-Content $downs (Get-Date -Format 'HH:mm:ss')
+      Start-Process $exe -ArgumentList 'connect' -WorkingDirectory $dir -WindowStyle Hidden
+    }
+  }
+}
+
 try {
   Write-Host '== UI test'
   $env:MESHUI_UPDATE_FEED = "http://127.0.0.1:$port/latest.json"
@@ -173,8 +193,10 @@ try {
   if ($LASTEXITCODE -ne 0) { throw "UI test failed ($LASTEXITCODE)" }
 }
 finally {
+  Stop-Job $agentWatch -ErrorAction SilentlyContinue; Remove-Job $agentWatch -Force -ErrorAction SilentlyContinue
   # How the agent ended, for when tunnels stop opening. / Cómo acabó el agente, por si dejan de abrirse los túneles.
   Write-Host "agent $($agentProc.Id): exited=$($agentProc.HasExited)"
+  if (Test-Path $agentDowns) { Write-Host "AGENT CAME DOWN at: $((Get-Content $agentDowns) -join ', ')" } else { Write-Host 'agent never came down' }
   Get-ChildItem $agent | ForEach-Object { Write-Host "  agent file: $($_.Name) $($_.Length)" }
   Get-ChildItem $agent -Filter '*.log' | ForEach-Object { Write-Host "== $($_.Name)"; Get-Content $_.FullName -Tail 30 | ForEach-Object { "  agent| $_" } }
   foreach ($p in @($agentProc, $server, $feedProc, $oidcProc)) { if ($p -and -not $p.HasExited) { Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue } }
@@ -186,6 +208,5 @@ finally {
   Remove-LocalUser -Name $sshUser -ErrorAction SilentlyContinue
   # A test may have restarted a hung agent: whatever runs from this run's agent file is stopped too.
   # Una prueba puede haber reiniciado un agente colgado: también se para lo que corra desde el agente de esta pasada.
-  $agentExe = Join-Path $agent 'meshagent.exe'
   Get-Process meshagent -ErrorAction SilentlyContinue | Where-Object { $_.Path -eq $agentExe } | Stop-Process -Force -ErrorAction SilentlyContinue
 }
