@@ -900,6 +900,16 @@
       "que_hacer": "Volver a conectar y mirar el historial del equipo."
     },
     {
+      "modulo": "acciones",
+      "accion": "ejecutar-ordenes",
+      "causa": "respuesta-ilegible",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "El equipo no contestó al ejecutar las órdenes como usuario",
+      "explicacion": "Su PowerShell no devolvió lo esperado: puede estar bloqueado por una directiva, o no hay nadie con sesión.",
+      "que_hacer": "Ejecutarlas sin marcar «Como el usuario con sesión iniciada», o pedir a su administrador que permita Windows PowerShell."
+    },
+    {
       "modulo": "grupos",
       "accion": "gestionar-grupos",
       "causa": "no-autorizado",

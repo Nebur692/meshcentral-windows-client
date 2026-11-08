@@ -55,7 +55,7 @@ public static class L
         ["UseCmd"] = ("cmd", "cmd"),
         ["UsePowerShell"] = ("PowerShell", "PowerShell"),
         ["WindowsShell"] = ("On Windows:", "En Windows:"),
-        ["RunAsUser"] = ("As the signed-in user (as the agent if nobody is)", "Como el usuario con sesión iniciada (como el agente si no hay nadie)"),
+        ["RunAsUser"] = ("As the signed-in user (on Windows, only if someone is)", "Como el usuario con sesión iniciada (en Windows, solo si hay alguien)"),
         ["Run"] = ("Run", "Ejecutar"),
         ["Running"] = ("Running…", "Ejecutando…"),
         ["Finished"] = ("Finished", "Terminado"),

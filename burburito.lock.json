@@ -1,5 +1,5 @@
 {
-  "generado": "2026-11-08T17:47:46Z",
+  "generado": "2026-11-08T22:38:56Z",
   "aviso": "Generado por bin/burburito. No editar a mano: la fuente de verdad es el burburito.json de al lado.",
   "proyecto": {
     "id": 35,
@@ -90,6 +90,12 @@
       "severidad": "aviso",
       "actuar": false,
       "titulo": "El servidor no aceptó las órdenes"
+    },
+    "acciones/ejecutar-ordenes/respuesta-ilegible": {
+      "codigo": "035-009-501-022",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "El equipo no contestó al ejecutar las órdenes como usuario"
     },
     "acciones/ejecutar-ordenes/no-autorizado": {
       "codigo": "035-009-501-046",

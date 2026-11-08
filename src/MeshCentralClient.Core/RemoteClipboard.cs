@@ -57,21 +57,19 @@ public sealed class RemoteClipboard : IAsyncDisposable
     private readonly MeshServerSession _session;
     private readonly Device _device;
     private readonly SemaphoreSlim _one = new(1, 1);
-    private readonly StringBuilder _screen = new();
-    private TerminalSession? _shell;
-    private FilesSession? _files;
-    private TaskCompletionSource _changed = new(TaskCreationOptions.RunContinuationsAsynchronously);
-    private bool _shellEnded;
+    private readonly UserShell _user;
 
     public RemoteClipboard(MeshServerSession session, Device device)
     {
         _session = session;
         _device = device;
+        _user = new UserShell(session, device, new UserShellCodes(
+            "portapapeles/sincronizar/conexion-cortada", "portapapeles/sincronizar/respuesta-ilegible", "portapapeles/sincronizar/rechazo-remoto"));
     }
 
     /// <summary>Text, images and files: Windows, with remote control and neither terminal nor files taken away.
     /// Texto, imágenes y ficheros: Windows, con control remoto y sin quitar terminal ni ficheros.</summary>
-    public bool CanAll => _device.IsWindows && _device.CanOpenTerminal && _device.CanOpenFiles && RightsAllowAll(_session.RightsOn(_device));
+    public bool CanAll => UserShell.Can(_session, _device);
 
     /// <summary>
     /// Full rights are 0xFFFFFFFF, every bit on, the "no terminal" and "no files" ones too: as the server does
@@ -138,7 +136,7 @@ public sealed class RemoteClipboard : IAsyncDisposable
     /// </summary>
     internal const string GrantToUser = "icacls $d /grant ([Security.Principal.WindowsIdentity]::GetCurrent().Name+':(OI)(CI)F') '*S-1-5-18:(OI)(CI)F' | Out-Null";
 
-    private const string Answer =
+    internal const string Answer =
         "$o.id=$rid; $d=Join-Path $env:TEMP 'MeshCentralClient\\answers'; New-Item -ItemType Directory -Force $d | Out-Null; " + GrantToUser + "\n"
         + "$p=Join-Path $d ($rid+'.json'); [IO.File]::WriteAllText($p+'.tmp',(ConvertTo-Json $o -Compress -Depth 3)); [IO.File]::Move($p+'.tmp',$p)\n"
         + "'" + Marker + "'+[Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes((ConvertTo-Json ([ordered]@{id=$rid;path=$p}) -Compress)))+'" + EndMarker + "'";
@@ -210,7 +208,7 @@ public sealed class RemoteClipboard : IAsyncDisposable
         {{Answer}}
         """;
 
-    private static readonly System.Text.RegularExpressions.Regex Escapes = new(@"\x1B(\[[0-?]*[ -/]*[@-~]|\][^\x07\x1B]*(\x07|\x1B\\)|[@-Z\\-_])", System.Text.RegularExpressions.RegexOptions.Compiled);
+    internal static readonly System.Text.RegularExpressions.Regex Escapes = new(@"\x1B(\[[0-?]*[ -/]*[@-~]|\][^\x07\x1B]*(\x07|\x1B\\)|[@-Z\\-_])", System.Text.RegularExpressions.RegexOptions.Compiled);
 
     /// <summary>
     /// Reads the script's answer out of everything the terminal printed: escape sequences and line breaks (the terminal
@@ -250,133 +248,9 @@ public sealed class RemoteClipboard : IAsyncDisposable
         return new RemoteClip(kind, o.Str("text"), files, o.Str("image"), o.Str("hash"), size, size > limit, o.Str("temp"), o.Str("error"));
     }
 
-    private async Task<FilesSession> FilesAsync(CancellationToken ct)
-    {
-        if (_files is { Tunnel.IsOpen: true }) return _files;
-        if (_files is not null) await _files.DisposeAsync().ConfigureAwait(false);
-        return _files = await FilesSession.OpenAsync(_session, _device.Id, ct).ConfigureAwait(false);
-    }
+    private Task<FilesSession> FilesAsync(CancellationToken ct) => _user.FilesAsync(ct);
 
-    /// <summary>The user's PowerShell, opened once and waited for until it shows its prompt. / El PowerShell del usuario, abierto una vez y esperado hasta que enseña su indicador.</summary>
-    private async Task<TerminalSession> ShellAsync(CancellationToken ct)
-    {
-        if (_shell is not null && !_shellEnded) return _shell;
-        await CloseShellAsync().ConfigureAwait(false);
-        lock (_screen) { _screen.Clear(); _shellEnded = false; }
-        var shell = await TerminalSession.OpenAsync(_session, _device.Id, TunnelProtocol.UserPowerShell, 200, 50, ct).ConfigureAwait(false);
-        shell.Ended += (_, _) => { lock (_screen) { _shellEnded = true; _changed.TrySetResult(); } };
-        shell.Output += (_, d) => { lock (_screen) { _screen.Append(Encoding.UTF8.GetString(d.Span)); _changed.TrySetResult(); } };
-        _shell = shell;
-        await WaitAsync(() => Escapes.Replace(_screen.ToString(), "").Contains("PS ", StringComparison.Ordinal), TimeSpan.FromSeconds(15), ct).ConfigureAwait(false);
-        return shell;
-    }
-
-    /// <summary>Until <paramref name="done"/> holds on what the terminal has shown, the terminal ends or the time passes. / Hasta que se cumpla, acabe la terminal o pase el tiempo.</summary>
-    private async Task<bool> WaitAsync(Func<bool> done, TimeSpan limit, CancellationToken ct)
-    {
-        using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-        cts.CancelAfter(limit);
-        while (true)
-        {
-            Task changed;
-            lock (_screen)
-            {
-                if (done()) return true;
-                if (_shellEnded) return false;
-                if (_changed.Task.IsCompleted) _changed = new(TaskCreationOptions.RunContinuationsAsynchronously);
-                changed = _changed.Task;
-            }
-            try { await changed.WaitAsync(cts.Token).ConfigureAwait(false); }
-            catch (OperationCanceledException) when (!ct.IsCancellationRequested) { return false; }
-        }
-    }
-
-    private async Task CloseShellAsync()
-    {
-        var s = _shell;
-        _shell = null;
-        if (s is not null) { try { await s.DisposeAsync().ConfigureAwait(false); } catch (Exception ex) when (ex is MeshClientException or ObjectDisposedException) { } }
-    }
-
-    private string? _answers;
-
-    private async Task<JsonObject> RunAsync(string script, string what, CancellationToken ct)
-    {
-        var shell = await ShellAsync(ct).ConfigureAwait(false);
-        if (_answers is null && script != HelloScript) await RunAsync(HelloScript, "start", ct).ConfigureAwait(false);
-        var id = Guid.NewGuid().ToString("N")[..12];
-        lock (_screen) _screen.Clear();
-        var body = "$rid=" + Quote(id) + "\n" + script;
-        string? uploaded = null;
-        if (_answers is null)
-        {
-            // No folder yet: only the hello gets here. / Aún sin carpeta: aquí solo llega el saludo.
-            await shell.WriteAsync("Clear-Host; " + OneLine(body) + "\r", ct).ConfigureAwait(false);
-        }
-        else
-        {
-            // PSReadLine repaints the whole line at each key: a long line took 8 s on Pc-Salon, and without PSReadLine it was
-            // not even taken. So the script goes as a file and a very short line runs it.
-            // PSReadLine repinta la línea entera a cada tecla: una línea larga tardaba 8 s en Pc-Salon, y sin PSReadLine ni se
-            // aceptaba. Así que el guion va como fichero y lo ejecuta una línea muy corta.
-            var files = await FilesAsync(ct).ConfigureAwait(false);
-            uploaded = id + ".ps1";
-            await files.UploadAsync(_answers, uploaded, new MemoryStream(Encoding.UTF8.GetBytes(Wrap(body))), null, ct).ConfigureAwait(false);
-            await shell.WriteAsync("Clear-Host; iex ([IO.File]::ReadAllText(" + Quote((_answers + "/" + uploaded).Replace('/', '\\')) + "))\r", ct).ConfigureAwait(false);
-        }
-        var path = await WaitForAnswerAsync(id, ct).ConfigureAwait(false);
-        if (uploaded is not null) { try { await (await FilesAsync(ct).ConfigureAwait(false)).DeleteAsync(_answers!, new[] { uploaded }, recursive: false, ct).ConfigureAwait(false); } catch (MeshClientException) { } }
-        if (path is null)
-        {
-            string seen;
-            lock (_screen) seen = Escapes.Replace(_screen.ToString(), "");
-            var ended = _shellEnded;
-            await CloseShellAsync().ConfigureAwait(false); // whatever it was doing, the next request starts clean / haga lo que hiciera, la siguiente empieza limpia
-            throw ended
-                ? new MeshClientException(MeshFailure.ConnectionLost, "portapapeles/sincronizar/conexion-cortada", $"The device's PowerShell closed while it was going to {what} (is anyone signed in there?).")
-                : new MeshClientException(MeshFailure.UnexpectedResponse, "portapapeles/sincronizar/respuesta-ilegible", $"The device's PowerShell did not answer while it was going to {what} (is Windows PowerShell blocked there?): {Short(seen)}");
-        }
-        var answer = await ReadAnswerFileAsync(path, ct).ConfigureAwait(false);
-        if (answer.Str("kind") == "error")
-            throw new MeshClientException(MeshFailure.Rejected, "portapapeles/sincronizar/rechazo-remoto", $"The device could not {what}: {answer.Str("error")}") { ServerMessage = answer.Str("error") };
-        return answer;
-    }
-
-    /// <summary>Where the answer is: said on the screen or, once the folder is known, seen in it. / Dónde está la respuesta: dicho en la pantalla o, ya conocida la carpeta, visto en ella.</summary>
-    private async Task<string?> WaitForAnswerAsync(string id, CancellationToken ct)
-    {
-        var limit = DateTime.UtcNow.AddSeconds(60);
-        while (DateTime.UtcNow < limit)
-        {
-            JsonObject? note = null;
-            if (await WaitAsync(() => (note = ParseAnswer(_screen.ToString(), id)) is not null, TimeSpan.FromMilliseconds(400), ct).ConfigureAwait(false))
-            {
-                var said = note!.Str("path")?.Replace('\\', '/');
-                if (said is not null) _answers = Parent(said);
-                return said;
-            }
-            if (_shellEnded) return null;
-            if (_answers is null) continue;
-            var files = await FilesAsync(ct).ConfigureAwait(false);
-            if ((await files.ListAsync(_answers, ct).ConfigureAwait(false)).Entries.Any(e => e.Name == id + ".json")) return _answers + "/" + id + ".json";
-        }
-        return null;
-    }
-
-    /// <summary>An answer, from its file; the file is removed. / Una respuesta, de su fichero; se borra.</summary>
-    private async Task<JsonObject> ReadAnswerFileAsync(string path, CancellationToken ct)
-    {
-        var files = await FilesAsync(ct).ConfigureAwait(false);
-        using var json = new MemoryStream();
-        await files.DownloadAsync(path, json, null, ct).ConfigureAwait(false);
-        try { await files.DeleteAsync(Parent(path), new[] { path[(path.LastIndexOf('/') + 1)..] }, recursive: false, ct).ConfigureAwait(false); }
-        catch (MeshClientException) { }
-        try { if (JsonNode.Parse(json.ToArray()) is JsonObject o) return o; }
-        catch (JsonException) { }
-        throw new MeshClientException(MeshFailure.UnexpectedResponse, "portapapeles/sincronizar/respuesta-ilegible", "The device's answer file could not be read.");
-    }
-
-    private static string Short(string s) => s.Length > 200 ? s[..200] + "…" : s.Trim();
+    private Task<JsonObject> RunAsync(string script, string what, CancellationToken ct) => _user.RunAsync(script, what, ct);
 
     // ------------------------------------------------------------------ device → this PC / equipo → este PC
 
@@ -482,9 +356,5 @@ public sealed class RemoteClipboard : IAsyncDisposable
         return o.Str("folder") ?? throw new MeshClientException(MeshFailure.UnexpectedResponse, "portapapeles/sincronizar/respuesta-ilegible", "The device did not say where to put the copy.");
     }
 
-    public async ValueTask DisposeAsync()
-    {
-        await CloseShellAsync().ConfigureAwait(false);
-        if (_files is not null) { try { await _files.DisposeAsync().ConfigureAwait(false); } catch (MeshClientException) { } }
-    }
+    public ValueTask DisposeAsync() => _user.DisposeAsync();
 }

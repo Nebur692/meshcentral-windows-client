@@ -213,11 +213,18 @@ public sealed partial class MeshServerSession
     /// Ejecuta órdenes en un equipo y devuelve su salida (stdout y stderr juntas, como las manda el agente). El agente
     /// ejecuta una tanda cada vez y no contesta a otra mientras, así que se manda una por equipo.
     /// </summary>
-    /// <param name="asUser">As the signed-in user, or as the agent if nobody is (runAsUser 1). / Como el usuario con sesión o, si no hay, como el agente.</param>
+    /// <param name="asUser">As the signed-in user. On Windows it fails if nobody is, or without terminal and files rights (see <see cref="UserCommands"/>); elsewhere, the agent's runAsUser 1.
+    /// Como el usuario con sesión. En Windows falla si no hay nadie, o sin permisos de terminal y ficheros; en los demás, el runAsUser 1 del agente.</param>
     public async Task<string> RunCommandsAsync(Device device, string commands, CommandShell shell, bool asUser = false, TimeSpan? timeout = null, CancellationToken ct = default)
     {
         if (!Has(RightsOn(device), MeshRights.RemoteCommand)) throw Denied("acciones/ejecutar-ordenes/no-autorizado", "run commands");
         if (!device.HasAgent) throw Offline("acciones/ejecutar-ordenes/sin-conexion");
+        if (asUser && device.IsWindows)
+        {
+            if (!UserShell.Can(this, device))
+                throw new MeshClientException(MeshFailure.Rejected, "acciones/ejecutar-ordenes/no-autorizado", "Running as the signed-in user needs terminal and files rights on that device.");
+            return await UserCommands.RunAsync(this, device, commands, shell, timeout ?? CommandsTimeout, ct).ConfigureAwait(false);
+        }
         var id = NewId();
         var reply = await RequestAsync(new JsonObject
         {

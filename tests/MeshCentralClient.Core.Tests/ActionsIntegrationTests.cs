@@ -64,6 +64,8 @@ public class ActionsIntegrationTests(ITestOutputHelper output)
         // una vez sí y otra no). Mandada a la salida con 2>&1 llega siempre; la ventana lo dice.
         await using var s = await As("admin", "Admin-Pass-1234");
         var d = await OnlineDevice(s);
+        // As the user, away from Windows, is the agent's own way: it must answer. / Como usuario, fuera de Windows, es la vía del agente: tiene que contestar.
+        Assert.Contains("como-usuario", await s.RunCommandsAsync(d, "echo como-usuario", MeshServerSession.ShellFor(d, powerShell: false), asUser: true));
         var outText = await s.RunCommandsAsync(d, "echo hola $((6*7))\nls /no-existe-mcc 2>&1\necho ñandú", MeshServerSession.ShellFor(d, powerShell: false));
         output.WriteLine(outText);
         Assert.Contains("hola 42", outText);

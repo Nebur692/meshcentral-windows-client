@@ -183,6 +183,14 @@ public sealed class ActionsTests : IDisposable
         Id(cw, "RunButton").AsButton().Invoke();
         Until(() => Output(cw).Contains("ps-42"), "PowerShell output", () => Output(cw));
         Shot("powershell");
+
+        //    As the signed-in user, the box a person ticks. Expanded there, not the echo of what was typed.
+        //    Como el usuario con sesión, la casilla que marca una persona. Expandido allí, no el eco de lo tecleado.
+        Id(cw, "RunAsUser").AsCheckBox().IsChecked = true;
+        Replace(Id(cw, "CommandsBox"), "Write-Output ('usuario-' + $env:USERNAME)");
+        Id(cw, "RunButton").AsButton().Invoke();
+        Until(() => Output(cw).Contains("usuario-" + Environment.UserName, StringComparison.OrdinalIgnoreCase), "output as the user", () => Output(cw));
+        Shot("as-user");
         cw.AsWindow().Close();
 
         // 2. A message window: it appears on this desktop, shown by the agent. / Una ventana de mensaje: aparece en este escritorio, la enseña el agente.
