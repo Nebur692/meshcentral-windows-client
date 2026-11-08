@@ -110,10 +110,10 @@ public class RemoteClipboardTests
     [Fact]
     public void The_one_line_is_short_carries_the_whole_script_in_an_sta_runspace_and_shows_no_mark()
     {
-        var script = RemoteClipboard.ReadScript(123);
+        var script = RemoteClipboard.HelloScript;
         var line = RemoteClipboard.OneLine(script);
         Assert.DoesNotContain('\n', line);
-        Assert.True(line.Length < 1500, $"{line.Length} characters");
+        Assert.True(line.Length < 1000, $"{line.Length} characters"); // PSReadLine repaints it at each key / PSReadLine la repinta a cada tecla
         // The terminal echoes the line: the marks must not be readable in it. / La terminal repite la línea: las marcas no pueden leerse en ella.
         Assert.DoesNotContain(RemoteClipboard.Marker, line, StringComparison.Ordinal);
         var unpacked = RemoteClipboard.Unpack(line);
@@ -131,6 +131,7 @@ public class RemoteClipboardTests
     {
         var scripts = new Dictionary<string, string>
         {
+            ["hello"] = RemoteClipboard.Unpack(RemoteClipboard.OneLine(RemoteClipboard.HelloScript)),
             ["read"] = RemoteClipboard.Unpack(RemoteClipboard.OneLine(RemoteClipboard.ReadScript(RemoteClipboard.AutomaticLimit))),
             ["prepare"] = RemoteClipboard.Unpack(RemoteClipboard.OneLine(RemoteClipboard.PrepareScript("20261108"))),
             ["files"] = RemoteClipboard.Unpack(RemoteClipboard.OneLine(RemoteClipboard.SetFilesScript(new[] { "C:\\Users\\o'brien\\a.txt", "C:\\b" }))),

@@ -147,6 +147,9 @@ public sealed class RemoteClipboard : IAsyncDisposable
 
     internal const string AnswerForTests = Answer;
 
+    /// <summary>The only script ever typed: it makes the folder the others go through. / El único guion que se teclea: crea la carpeta por la que van los demás.</summary>
+    internal const string HelloScript = "$o=[ordered]@{kind='hello'}\n" + Answer;
+
     internal static string ReadScript(long limit) => $$"""
         $ErrorActionPreference='Stop'
         $o=[ordered]@{kind='none';temp=$env:TEMP}
@@ -300,13 +303,14 @@ public sealed class RemoteClipboard : IAsyncDisposable
     private async Task<JsonObject> RunAsync(string script, string what, CancellationToken ct)
     {
         var shell = await ShellAsync(ct).ConfigureAwait(false);
+        if (_answers is null && script != HelloScript) await RunAsync(HelloScript, "start", ct).ConfigureAwait(false);
         var id = Guid.NewGuid().ToString("N")[..12];
         lock (_screen) _screen.Clear();
         var body = "$rid=" + Quote(id) + "\n" + script;
         string? uploaded = null;
         if (_answers is null)
         {
-            // The first one has no folder yet, so it goes typed. / La primera aún no tiene carpeta, así que va tecleada.
+            // No folder yet: only the hello gets here. / Aún sin carpeta: aquí solo llega el saludo.
             await shell.WriteAsync("Clear-Host; " + OneLine(body) + "\r", ct).ConfigureAwait(false);
         }
         else
