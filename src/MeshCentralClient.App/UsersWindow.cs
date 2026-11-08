@@ -407,9 +407,11 @@ public static class UserForm
         var cancel = new Button { Content = L.T("Cancel"), IsCancel = true, MinWidth = 90 };
         foreach (var (e, id) in new (FrameworkElement, string)[] { (userName, "UserNameBox"), (pass, "UserPasswordBox"), (repeat, "UserRepeatBox"), (email, "UserEmailBox"), (realName, "UserRealNameBox"), (mustChange, "MustChangeBox"), (ok, "UserFormOk") })
             AP.SetAutomationId(e, id);
-        var rights = new WrapPanel { Orientation = Orientation.Vertical, MaxHeight = 200 };
+        // Two fixed columns: a wrap panel made a third one that the dialog cut off (CI screenshot 08-11).
+        // Dos columnas fijas: un panel que se reparte solo hizo una tercera que el diálogo cortaba.
+        var rights = new System.Windows.Controls.Primitives.UniformGrid { Columns = 2 };
         rights.Children.Add(full);
-        foreach (var b in boxes) { b.MinWidth = 230; rights.Children.Add(b); }
+        foreach (var b in boxes) rights.Children.Add(b);
 
         var form = new StackPanel { Margin = new Thickness(20), MaxWidth = 560 };
         form.Children.Add(new TextBlock { Text = L.T("UserFormUserName") }); form.Children.Add(userName);
