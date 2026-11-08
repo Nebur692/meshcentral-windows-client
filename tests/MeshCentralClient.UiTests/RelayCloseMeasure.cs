@@ -55,7 +55,7 @@ public sealed class RelayCloseMeasure
         File.WriteAllText(Path.Combine(Env("MESHUI_SHOTS"), "relay-measure.txt"), _log.ToString());
     }
 
-    private static async Task Read(TcpClient c) { var b = new byte[4096]; using var t = new CancellationTokenSource(5000); await c.GetStream().ReadAsync(b, t.Token); }
+    private static async Task Read(TcpClient c) { var b = new byte[4096]; using var t = new CancellationTokenSource(5000); var n = await c.GetStream().ReadAsync(b, t.Token); Assert.True(n >= 0); }
 
     [Fact]
     public async Task Measure()
