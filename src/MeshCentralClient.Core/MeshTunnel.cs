@@ -241,11 +241,28 @@ public sealed class MeshTunnel : IAsyncDisposable
 }
 
 /// <summary>A terminal session over a tunnel. / Una sesión de terminal sobre un túnel.</summary>
-public sealed class TerminalSession : IAsyncDisposable
+public sealed class TerminalSession : ITerminalConnection
 {
     private TerminalSession(MeshTunnel tunnel) => Tunnel = tunnel;
 
     public MeshTunnel Tunnel { get; }
+
+    public event EventHandler<ReadOnlyMemory<byte>>? Output
+    {
+        add { Tunnel.DataReceived += value; if (value is not null) Tunnel.TextReceived += Text(value); }
+        remove { Tunnel.DataReceived -= value; }
+    }
+
+    // Text frames (some agents send the prompt as text) are the same UTF-8 for the screen. / Los mensajes de texto son el mismo UTF-8 para la pantalla.
+    private static EventHandler<string> Text(EventHandler<ReadOnlyMemory<byte>> output) => (s, t) => output(s, Encoding.UTF8.GetBytes(t));
+
+    public event EventHandler<MeshClientException>? Ended
+    {
+        add => Tunnel.Closed += value;
+        remove => Tunnel.Closed -= value;
+    }
+
+    public bool IsRecorded => Tunnel.IsRecorded;
 
     public static async Task<TerminalSession> OpenAsync(MeshServerSession session, string nodeId, TunnelProtocol kind,
         int cols, int rows, CancellationToken cancellationToken = default)

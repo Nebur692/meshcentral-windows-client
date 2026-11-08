@@ -1,5 +1,5 @@
 {
-  "generado": "2026-11-08T13:53:05Z",
+  "generado": "2026-11-08T16:55:04Z",
   "aviso": "Generado por bin/burburito. No editar a mano: la fuente de verdad es el burburito.json de al lado.",
   "proyecto": {
     "id": 35,
@@ -571,6 +571,48 @@
       "actuar": false,
       "titulo": "La caducidad del enlace no vale"
     },
+    "redireccion/redirigir-puerto/sin-permiso": {
+      "codigo": "035-013-509-042",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "Una redirección guardada no ha vuelto a ponerse"
+    },
+    "redireccion/redirigir-puerto/dato-invalido": {
+      "codigo": "035-013-509-061",
+      "severidad": "aviso",
+      "actuar": true,
+      "titulo": "Ese puerto no existe"
+    },
+    "redireccion/redirigir-puerto/conflicto-estado": {
+      "codigo": "035-013-509-064",
+      "severidad": "aviso",
+      "actuar": true,
+      "titulo": "Ese puerto de este PC ya lo usa otro programa"
+    },
+    "redireccion/llevar-conexion/conexion-cortada": {
+      "codigo": "035-013-510-005",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "El servidor cerró la conexión"
+    },
+    "redireccion/llevar-conexion/dato-invalido": {
+      "codigo": "035-013-510-061",
+      "severidad": "aviso",
+      "actuar": true,
+      "titulo": "Ese puerto no existe"
+    },
+    "redireccion/llevar-conexion/dispositivo-mudo": {
+      "codigo": "035-013-510-120",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "El equipo no contestó"
+    },
+    "redireccion/abrir-rdp/dependencia-caida": {
+      "codigo": "035-013-511-086",
+      "severidad": "error",
+      "actuar": true,
+      "titulo": "No se pudo abrir Escritorio remoto"
+    },
     "servidor/abrir-detalle/tiempo-agotado": {
       "codigo": "035-012-022-002",
       "severidad": "aviso",
@@ -648,6 +690,48 @@
       "severidad": "aviso",
       "actuar": false,
       "titulo": "Las fechas o la agrupación del informe no valen"
+    },
+    "ssh/iniciar-sesion/credencial-invalida": {
+      "codigo": "035-014-001-041",
+      "severidad": "aviso",
+      "actuar": true,
+      "titulo": "El servidor SSH no aceptó la cuenta"
+    },
+    "ssh/iniciar-sesion/falta-dato": {
+      "codigo": "035-014-001-060",
+      "severidad": "aviso",
+      "actuar": true,
+      "titulo": "Falta un dato para entrar por SSH"
+    },
+    "ssh/iniciar-sesion/dato-invalido": {
+      "codigo": "035-014-001-061",
+      "severidad": "aviso",
+      "actuar": true,
+      "titulo": "No se pudo leer la clave privada"
+    },
+    "ssh/abrir-ssh/sin-conexion": {
+      "codigo": "035-014-512-001",
+      "severidad": "aviso",
+      "actuar": true,
+      "titulo": "Ahí no contesta ningún servidor SSH"
+    },
+    "ssh/abrir-ssh/tls": {
+      "codigo": "035-014-512-004",
+      "severidad": "error",
+      "actuar": true,
+      "titulo": "No se confió en la identidad del servidor SSH"
+    },
+    "ssh/abrir-ssh/conexion-cortada": {
+      "codigo": "035-014-512-005",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "Se cortó la conexión SSH"
+    },
+    "ssh/abrir-ssh/sesion-cerrada": {
+      "codigo": "035-014-512-044",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "La sesión SSH terminó"
     },
     "tunel/ver-pantalla/conexion-cortada": {
       "codigo": "035-005-020-005",

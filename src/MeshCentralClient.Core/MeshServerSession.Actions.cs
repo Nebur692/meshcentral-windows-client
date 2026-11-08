@@ -106,6 +106,12 @@ public sealed partial class MeshServerSession
             RunCommands: Has(r, MeshRights.RemoteCommand) && device.HasAgent);
     }
 
+    /// <summary>Port mapping, SSH and RDP through the device: the server asks for remote control or relay rights
+    /// (meshrelay.js, 0x00200008) and the agent connected. / Redirección, SSH y RDP por el equipo: el servidor pide
+    /// control remoto o relé, y el agente conectado.</summary>
+    public bool CanRelayThrough(Device device) =>
+        (Has(RightsOn(device), MeshRights.RemoteControl) || Has(RightsOn(device), MeshRights.Relay)) && device.HasAgent;
+
     private static MeshClientException Denied(string key, string what) =>
         new(MeshFailure.Rejected, key, $"This account has no rights to {what} on this device.");
 

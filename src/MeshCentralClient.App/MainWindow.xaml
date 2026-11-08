@@ -117,6 +117,7 @@
           <Button x:Name="GroupsButton" Content="{app:T GroupsButton}" Click="Groups_Click" Margin="0,0,8,0" />
           <Button x:Name="UsersButton" Content="{app:T UsersButton}" Click="Users_Click" Margin="0,0,8,0" />
           <Button x:Name="AccountButton" Content="{app:T AccountButton}" Click="Account_Click" Margin="0,0,8,0" />
+          <Button x:Name="PortsButton" Content="{app:T PortsButton}" Click="Ports_Click" Margin="0,0,8,0" />
           <Button x:Name="ServerMenuButton" Content="{app:T ServerMenuButton}" Click="ServerMenu_Click" Margin="0,0,8,0" />
           <Button x:Name="RefreshButton" Content="{app:T Refresh}" Click="Refresh_Click" Margin="0,0,8,0" />
           <Button x:Name="DisconnectButton" Content="{app:T Disconnect}" Click="Disconnect_Click" />
@@ -146,6 +147,10 @@
               <MenuItem x:Name="TerminalItem" Header="{app:T OpenTerminal}" Click="OpenTerminal_Click" />
               <MenuItem x:Name="PowerShellItem" Header="{app:T OpenPowerShell}" Click="OpenPowerShell_Click" />
               <MenuItem x:Name="FilesItem" Header="{app:T OpenFiles}" Click="OpenFiles_Click" />
+              <Separator />
+              <MenuItem x:Name="SshItem" Header="{app:T OpenSsh}" Click="OpenSsh_Click" />
+              <MenuItem x:Name="RdpItem" Header="{app:T OpenRdp}" Click="OpenRdp_Click" />
+              <MenuItem x:Name="MapPortItem" Header="{app:T MapPort}" Click="MapPort_Click" />
               <Separator />
               <MenuItem x:Name="WakeItem" Header="{app:T WakeItem}" Click="Wake_Click" />
               <MenuItem x:Name="PowerMenu" Header="{app:T PowerMenu}">

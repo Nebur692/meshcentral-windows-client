@@ -50,7 +50,11 @@ public partial class MainWindow : Window
             VersionText.Text = L.F("Version", AppVersion.ToString(3));
             _ = CheckForUpdateAsync();
         };
-        Closing += async (_, _) => { if (_session is not null) await _session.DisposeAsync(); };
+        Closing += async (_, _) =>
+        {
+            if (_relays is not null) await _relays.DisposeAsync();
+            if (_session is not null) await _session.DisposeAsync();
+        };
     }
 
     // ---------------- Login / Entrada ----------------
@@ -351,6 +355,8 @@ public partial class MainWindow : Window
 
     private async Task OpenSessionAsync(MeshServerSession session)
     {
+        // A reconnection brings a new session: the old one's mappings stop. / Una reconexión trae otra sesión: se paran las redirecciones de la anterior.
+        if (_relays is not null) { await _relays.DisposeAsync(); _relays = null; }
         _session = session;
         session.DeviceChanged += (_, e) => Dispatcher.BeginInvoke(() => ApplyChange(session, e));
         session.GroupChanged += (_, e) => Dispatcher.BeginInvoke(() => ApplyGroupChange(session, e));
@@ -370,6 +376,13 @@ public partial class MainWindow : Window
         DevicesPanel.Visibility = Visibility.Visible;
         SearchBox.Text = "";
         await LoadDevicesAsync();
+        if (ReferenceEquals(session, _session))
+        {
+            _relays = new RelayManager(session);
+            _relays.RestoreRemembered(_rows.Select(r => r.Device));
+            var back = _relays.Rows.Count;
+            if (back > 0 || _relays.NotRestored.Count > 0) ActionStatus.Text = L.F("MappingsRestored", back, _relays.NotRestored.Count);
+        }
         SearchBox.Focus();
     }
 
@@ -482,6 +495,7 @@ public partial class MainWindow : Window
         _session = null;
         // Their tunnels belong to this session. / Sus túneles son de esta sesión.
         foreach (var w in _sessionWindows.ToList()) w.Close();
+        if (_relays is not null) { await _relays.DisposeAsync(); _relays = null; }
         _rows.Clear();
         _groupNames.Clear();
         DevicesPanel.Visibility = Visibility.Collapsed;
@@ -512,6 +526,9 @@ public partial class MainWindow : Window
         PowerShellItem.IsEnabled = row is { CanOpenTerminal: true };
         FilesItem.IsEnabled = row is { CanOpenFiles: true };
         DesktopItem.IsEnabled = row is { CanOpenDesktop: true };
+        var relay = row is not null && _session is { } rs && rs.CanRelayThrough(row.Device);
+        SshItem.IsEnabled = MapPortItem.IsEnabled = RdpItem.IsEnabled = relay;
+        RdpItem.Visibility = row is { IsWindows: true } ? Visibility.Visible : Visibility.Collapsed;
         // Device actions apply to every selected device that allows them. / Las acciones valen para cada equipo elegido que las permita.
         var abilities = SelectedDevices().Select(d => _session?.AbilitiesOn(d)).OfType<DeviceAbilities>().ToList();
         WakeItem.IsEnabled = abilities.Any(a => a.Wake);
@@ -559,6 +576,56 @@ public partial class MainWindow : Window
     {
         if (DeviceList.SelectedItem is not DeviceRow row || _session is null || !row.CanOpenTerminal) return;
         var w = new TerminalWindow(_session, row, kind);
+        _sessionWindows.Add(w);
+        w.Closed += (_, _) => _sessionWindows.Remove(w);
+        w.Show();
+    }
+
+    // ---------------- Port mappings, SSH and RDP / Redirecciones, SSH y RDP ----------------
+
+    private RelayManager? _relays;
+    private PortsWindow? _portsWindow;
+
+    private void Ports_Click(object sender, RoutedEventArgs e)
+    {
+        if (_session is not { } s || _relays is not { } r) return;
+        OpenOnce(ref _portsWindow, () => new PortsWindow(s, r, () => _rows.Select(x => x.Device).ToList()));
+    }
+
+    private void MapPort_Click(object sender, RoutedEventArgs e)
+    {
+        if (DeviceList.SelectedItem is not DeviceRow row || _session is not { } s || _relays is not { } r || !s.CanRelayThrough(row.Device)) return;
+        if (PortForm.Ask(this, _rows.Select(x => x.Device).Where(s.CanRelayThrough).ToList(), row.Device) is not { } asked) return;
+        try
+        {
+            var m = r.Start(asked.Target, asked.Remember);
+            ActionStatus.Text = L.F("MappingStarted", m.Local, m.Destination);
+            Ports_Click(sender, e);
+        }
+        catch (MeshClientException ex) { ErrorWindow.Show(this, UserError.From(ex, s.ServerInfo.Version)); }
+    }
+
+    private void OpenRdp_Click(object sender, RoutedEventArgs e)
+    {
+        if (DeviceList.SelectedItem is not DeviceRow row || _session is not { } s || _relays is not { } r || !s.CanRelayThrough(row.Device)) return;
+        try
+        {
+            var m = r.OpenRemoteDesktop(row.Device);
+            ActionStatus.Text = L.F("RdpOpened", row.Name, m.Local);
+        }
+        catch (MeshClientException ex) { ErrorWindow.Show(this, UserError.From(ex, s.ServerInfo.Version)); }
+    }
+
+    private void OpenSsh_Click(object sender, RoutedEventArgs e)
+    {
+        if (DeviceList.SelectedItem is not DeviceRow row || _session is not { } s || !s.CanRelayThrough(row.Device)) return;
+        var server = s.Server.BaseUri.ToString();
+        if (SshForm.Ask(this, row.Name, RelayStore.Shared.SshOf(server, row.Id)) is not { } asked) return;
+        RelayStore.Shared.RememberSsh(new SshProfile { Server = server, NodeId = row.Id, Host = asked.Host, Port = asked.Port, User = asked.Login.User, KeyPath = asked.Login.PrivateKeyPath });
+        var device = row.Device;
+        TerminalWindow? w = null;
+        w = new TerminalWindow(s, row, "SSH", async (cols, rows) =>
+            await SshTerminal.OpenAsync(s, device.Id, device.Name, asked.Host, asked.Port, asked.Login, SshForm.Trust(w!, server, device, asked.Host, asked.Port), cols, rows));
         _sessionWindows.Add(w);
         w.Closed += (_, _) => _sessionWindows.Remove(w);
         w.Show();

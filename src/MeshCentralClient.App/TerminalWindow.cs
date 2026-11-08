@@ -16,18 +16,27 @@ public sealed class TerminalWindow : Window
 {
     private readonly MeshServerSession _session;
     private readonly DeviceRow _device;
-    private readonly TunnelProtocol _kind;
+    private readonly string _kindName;
+    private readonly Func<int, int, Task<ITerminalConnection>> _open;
     private readonly WebView2 _view = new() { DefaultBackgroundColor = System.Drawing.Color.Transparent };
     private readonly TextBlock _status = new() { Margin = new Thickness(12, 4, 12, 6), Opacity = 0.7, TextWrapping = TextWrapping.Wrap };
-    private TerminalSession? _terminal;
+    private ITerminalConnection? _terminal;
     private bool _closing;
 
+    /// <summary>A MeshCentral terminal (the agent's shell). / Una terminal de MeshCentral (el shell del agente).</summary>
     public TerminalWindow(MeshServerSession session, DeviceRow device, TunnelProtocol kind)
+        : this(session, device, KindName(kind), async (cols, rows) => await TerminalSession.OpenAsync(session, device.Id, kind, cols, rows))
+    {
+    }
+
+    /// <summary>Any terminal: <paramref name="open"/> gets the screen size and connects (SSH, for one). / Cualquier terminal: <paramref name="open"/> recibe el tamaño y conecta (SSH, por ejemplo).</summary>
+    public TerminalWindow(MeshServerSession session, DeviceRow device, string kindName, Func<int, int, Task<ITerminalConnection>> open)
     {
         _session = session;
         _device = device;
-        _kind = kind;
-        Title = $"{KindName(kind)} — {device.Name}";
+        _kindName = kindName;
+        _open = open;
+        Title = $"{kindName} — {device.Name}";
         Width = 960;
         Height = 600;
         MinWidth = 400;
@@ -72,7 +81,7 @@ public sealed class TerminalWindow : Window
 
         try
         {
-            _terminal = await TerminalSession.OpenAsync(_session, _device.Id, _kind, cols, rows);
+            _terminal = await _open(cols, rows);
         }
         catch (MeshClientException ex)
         {
@@ -80,10 +89,9 @@ public sealed class TerminalWindow : Window
             return;
         }
         if (_closing) { await _terminal.DisposeAsync(); return; }
-        _terminal.Tunnel.DataReceived += (_, d) => Post(new JsonObject { ["t"] = "data", ["b64"] = Convert.ToBase64String(d.Span) });
-        _terminal.Tunnel.TextReceived += (_, t) => Post(new JsonObject { ["t"] = "text", ["text"] = t });
-        _terminal.Tunnel.Closed += (_, e) => Dispatcher.BeginInvoke(() => ShowFailure(UserError.From(e, _session.ServerInfo.Version)));
-        _status.Text = _terminal.Tunnel.IsRecorded ? L.T("TerminalRecorded") : L.T("TerminalHelp");
+        _terminal.Ended += (_, e) => Dispatcher.BeginInvoke(() => ShowFailure(UserError.From(e, _session.ServerInfo.Version)));
+        _terminal.Output += (_, d) => Post(new JsonObject { ["t"] = "data", ["b64"] = Convert.ToBase64String(d.Span) });
+        _status.Text = (_terminal.IsRecorded ? L.T("TerminalRecorded") : L.T("TerminalHelp")) + (_terminal is SshTerminal ssh ? "  ·  " + ssh.HostKey.Fingerprint : "");
         Post(new JsonObject { ["t"] = "focus" });
     }
 
@@ -104,7 +112,7 @@ public sealed class TerminalWindow : Window
                 _ = Guard(t.ResizeAsync((int?)m["cols"] ?? 80, (int?)m["rows"] ?? 25));
                 break;
             case "title":
-                Title = $"{KindName(_kind)} — {_device.Name} — {m["title"]}";
+                Title = $"{_kindName} — {_device.Name} — {m["title"]}";
                 break;
             case "copy":
                 try { Clipboard.SetText(m["text"]?.ToString() ?? ""); } catch (Exception) { }

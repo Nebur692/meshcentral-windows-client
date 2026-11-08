@@ -78,6 +78,18 @@
       "slug": "servidor",
       "nombre": "El servidor: sucesos, informes, estado y avisos",
       "descripcion": "MeshServerSession.Server.cs, EventsWindow, ReportsWindow y ServerWindow: events (todos o de una cuenta), report (los cuatro informes de la web), serverstats y servererrors, y userbroadcast para avisar a quien está conectado. «events» de otra cuenta sin permiso de gestionar usuarios cae sin decir nada en los propios, y «report» y «serverstats» tiran sin contestar lo que no aceptan: se comprueba antes."
+    },
+    {
+      "id": 13,
+      "slug": "redireccion",
+      "nombre": "Redirección de puertos y Escritorio remoto de Windows",
+      "descripcion": "TcpRelay.cs, PortMapping.cs, PortsWindow y RelayManager: un puerto de 127.0.0.1 cuyas conexiones lleva el agente del equipo a un puerto suyo o de otra máquina de su red (meshrelay.ashx con nodeid, tcpport y tcpaddr; el servidor pide control remoto o relé). Lo que hacía MeshCentral Router, dentro de la app; el RDP abre el mstsc de Windows por un puerto privado."
+    },
+    {
+      "id": 14,
+      "slug": "ssh",
+      "nombre": "SSH dentro de la app",
+      "descripcion": "SshTerminal.cs: el cliente SSH propio de la app (SSH.NET) sobre una redirección privada, con la identidad del servidor comprobada como el known_hosts de OpenSSH (RelayStore) y la terminal de la app."
     }
   ],
   "acciones": [
@@ -134,6 +146,30 @@
       "slug": "informe",
       "nombre": "Sacar un informe del servidor",
       "descripcion": "La persona pide uno de los informes de la web (sesiones remotas, tráfico, entradas o registros de la base de datos) entre dos fechas. No está en el vocabulario global."
+    },
+    {
+      "id": 509,
+      "slug": "redirigir-puerto",
+      "nombre": "Redirigir un puerto",
+      "descripcion": "La persona pone un puerto de su PC a escuchar para llevar sus conexiones a un puerto del equipo o de su red. No está en el vocabulario global."
+    },
+    {
+      "id": 510,
+      "slug": "llevar-conexion",
+      "nombre": "Llevar una conexión por el equipo",
+      "descripcion": "Un programa de este PC se conecta a una redirección y la app abre su camino por el agente. No está en el vocabulario global."
+    },
+    {
+      "id": 511,
+      "slug": "abrir-rdp",
+      "nombre": "Abrir Escritorio remoto de Windows",
+      "descripcion": "La persona abre el Escritorio remoto de Windows (mstsc) hacia el equipo por una redirección privada. No está en el vocabulario global."
+    },
+    {
+      "id": 512,
+      "slug": "abrir-ssh",
+      "nombre": "Abrir una terminal SSH",
+      "descripcion": "La persona abre una terminal SSH al equipo o a una máquina de su red, por su agente. No está en el vocabulario global."
     }
   ],
   "codigos": [
@@ -1446,6 +1482,146 @@
       "titulo": "Se cortó la conexión al mandar el aviso",
       "explicacion": "La conexión se cerró antes de saber si se mandó.",
       "que_hacer": "Volver a conectar y comprobarlo antes de repetirlo."
+    },
+    {
+      "modulo": "redireccion",
+      "accion": "redirigir-puerto",
+      "causa": "dato-invalido",
+      "severidad": "aviso",
+      "actuar": true,
+      "titulo": "Ese puerto no existe",
+      "explicacion": "Los puertos van del 1 al 65535.",
+      "que_hacer": "Escribir un número de puerto válido."
+    },
+    {
+      "modulo": "redireccion",
+      "accion": "redirigir-puerto",
+      "causa": "conflicto-estado",
+      "severidad": "aviso",
+      "actuar": true,
+      "titulo": "Ese puerto de este PC ya lo usa otro programa",
+      "explicacion": "Otro programa (u otra redirección) ya escucha en ese puerto.",
+      "que_hacer": "Elegir otro puerto, o dejarlo vacío para que la app coja uno libre."
+    },
+    {
+      "modulo": "redireccion",
+      "accion": "redirigir-puerto",
+      "causa": "sin-permiso",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "Una redirección guardada no ha vuelto a ponerse",
+      "explicacion": "Su equipo no está conectado ahora, ya no existe, o esta cuenta ya no puede pasar por él.",
+      "que_hacer": "Esperar a que el equipo se conecte y volver a añadirla, o quitarla si ya no hace falta."
+    },
+    {
+      "modulo": "redireccion",
+      "accion": "llevar-conexion",
+      "causa": "dato-invalido",
+      "severidad": "aviso",
+      "actuar": true,
+      "titulo": "Ese puerto no existe",
+      "explicacion": "Los puertos van del 1 al 65535.",
+      "que_hacer": "Corregir el puerto de la redirección."
+    },
+    {
+      "modulo": "redireccion",
+      "accion": "llevar-conexion",
+      "causa": "dispositivo-mudo",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "El equipo no contestó",
+      "explicacion": "Su agente puede estar desconectado u ocupado.",
+      "que_hacer": "Mirar si el equipo sale conectado y probar otra vez."
+    },
+    {
+      "modulo": "redireccion",
+      "accion": "llevar-conexion",
+      "causa": "conexion-cortada",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "El servidor cerró la conexión",
+      "explicacion": "Esta cuenta no tiene permiso de control remoto ni de relé en ese equipo, o el equipo la rechazó.",
+      "que_hacer": "Pedir el permiso a un administrador del grupo si hace falta."
+    },
+    {
+      "modulo": "redireccion",
+      "accion": "abrir-rdp",
+      "causa": "dependencia-caida",
+      "severidad": "error",
+      "actuar": true,
+      "titulo": "No se pudo abrir Escritorio remoto",
+      "explicacion": "Windows no dejó arrancar mstsc.exe en este PC.",
+      "que_hacer": "Comprobar que «Conexión a Escritorio remoto» está instalada en este PC."
+    },
+    {
+      "modulo": "ssh",
+      "accion": "iniciar-sesion",
+      "causa": "falta-dato",
+      "severidad": "aviso",
+      "actuar": true,
+      "titulo": "Falta un dato para entrar por SSH",
+      "explicacion": "Hace falta la cuenta y una contraseña o una clave privada.",
+      "que_hacer": "Rellenar lo que falta."
+    },
+    {
+      "modulo": "ssh",
+      "accion": "iniciar-sesion",
+      "causa": "dato-invalido",
+      "severidad": "aviso",
+      "actuar": true,
+      "titulo": "No se pudo leer la clave privada",
+      "explicacion": "La frase no es la suya, o el fichero no es una clave de OpenSSH (el .ppk de PuTTY no vale).",
+      "que_hacer": "Revisar la frase, o convertir la clave a OpenSSH con PuTTYgen."
+    },
+    {
+      "modulo": "ssh",
+      "accion": "iniciar-sesion",
+      "causa": "credencial-invalida",
+      "severidad": "aviso",
+      "actuar": true,
+      "titulo": "El servidor SSH no aceptó la cuenta",
+      "explicacion": "La contraseña o la clave no son las de esa cuenta.",
+      "que_hacer": "Revisar la cuenta, la contraseña o la clave."
+    },
+    {
+      "modulo": "ssh",
+      "accion": "abrir-ssh",
+      "causa": "tls",
+      "severidad": "error",
+      "actuar": true,
+      "titulo": "No se confió en la identidad del servidor SSH",
+      "explicacion": "No se mandó nada al servidor: su identidad era nueva o había cambiado y no se aceptó.",
+      "que_hacer": "Compararla con la que dé su administrador antes de confiar en ella."
+    },
+    {
+      "modulo": "ssh",
+      "accion": "abrir-ssh",
+      "causa": "sin-conexion",
+      "severidad": "aviso",
+      "actuar": true,
+      "titulo": "Ahí no contesta ningún servidor SSH",
+      "explicacion": "En esa máquina y ese puerto no hay SSH, o está apagado.",
+      "que_hacer": "Comprobar la máquina, el puerto y que el servicio SSH esté encendido."
+    },
+    {
+      "modulo": "ssh",
+      "accion": "abrir-ssh",
+      "causa": "sesion-cerrada",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "La sesión SSH terminó",
+      "explicacion": "Se cerró desde el servidor, por ejemplo con exit.",
+      "que_hacer": "Nada; abrir otra si hace falta."
+    },
+    {
+      "modulo": "ssh",
+      "accion": "abrir-ssh",
+      "causa": "conexion-cortada",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "Se cortó la conexión SSH",
+      "explicacion": "Se perdió el camino con el servidor SSH (el equipo, su agente o la red).",
+      "que_hacer": "Volver a abrir la terminal."
     }
   ]
 }
