@@ -34,13 +34,19 @@ trap cleanup EXIT
 
 docker network create "$NET" >/dev/null
 
+# Whether a container has logged a line. Without -q: under pipefail, grep -q leaves at the first match, docker logs
+# gets SIGPIPE and the pipe "fails" although the line is there.
+# Si un contenedor ha escrito una línea. Sin -q: con pipefail, grep -q sale a la primera, docker logs recibe SIGPIPE y la
+# tubería «falla» aunque la línea esté.
+logged() { docker logs "$1" 2>&1 | grep "$2" >/dev/null; }
+
 # Throwaway OpenID Connect provider (tests/oidc), started before MeshCentral because it discovers it at start.
 # Proveedor OpenID Connect desechable (tests/oidc), antes que MeshCentral porque este lo descubre al arrancar.
 mkdir -p "$WORK/oidc" && cp "$ROOT/tests/oidc/package.json" "$ROOT/tests/oidc/package-lock.json" "$ROOT/tests/oidc/provider.mjs" "$WORK/oidc/"
 docker run -d --rm --name "$OIDC" --network "$NET" --cpus 0.5 --memory 256m -e ISSUER="http://$OIDC:3000" \
   -v "$WORK/oidc:/o" -w /o node:22-alpine sh -c 'npm ci --no-audit --no-fund --loglevel=error && exec node provider.mjs' >/dev/null
-for _ in $(seq 1 60); do docker logs "$OIDC" 2>&1 | grep -q "oidc ready" && break; sleep 2; done
-docker logs "$OIDC" 2>&1 | grep -q "oidc ready" || { echo "the OIDC provider did not start / el proveedor OIDC no arrancó" >&2; docker logs "$OIDC" >&2; exit 1; }
+for _ in $(seq 1 60); do logged "$OIDC" "oidc ready" && break; sleep 2; done
+logged "$OIDC" "oidc ready" || { echo "the OIDC provider did not start / el proveedor OIDC no arrancó" >&2; docker logs "$OIDC" >&2; exit 1; }
 
 OIDC_ISSUER="http://$OIDC:3000" "$HERE/start-test-server.sh" "$SRV" "$WORK/meshdata" "$NET" "$MESH_IMAGE" >/dev/null
 SRV_IP=$(docker inspect "$SRV" --format "{{(index .NetworkSettings.Networks \"$NET\").IPAddress}}")
@@ -60,8 +66,8 @@ docker run -d --rm --name "$SSHD" --network "$NET" --cpus 0.5 --memory 128m -v "
   chown -R sshuser /home/sshuser/.ssh && chmod 700 /home/sshuser/.ssh && chmod 600 /home/sshuser/.ssh/authorized_keys &&
   chmod 644 /k/id_plain /k/id_phrase && for h in /etc/ssh/ssh_host_*_key.pub; do ssh-keygen -lf $h; done > /k/hostkeys &&
   echo "sshd ready" && exec /usr/sbin/sshd -D -e' >/dev/null
-for _ in $(seq 1 60); do docker logs "$SSHD" 2>&1 | grep -q "sshd ready" && break; sleep 1; done
-docker logs "$SSHD" 2>&1 | grep -q "sshd ready" || { echo "the SSH server did not start / el servidor SSH no arrancó" >&2; docker logs "$SSHD" >&2; exit 1; }
+for _ in $(seq 1 60); do logged "$SSHD" "sshd ready" && break; sleep 1; done
+logged "$SSHD" "sshd ready" || { echo "the SSH server did not start / el servidor SSH no arrancó" >&2; docker logs "$SSHD" >&2; exit 1; }
 
 CERT=$(docker exec "$SRV" node -e "const c=require('crypto'),f=require('fs');console.log(new c.X509Certificate(f.readFileSync('/opt/meshcentral/meshcentral-data/webserver-cert-public.crt')).fingerprint256.replace(/:/g,''))")
 echo "server $SRV · agent $AGENT · cert ${CERT:0:16}…"

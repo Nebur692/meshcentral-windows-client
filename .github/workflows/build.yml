@@ -6,6 +6,11 @@ on:
     tags: ['v*']
   pull_request:
   workflow_dispatch:
+    inputs:
+      ui_filter:
+        description: Only these UI tests (dotnet test --filter) / Solo estas pruebas de interfaz
+        required: false
+        default: ''
 
 permissions:
   contents: read
@@ -77,6 +82,7 @@ jobs:
         shell: pwsh
         env:
           MESHTEST_AGENT_CACHE: ${{ runner.temp }}/agentcache
+          MESHUI_FILTER: ${{ inputs.ui_filter }}
         run: tests/ui/run-ui-test.ps1 -Exe "$PWD\out\MeshCentralClient.exe" -Exe99 "$PWD\out99\MeshCentralClient.exe" -Work "$env:RUNNER_TEMP\meshui"
       - name: Server log on failure
         if: failure()

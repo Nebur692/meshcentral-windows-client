@@ -137,6 +137,13 @@ try {
   # As any normal account: in the local Users group (by its well-known SID, whatever the language).
   # Como cualquier cuenta normal: en el grupo local Usuarios (por su SID conocido, sea cual sea el idioma).
   Add-LocalGroupMember -SID 'S-1-5-32-545' -Member $sshUser
+  # GitHub's image limits sshd with AllowGroups (seen in its log): the account joins the groups it lists.
+  # La imagen de GitHub limita sshd con AllowGroups (visto en su registro): la cuenta entra en los grupos que lista.
+  $sshConfig = Join-Path $env:ProgramData 'ssh\sshd_config'
+  foreach ($line in (Get-Content $sshConfig | Where-Object { $_ -match '^\s*AllowGroups\s' })) {
+    Write-Host "sshd_config: $line"
+    foreach ($g in ($line -split '\s+' | Select-Object -Skip 1 | Where-Object { $_ })) { Add-LocalGroupMember -Group $g -Member $sshUser -ErrorAction SilentlyContinue }
+  }
   Start-Service sshd
   $sshStarted = $true
   Write-Host "sshd running after $([int]$watch.Elapsed.TotalSeconds) s"
@@ -156,7 +163,9 @@ try {
   $env:MESHUI_CERT_SHA256 = (New-Object System.Security.Cryptography.X509Certificates.X509Certificate2 (Join-Path $data 'webserver-cert-public.crt')).GetCertHashString('SHA256')
   $env:MESHUI_OTP_SECRET = $otp
   $env:MESHUI_SHOTS = Join-Path $Work 'shots'
-  dotnet test (Join-Path $root 'tests\MeshCentralClient.UiTests') -c Release --logger 'console;verbosity=normal'
+  # MESHUI_FILTER: only some tests, to iterate on one thing. / Solo algunas pruebas, para iterar sobre una cosa.
+  $filter = if ($env:MESHUI_FILTER) { @('--filter', $env:MESHUI_FILTER) } else { @() }
+  dotnet test (Join-Path $root 'tests\MeshCentralClient.UiTests') -c Release --logger 'console;verbosity=normal' @filter
   if ($LASTEXITCODE -ne 0) { throw "UI test failed ($LASTEXITCODE)" }
 }
 finally {

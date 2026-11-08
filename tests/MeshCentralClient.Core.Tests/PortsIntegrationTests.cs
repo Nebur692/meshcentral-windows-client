@@ -118,6 +118,21 @@ public class PortsIntegrationTests(ITestOutputHelper output)
         Assert.Equal(0, map.BytesDown);
     }
 
+    /// <summary>Only this PC can use the port: from this machine's network address it is refused. / Solo este PC puede usar el puerto: desde su dirección de red se rechaza.</summary>
+    [Fact]
+    public async Task Nobody_else_on_the_network_can_use_the_port()
+    {
+        await using var s = await SignIn("admin", "Admin-Pass-1234");
+        var dev = await OnlineDevice(s);
+        await using var map = PortMapping.Start(s, new PortTarget(dev.Id, dev.Name, 443, "mesh.test"));
+        var outside = System.Net.Dns.GetHostAddresses(System.Net.Dns.GetHostName())
+            .First(a => a.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork && !System.Net.IPAddress.IsLoopback(a));
+        output.WriteLine($"trying {outside}:{map.LocalPort}");
+        using var tcp = new TcpClient();
+        await Assert.ThrowsAsync<SocketException>(() => tcp.ConnectAsync(outside, map.LocalPort));
+        Assert.Equal(0, map.TotalConnections);
+    }
+
     [Fact]
     public async Task A_local_port_already_in_use_fails_before_reaching_the_server()
     {
