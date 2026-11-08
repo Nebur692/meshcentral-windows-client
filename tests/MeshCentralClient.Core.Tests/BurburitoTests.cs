@@ -5,7 +5,13 @@ using Xunit.Abstractions;
 
 public class BurburitoTests(ITestOutputHelper output)
 {
-    private static readonly string[] Modules = { "conexion", "equipos", "ajustes", "app", "tunel", "actualizar", "ficheros", "ficha", "acciones", "grupos" };
+    // Every module of the catalogue, read from it: a list written here forgot "acciones" once and the scan never saw its keys.
+    // Todos los módulos del catálogo, leídos de él: una lista escrita aquí olvidó «acciones» una vez y el barrido nunca vio sus claves.
+    private static readonly Lazy<string[]> Modules = new(() =>
+    {
+        using var doc = System.Text.Json.JsonDocument.Parse(File.ReadAllText(Path.Combine(RepoRoot(), "burburito.json")));
+        return doc.RootElement.GetProperty("modulos").EnumerateArray().Select(m => m.GetProperty("slug").GetString()!).ToArray();
+    });
 
     internal static string RepoRoot()
     {
@@ -26,7 +32,7 @@ public class BurburitoTests(ITestOutputHelper output)
     /// Toda cadena «módulo/acción/causa» de src/ tiene que estar en el catálogo.</summary>
     internal static List<string> UnknownKeysIn(string root, out int checkedCount)
     {
-        var rx = new Regex("\"(" + string.Join('|', Modules) + @")/[a-z-]+/[a-z-]+""");
+        var rx = new Regex("\"(" + string.Join('|', Modules.Value) + @")/[a-z-]+/[a-z-]+""");
         var keys = Directory.EnumerateFiles(Path.Combine(root, "src"), "*.*", SearchOption.AllDirectories)
             .Where(f => (f.EndsWith(".cs") || f.EndsWith(".xaml")) && !f.Contains($"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}"))
             .SelectMany(f => rx.Matches(File.ReadAllText(f)).Select(m => m.Value.Trim('"')))

@@ -27,7 +27,7 @@ official website and `meshctrl`, so it works with **any** MeshCentral installati
 
 > Unofficial project, not affiliated with the MeshCentral authors. The device side still uses the official MeshCentral agent.
 
-### Features (version 0.9)
+### Features (version 0.10)
 
 - **Sign in** with username and password, with **two-factor** codes (authenticator app, or email code when the server offers it).
 - **Single sign-on**: if the server offers it (OpenID Connect, SAML, Microsoft, Google, GitHub…), a button signs in on
@@ -56,14 +56,17 @@ official website and `meshctrl`, so it works with **any** MeshCentral installati
   website, as checkboxes), change them or take them away; **move devices** between groups; and add new devices with an
   **invitation link** (a public page with the installers), the **Windows agent** with the group built in, or the
   **Linux / macOS command**. Changes made anywhere else appear at once.
+- **Users** (for administrators): create accounts, change their email, name and server rights, set their password, lock
+  and delete them; **user groups** with their members, and rights on device groups for a whole user group.
+- **My account**: change the password, add an **authenticator app** (QR code), backup codes, see and remove security
+  keys, and **login tokens** for scripts and tools.
 - **Open in the browser** from the device's menu.
 - **Light, dark or like Windows**, remembered.
 - **Updates itself**: when a new version is published, it offers it, checks its SHA-256 fingerprint and restarts as
   the new version; a file that does not match is never installed.
 - **English and Spanish** interface, following the Windows language.
 
-The goal is everything the MeshCentral website does. Coming next: users and accounts, server events and recordings, and
-port mapping — see [the plan](docs/PLAN.md).
+The goal is everything the MeshCentral website does. Coming next: server events and recordings, and port mapping — see [the plan](docs/PLAN.md).
 
 ### Install
 
@@ -105,7 +108,7 @@ web oficial y `meshctrl`, así que funciona con **cualquier** instalación de Me
 
 > Proyecto no oficial, sin relación con los autores de MeshCentral. En los equipos se sigue usando el agente oficial de MeshCentral.
 
-### Qué hace (versión 0.9)
+### Qué hace (versión 0.10)
 
 - **Entrar** con usuario y contraseña, con código de **doble factor** (app de autenticación, o código por correo si el servidor lo ofrece).
 - **Inicio de sesión único**: si el servidor lo ofrece (OpenID Connect, SAML, Microsoft, Google, GitHub…), un botón
@@ -134,14 +137,19 @@ web oficial y `meshctrl`, así que funciona con **cualquier** instalación de Me
   web, como casillas), cambiarlos o quitarlos; **mover equipos** de un grupo a otro; y añadir equipos nuevos con un
   **enlace de invitación** (una página pública con los instaladores), el **agente de Windows** con el grupo dentro o la
   **orden de Linux / macOS**. Lo que se cambie en otro sitio aparece al momento.
+- **Usuarios** (para administradores): crear cuentas, cambiarles el correo, el nombre y los permisos de servidor,
+  ponerles contraseña, bloquearlas y borrarlas; **grupos de usuarios** con sus miembros, y permisos en grupos de equipos
+  para todo un grupo de usuarios.
+- **Mi cuenta**: cambiar la contraseña, añadir una **app de autenticación** (código QR), códigos de respaldo, ver y
+  quitar llaves de seguridad, y **tokens de acceso** para guiones y herramientas.
 - **Abrir en el navegador** desde el menú del equipo.
 - **Claro, oscuro o como Windows**, y lo recuerda.
 - **Se actualiza sola**: cuando se publica una versión nueva, la ofrece, comprueba su huella SHA-256 y se reabre ya
   actualizada; un fichero que no coincide no se instala nunca.
 - Interfaz en **inglés y español**, según el idioma de Windows.
 
-La meta es todo lo que hace la web de MeshCentral. Lo siguiente: usuarios y cuentas, sucesos y grabaciones del
-servidor, y redirección de puertos; está en [el plan](docs/PLAN.md).
+La meta es todo lo que hace la web de MeshCentral. Lo siguiente: sucesos y grabaciones del servidor, y redirección
+de puertos; está en [el plan](docs/PLAN.md).
 
 ### Instalar
 

@@ -66,6 +66,12 @@
       "slug": "grupos",
       "nombre": "Los grupos de equipos",
       "descripcion": "MeshServerSession.Groups.cs y GroupsWindow: createmesh, editmesh, deletemesh, addmeshuser/removemeshuser (usuarios y permisos del grupo), changeDeviceMesh (mover equipos), createInviteLink y la descarga del agente (meshagents). Los permisos se comprueban antes, como la web, porque editmesh, removemeshuser y changeDeviceMesh entre grupos de distinto tipo no contestan nada cuando se rechazan."
+    },
+    {
+      "id": 11,
+      "slug": "usuarios",
+      "nombre": "Los usuarios, los grupos de usuarios y la propia cuenta",
+      "descripcion": "MeshServerSession.Users.cs, UsersWindow y AccountWindow: users, adduser, edituser, changeuserpass, deleteuser; usergroups, createusergroup, editusergroup, deleteusergroup, addusertousergroup, removeuserfromusergroup; changepassword, otpauth-*, otp-hkey-*, loginTokens y createLoginToken. edituser fuera de la máscara de permisos contesta «ok» sin cambiar nada, y changeuserpass, editusergroup y otp-hkey-remove nunca contestan: los permisos se comprueban antes y esas tres se confirman con su aviso en vivo."
     }
   ],
   "acciones": [
@@ -104,6 +110,18 @@
       "slug": "invitar-agente",
       "nombre": "Invitar a instalar el agente",
       "descripcion": "La persona crea un enlace público para que alguien instale el agente en un grupo (createInviteLink). No está en el vocabulario global."
+    },
+    {
+      "id": 506,
+      "slug": "gestionar-usuarios",
+      "nombre": "Crear, cambiar o borrar cuentas",
+      "descripcion": "Un administrador crea cuentas, les cambia correo, nombre, permisos de servidor o contraseña, las bloquea o las borra. No está en el vocabulario global."
+    },
+    {
+      "id": 507,
+      "slug": "gestionar-grupos-usuarios",
+      "nombre": "Crear, cambiar o borrar grupos de usuarios",
+      "descripcion": "Un administrador crea grupos de cuentas, les cambia el nombre, mete o saca cuentas, o los borra. No está en el vocabulario global."
     }
   ],
   "codigos": [
@@ -1086,6 +1104,206 @@
       "titulo": "Lo descargado no es un programa de Windows",
       "explicacion": "El servidor devolvió otra cosa (una página de error) en vez del agente.",
       "que_hacer": "Descargarlo desde la web del servidor y avisar si se repite."
+    },
+    {
+      "modulo": "usuarios",
+      "accion": "gestionar-usuarios",
+      "causa": "no-autorizado",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "Sin permiso para gestionar esa cuenta",
+      "explicacion": "Hace falta el permiso de servidor «Gestionar usuarios», y solo un administrador completo toca a otro administrador o da permisos de servidor que no sean bloquear, «sin grupos nuevos» o «sin herramientas». La app no lo manda porque el servidor contestaría «ok» sin cambiar nada.",
+      "que_hacer": "Pedirlo a un administrador completo del servidor."
+    },
+    {
+      "modulo": "usuarios",
+      "accion": "gestionar-usuarios",
+      "causa": "dato-invalido",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "El nombre, la contraseña o el correo no valen",
+      "explicacion": "El nombre de usuario necesita de 1 a 64 caracteres sin espacios ni «/», hace falta una contraseña y el correo tiene que llevar «@».",
+      "que_hacer": "Corregir el dato que dice el mensaje."
+    },
+    {
+      "modulo": "usuarios",
+      "accion": "gestionar-usuarios",
+      "causa": "conflicto-estado",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "Esa cuenta ya existe o es la tuya",
+      "explicacion": "Ya hay una cuenta con ese nombre, o se intentó borrar la propia cuenta desde aquí.",
+      "que_hacer": "Elegir otro nombre, o borrar la cuenta desde otra de administrador."
+    },
+    {
+      "modulo": "usuarios",
+      "accion": "gestionar-usuarios",
+      "causa": "rechazo-remoto",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "El servidor no aceptó el cambio de la cuenta",
+      "explicacion": "El servidor contestó con un error (p. ej. «Invalid password» si la contraseña no cumple sus reglas, o el límite de cuentas).",
+      "que_hacer": "Leer el mensaje del servidor en Detalles y hacer lo que pide."
+    },
+    {
+      "modulo": "usuarios",
+      "accion": "gestionar-usuarios",
+      "causa": "tiempo-agotado",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "El servidor no contestó al cambio de la cuenta",
+      "explicacion": "Al poner la contraseña de otra cuenta el servidor nunca contesta: se espera su aviso de «credenciales cambiadas». Si la contraseña no cumple las reglas del servidor, la tira sin decir nada y se acaba el tiempo.",
+      "que_hacer": "Probar con una contraseña más larga y con letras, números y símbolos; si sigue, mirar la conexión."
+    },
+    {
+      "modulo": "usuarios",
+      "accion": "gestionar-usuarios",
+      "causa": "conexion-cortada",
+      "severidad": "error",
+      "actuar": false,
+      "titulo": "Se cortó la conexión mientras se cambiaba la cuenta",
+      "explicacion": "La conexión con el servidor se cerró antes de saber si el cambio se hizo.",
+      "que_hacer": "Volver a conectar y mirar la cuenta en la lista antes de repetirlo."
+    },
+    {
+      "modulo": "usuarios",
+      "accion": "gestionar-grupos-usuarios",
+      "causa": "no-autorizado",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "Sin permiso para gestionar grupos de usuarios",
+      "explicacion": "Hace falta el permiso de servidor «Gestionar grupos de usuarios». Los grupos que vienen del inicio único o de LDAP no se pueden cambiar aquí.",
+      "que_hacer": "Pedirlo a un administrador del servidor, o cambiar el grupo donde nace."
+    },
+    {
+      "modulo": "usuarios",
+      "accion": "gestionar-grupos-usuarios",
+      "causa": "dato-invalido",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "El nombre del grupo o los usuarios no valen",
+      "explicacion": "El nombre necesita de 1 a 64 caracteres y la descripción hasta 1024; para añadir hay que escribir algún nombre de usuario.",
+      "que_hacer": "Corregir lo que dice el mensaje."
+    },
+    {
+      "modulo": "usuarios",
+      "accion": "gestionar-grupos-usuarios",
+      "causa": "no-encontrado",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "Algún nombre no es una cuenta de este servidor",
+      "explicacion": "El servidor añade los que conoce y deja fuera los demás; el mensaje dice cuántos.",
+      "que_hacer": "Revisar cómo se escriben esos nombres en la lista de usuarios."
+    },
+    {
+      "modulo": "usuarios",
+      "accion": "gestionar-grupos-usuarios",
+      "causa": "rechazo-remoto",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "El servidor no aceptó el cambio del grupo de usuarios",
+      "explicacion": "El servidor contestó con un error (p. ej. no se permite en modo de inicio único con sincronización de grupos).",
+      "que_hacer": "Leer el mensaje del servidor en Detalles."
+    },
+    {
+      "modulo": "usuarios",
+      "accion": "gestionar-grupos-usuarios",
+      "causa": "tiempo-agotado",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "El servidor no contestó al cambio del grupo de usuarios",
+      "explicacion": "Al renombrar un grupo el servidor nunca contesta: se espera su aviso en vivo, y no llegó.",
+      "que_hacer": "Mirar la conexión y volver a abrir la ventana para ver si se hizo."
+    },
+    {
+      "modulo": "usuarios",
+      "accion": "gestionar-grupos-usuarios",
+      "causa": "conexion-cortada",
+      "severidad": "error",
+      "actuar": false,
+      "titulo": "Se cortó la conexión mientras se cambiaba el grupo de usuarios",
+      "explicacion": "La conexión se cerró antes de saber si el cambio se hizo.",
+      "que_hacer": "Volver a conectar y mirarlo antes de repetirlo."
+    },
+    {
+      "modulo": "usuarios",
+      "accion": "cambiar-ajustes",
+      "causa": "sin-permiso",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "Los ajustes de tu cuenta están bloqueados",
+      "explicacion": "Un administrador ha puesto «Bloquear ajustes de la cuenta»: el servidor ignora los cambios de contraseña y de doble factor.",
+      "que_hacer": "Pedir a un administrador que lo quite o que haga el cambio."
+    },
+    {
+      "modulo": "usuarios",
+      "accion": "cambiar-ajustes",
+      "causa": "dato-invalido",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "La contraseña o el código no valen",
+      "explicacion": "Las contraseñas necesitan de 1 a 256 caracteres y el código de la app, 6 cifras; el servidor tampoco acepta una contraseña ya usada o demasiado común.",
+      "que_hacer": "Escribir otra contraseña, o el código que enseña ahora la app."
+    },
+    {
+      "modulo": "usuarios",
+      "accion": "cambiar-ajustes",
+      "causa": "credencial-invalida",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "La contraseña actual o el código no son correctos",
+      "explicacion": "La contraseña actual no es la de la cuenta, o el código de la app de autenticación no coincide (a menudo por la hora del móvil).",
+      "que_hacer": "Volver a escribir la contraseña actual, o comprobar la hora del móvil y usar el código siguiente."
+    },
+    {
+      "modulo": "usuarios",
+      "accion": "cambiar-ajustes",
+      "causa": "conflicto-estado",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "Eso ya está o falta lo anterior",
+      "explicacion": "La cuenta ya tiene app de autenticación, no la tiene para quitarla, o los códigos de respaldo necesitan antes otro segundo factor.",
+      "que_hacer": "Quitar primero la app actual, o añadir una app de autenticación antes de los códigos."
+    },
+    {
+      "modulo": "usuarios",
+      "accion": "cambiar-ajustes",
+      "causa": "rechazo-remoto",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "El servidor no aceptó el cambio de tu cuenta",
+      "explicacion": "El servidor no permite apps de autenticación o tokens, o no quitó el token pedido.",
+      "que_hacer": "Leer el mensaje en Detalles; si el servidor no lo permite, lo decide su administrador."
+    },
+    {
+      "modulo": "usuarios",
+      "accion": "cambiar-ajustes",
+      "causa": "error-remoto",
+      "severidad": "error",
+      "actuar": false,
+      "titulo": "El servidor falló al cambiar la contraseña",
+      "explicacion": "El servidor dijo que no pudo guardar la contraseña nueva.",
+      "que_hacer": "Repetirlo más tarde y avisar al administrador del servidor si sigue."
+    },
+    {
+      "modulo": "usuarios",
+      "accion": "cambiar-ajustes",
+      "causa": "tiempo-agotado",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "El servidor no contestó al cambio de tu cuenta",
+      "explicacion": "Si la contraseña nueva no cumple las reglas del servidor, este la tira sin contestar; también puede ser la conexión.",
+      "que_hacer": "Probar con una contraseña más larga y variada; si sigue, mirar la conexión."
+    },
+    {
+      "modulo": "usuarios",
+      "accion": "cambiar-ajustes",
+      "causa": "conexion-cortada",
+      "severidad": "error",
+      "actuar": false,
+      "titulo": "Se cortó la conexión mientras se cambiaba tu cuenta",
+      "explicacion": "La conexión se cerró antes de saber si el cambio se hizo.",
+      "que_hacer": "Volver a conectar y comprobarlo antes de repetirlo."
     }
   ]
 }

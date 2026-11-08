@@ -1,5 +1,5 @@
 {
-  "generado": "2026-11-08T06:20:11Z",
+  "generado": "2026-11-08T12:36:52Z",
   "aviso": "Generado por bin/burburito. No editar a mano: la fuente de verdad es el burburito.json de al lado.",
   "proyecto": {
     "id": 35,
@@ -594,6 +594,126 @@
       "severidad": "aviso",
       "actuar": true,
       "titulo": "El equipo no contestó al abrir la sesión"
+    },
+    "usuarios/cambiar-ajustes/tiempo-agotado": {
+      "codigo": "035-011-007-002",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "El servidor no contestó al cambio de tu cuenta"
+    },
+    "usuarios/cambiar-ajustes/conexion-cortada": {
+      "codigo": "035-011-007-005",
+      "severidad": "error",
+      "actuar": false,
+      "titulo": "Se cortó la conexión mientras se cambiaba tu cuenta"
+    },
+    "usuarios/cambiar-ajustes/error-remoto": {
+      "codigo": "035-011-007-020",
+      "severidad": "error",
+      "actuar": false,
+      "titulo": "El servidor falló al cambiar la contraseña"
+    },
+    "usuarios/cambiar-ajustes/rechazo-remoto": {
+      "codigo": "035-011-007-021",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "El servidor no aceptó el cambio de tu cuenta"
+    },
+    "usuarios/cambiar-ajustes/credencial-invalida": {
+      "codigo": "035-011-007-041",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "La contraseña actual o el código no son correctos"
+    },
+    "usuarios/cambiar-ajustes/sin-permiso": {
+      "codigo": "035-011-007-042",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "Los ajustes de tu cuenta están bloqueados"
+    },
+    "usuarios/cambiar-ajustes/dato-invalido": {
+      "codigo": "035-011-007-061",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "La contraseña o el código no valen"
+    },
+    "usuarios/cambiar-ajustes/conflicto-estado": {
+      "codigo": "035-011-007-064",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "Eso ya está o falta lo anterior"
+    },
+    "usuarios/gestionar-usuarios/tiempo-agotado": {
+      "codigo": "035-011-506-002",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "El servidor no contestó al cambio de la cuenta"
+    },
+    "usuarios/gestionar-usuarios/conexion-cortada": {
+      "codigo": "035-011-506-005",
+      "severidad": "error",
+      "actuar": false,
+      "titulo": "Se cortó la conexión mientras se cambiaba la cuenta"
+    },
+    "usuarios/gestionar-usuarios/rechazo-remoto": {
+      "codigo": "035-011-506-021",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "El servidor no aceptó el cambio de la cuenta"
+    },
+    "usuarios/gestionar-usuarios/no-autorizado": {
+      "codigo": "035-011-506-046",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "Sin permiso para gestionar esa cuenta"
+    },
+    "usuarios/gestionar-usuarios/dato-invalido": {
+      "codigo": "035-011-506-061",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "El nombre, la contraseña o el correo no valen"
+    },
+    "usuarios/gestionar-usuarios/conflicto-estado": {
+      "codigo": "035-011-506-064",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "Esa cuenta ya existe o es la tuya"
+    },
+    "usuarios/gestionar-grupos-usuarios/tiempo-agotado": {
+      "codigo": "035-011-507-002",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "El servidor no contestó al cambio del grupo de usuarios"
+    },
+    "usuarios/gestionar-grupos-usuarios/conexion-cortada": {
+      "codigo": "035-011-507-005",
+      "severidad": "error",
+      "actuar": false,
+      "titulo": "Se cortó la conexión mientras se cambiaba el grupo de usuarios"
+    },
+    "usuarios/gestionar-grupos-usuarios/rechazo-remoto": {
+      "codigo": "035-011-507-021",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "El servidor no aceptó el cambio del grupo de usuarios"
+    },
+    "usuarios/gestionar-grupos-usuarios/no-autorizado": {
+      "codigo": "035-011-507-046",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "Sin permiso para gestionar grupos de usuarios"
+    },
+    "usuarios/gestionar-grupos-usuarios/dato-invalido": {
+      "codigo": "035-011-507-061",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "El nombre del grupo o los usuarios no valen"
+    },
+    "usuarios/gestionar-grupos-usuarios/no-encontrado": {
+      "codigo": "035-011-507-062",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "Algún nombre no es una cuenta de este servidor"
     }
   },
   "frases": {

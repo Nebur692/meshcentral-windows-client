@@ -18,7 +18,34 @@ public sealed record UserInfo(string Id, string Name, bool IsFullAdministrator)
 {
     internal static UserInfo From(JsonObject o) => new(
         o.Str("_id") ?? "", o.Str("name") ?? o.Str("_id") ?? "", o.Long("siteadmin") == 0xFFFFFFFF)
-    { Links = JsonExtensions.Links(o), RemoveRights = o.Long("removeRights"), SiteRights = o.Long("siteadmin") ?? 0 };
+    {
+        Links = JsonExtensions.Links(o), RemoveRights = o.Long("removeRights"), SiteRights = o.Long("siteadmin") ?? 0,
+        Email = o.Str("email"), RealName = o.Str("realname"),
+        Created = Seconds(o.Long("creation")), LastLogin = Seconds(o.Long("login")),
+        MustChangePassword = o.Long("passchange") == -1,
+        // The server sends a flag or a count instead of each secret (CloneSafeUser). / El servidor manda una marca o un número en vez de cada secreto.
+        HasAuthenticator = o.Long("otpsecret") is > 0, BackupCodesLeft = (int)(o.Long("otpkeys") ?? 0), SecurityKeys = (int)(o.Long("otphkeys") ?? 0),
+        HasOtherTwoFactor = o.Long("otpekey") is > 0 || o.Long("otpduo") is > 0 || o.Long("otpdev") is > 0 || o.Str("phone") is { Length: > 0 },
+    };
+
+    private static DateTimeOffset? Seconds(long? s) => s is > 0 ? DateTimeOffset.FromUnixTimeSeconds(s.Value) : null;
+
+    public string? Email { get; init; }
+    public string? RealName { get; init; }
+    public DateTimeOffset? Created { get; init; }
+    public DateTimeOffset? LastLogin { get; init; }
+    /// <summary>The account must choose a new password at its next sign-in. / La cuenta tiene que poner contraseña nueva al entrar.</summary>
+    public bool MustChangePassword { get; init; }
+    public bool HasAuthenticator { get; init; }
+    public int BackupCodesLeft { get; init; }
+    public int SecurityKeys { get; init; }
+    /// <summary>Email, SMS, push or Duo codes. / Códigos por correo, SMS, aviso o Duo.</summary>
+    public bool HasOtherTwoFactor { get; init; }
+    public bool HasTwoFactor => HasAuthenticator || SecurityKeys > 0 || HasOtherTwoFactor;
+    /// <summary>Locked accounts cannot sign in (siteadmin bit 32; never a full administrator). / Las cuentas bloqueadas no pueden entrar.</summary>
+    public bool IsLocked => !IsFullAdministrator && (SiteRights & (long)SiteRight.Locked) != 0;
+    /// <summary>The user groups this account belongs to. / Los grupos de usuarios a los que pertenece.</summary>
+    public IEnumerable<string> UserGroupIds => Links.Keys.Where(k => k.StartsWith("ugrp/", StringComparison.Ordinal));
 
     /// <summary>Server-wide rights (siteadmin): 0xFFFFFFFF is a full administrator; bit 64 forbids new device groups, bit 4096 forbids installing agents.
     /// Permisos en todo el servidor (siteadmin): 0xFFFFFFFF es administrador completo; el bit 64 prohíbe grupos nuevos y el 4096 instalar agentes.</summary>

@@ -45,6 +45,7 @@ public sealed class GroupsWindow : Window
     private readonly Button _delete = new() { Content = L.T("DeleteGroup"), MinWidth = 100 };
     private readonly ListView _members = new() { MinHeight = 90, MaxHeight = 220, Margin = new Thickness(0, 4, 0, 6) };
     private readonly Button _addUsers = new() { Content = L.T("AddUsers"), MinWidth = 100, Margin = new Thickness(0, 0, 8, 0) };
+    private readonly Button _addUserGroup = new() { Content = L.T("AddUserGroup"), MinWidth = 150, Margin = new Thickness(0, 0, 8, 0) };
     private readonly Button _changeRights = new() { Content = L.T("ChangeRights"), MinWidth = 120, Margin = new Thickness(0, 0, 8, 0) };
     private readonly Button _removeUser = new() { Content = L.T("RemoveUser"), MinWidth = 90 };
     private readonly StackPanel _addPanel = new();
@@ -82,7 +83,7 @@ public sealed class GroupsWindow : Window
         foreach (var (e, id) in new (FrameworkElement, string)[]
         {
             (this, "GroupsWindow"), (_groups, "GroupList"), (_new, "NewGroupButton"), (_edit, "EditGroupButton"), (_delete, "DeleteGroupButton"),
-            (_name, "GroupNameText"), (_desc, "GroupDescText"), (_members, "MemberList"), (_addUsers, "AddUsersButton"), (_changeRights, "ChangeRightsButton"),
+            (_name, "GroupNameText"), (_desc, "GroupDescText"), (_members, "MemberList"), (_addUsers, "AddUsersButton"), (_addUserGroup, "AddUserGroupButton"), (_changeRights, "ChangeRightsButton"),
             (_removeUser, "RemoveUserButton"), (_mode, "InstallMode"), (_expiry, "InviteExpiry"), (_createInvite, "CreateInviteButton"), (_invite, "InviteLinkBox"),
             (_copyInvite, "CopyInviteButton"), (_platform, "AgentPlatform"), (_download, "DownloadAgentButton"), (_linux, "LinuxCommandBox"),
             (_copyLinux, "CopyLinuxButton"), (_status, "GroupsStatus"),
@@ -118,7 +119,7 @@ public sealed class GroupsWindow : Window
         _detail.Children.Add(Row(_edit, _delete));
         _detail.Children.Add(Section("UsersSection"));
         _detail.Children.Add(_members);
-        _detail.Children.Add(Row(_addUsers, _changeRights, _removeUser));
+        _detail.Children.Add(Row(_addUsers, _addUserGroup, _changeRights, _removeUser));
         _detail.Children.Add(Section("AddDevicesSection"));
         _detail.Children.Add(_cannotAdd);
         _addPanel.Children.Add(Row(new TextBlock { Text = L.T("InstallMode"), VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 8, 0) }, _mode));
@@ -151,6 +152,7 @@ public sealed class GroupsWindow : Window
         _edit.Click += async (_, _) => await EditGroup();
         _delete.Click += async (_, _) => await DeleteGroup();
         _addUsers.Click += async (_, _) => await AddUsers();
+        _addUserGroup.Click += async (_, _) => await AddUserGroup();
         _changeRights.Click += async (_, _) => await ChangeRights();
         _removeUser.Click += async (_, _) => await RemoveUser();
         _createInvite.Click += async (_, _) => await CreateInvite();
@@ -206,6 +208,7 @@ public sealed class GroupsWindow : Window
         foreach (var m in g.Members.OrderBy(m => m.Name, StringComparer.CurrentCultureIgnoreCase)) _members.Items.Add(new MemberItem(m));
         _members.SelectedItem = _members.Items.OfType<MemberItem>().FirstOrDefault(i => i.Member.Id == memberId);
         _addUsers.IsEnabled = can.ManageUsers;
+        _addUserGroup.IsEnabled = can.ManageUsers;
         UpdateMemberButtons();
         _addPanel.Visibility = can.AddDevices ? Visibility.Visible : Visibility.Collapsed;
         _cannotAdd.Visibility = can.AddDevices ? Visibility.Collapsed : Visibility.Visible;
@@ -273,6 +276,18 @@ public sealed class GroupsWindow : Window
         if (RightsDialog.Ask(this, L.F("AddUsersTitle", g.Name), askNames: true, 0, canGrantFull: _session.GroupAbilitiesOn(g).Delete) is not { } c) return null;
         var said = await _session.AddMembersAsync(g, c.UserNames, c.Rights);
         return L.F("UsersAdded", said);
+    });
+
+    /// <summary>Every member of a user group gets these rights on the device group. / Cada miembro de un grupo de usuarios recibe estos permisos.</summary>
+    private Task AddUserGroup() => Run(async () =>
+    {
+        if (Selected is not { } g) return null;
+        var candidates = (await _session.GetUserGroupsAsync()).Where(u => !g.Links.ContainsKey(u.Id)).ToList();
+        if (candidates.Count == 0) return L.T("NoUserGroupsToAdd");
+        if (PickDialog.Ask(this, L.T("PickUserGroupTitle"), candidates, u => u.Name) is not { } ug) return null;
+        if (RightsDialog.Ask(this, L.F("RightsTitle", L.F("UserGroupSuffix", ug.Name), g.Name), askNames: false, 0, canGrantFull: _session.GroupAbilitiesOn(g).Delete) is not { } c) return null;
+        await _session.AddUserGroupAsync(g, ug, c.Rights);
+        return L.F("UserGroupAdded", L.F("UserGroupSuffix", ug.Name));
     });
 
     private Task ChangeRights() => Run(async () =>

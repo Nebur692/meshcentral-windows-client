@@ -354,6 +354,11 @@ public partial class MainWindow : Window
         _session = session;
         session.DeviceChanged += (_, e) => Dispatcher.BeginInvoke(() => ApplyChange(session, e));
         session.GroupChanged += (_, e) => Dispatcher.BeginInvoke(() => ApplyGroupChange(session, e));
+        // Only for whoever manages accounts or user groups, and kept right if those rights change live.
+        // Solo para quien gestiona cuentas o grupos de usuarios, y al día si esos permisos cambian en vivo.
+        void ShowUsersButton() => UsersButton.Visibility = session.CanManageUsers || session.CanManageUserGroups ? Visibility.Visible : Visibility.Collapsed;
+        ShowUsersButton();
+        session.UserChanged += (_, e) => { if (e.UserId == session.User.Id) Dispatcher.BeginInvoke(ShowUsersButton); };
         session.Closed += (_, e) => Dispatcher.BeginInvoke(() => OnSessionLost(session, e));
         SessionTitle.Text = string.IsNullOrEmpty(session.ServerInfo.Name) ? session.Server.Host : session.ServerInfo.Name;
         SessionSubtitle.Text = $"{session.User.Name} · {session.Server}";
@@ -643,6 +648,28 @@ public partial class MainWindow : Window
     // ------------------------------------------------------------------ groups / grupos
 
     private GroupsWindow? _groupsWindow;
+    private UsersWindow? _usersWindow;
+    private AccountWindow? _accountWindow;
+
+    private void Users_Click(object sender, RoutedEventArgs e)
+    {
+        if (_session is not { } s) return;
+        if (_usersWindow is { IsLoaded: true }) { _usersWindow.Activate(); return; }
+        var w = _usersWindow = new UsersWindow(s);
+        _sessionWindows.Add(w);
+        w.Closed += (_, _) => { _sessionWindows.Remove(w); if (ReferenceEquals(_usersWindow, w)) _usersWindow = null; };
+        w.Show();
+    }
+
+    private void Account_Click(object sender, RoutedEventArgs e)
+    {
+        if (_session is not { } s) return;
+        if (_accountWindow is { IsLoaded: true }) { _accountWindow.Activate(); return; }
+        var w = _accountWindow = new AccountWindow(s);
+        _sessionWindows.Add(w);
+        w.Closed += (_, _) => { _sessionWindows.Remove(w); if (ReferenceEquals(_accountWindow, w)) _accountWindow = null; };
+        w.Show();
+    }
 
     private void Groups_Click(object sender, RoutedEventArgs e)
     {

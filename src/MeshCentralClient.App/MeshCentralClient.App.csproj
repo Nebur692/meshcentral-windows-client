@@ -19,6 +19,8 @@
        DPAPI (System.Security.Cryptography.ProtectedData) viene con el framework de escritorio de Windows. -->
   <ItemGroup>
     <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.4258.31" />
+    <!-- QR code of the authenticator app (MIT). / Código QR de la app de autenticación (MIT). -->
+    <PackageReference Include="QRCoder" Version="1.8.0" />
   </ItemGroup>
   <ItemGroup>
     <!-- Web pages shown in WebView2 (terminal), embedded so the app stays a single file.

@@ -28,8 +28,8 @@ The target is feature parity with the official website, plus what MeshCentral Ro
 | 6 | **Device page**: general info, hardware and agent inventory, network interfaces, notes, tags, description, history | **done (0.7)** |
 | 7 | **Device actions**: wake-on-LAN, sleep, restart, power off, message box, toast, run commands — on several devices at once | **done (0.8)**; chat, agent update and Intel AMT power later |
 | 8 | **Device groups**: create, edit, delete, invitations (agent install links), group users and rights, move devices | **done (0.9)**; group settings (consent, notifications, auto-remove) and Intel AMT / local groups later |
-| 9 | **Users and accounts** (next, administrators): users, user groups, rights, my account (two-factor, keys, sessions) | |
-| 10 | **Server**: events, statistics, session recordings, reports, notifications | |
+| 9 | **Users and accounts**: users, user groups, rights, my account (two-factor, keys, login tokens) | **done (0.10)**; adding a security key (needs the browser's WebAuthn), email/SMS two-factor and active sessions later |
+| 10 | **Server** (next): events, statistics, session recordings, reports, notifications | |
 | 11 | **Port mapping** (to replace MeshCentral Router) and RDP/SSH relays | |
 | 12 | Signed release, installer (winget) and automatic updates | |
 
@@ -63,7 +63,7 @@ La meta es hacer lo mismo que la web oficial, más lo que añade MeshCentral Rou
 | 6 | **Página del equipo**: datos generales, inventario de hardware y del agente, interfaces de red, notas, etiquetas, descripción, historial | **hecha (0.7)** |
 | 7 | **Acciones sobre el equipo**: encender por red, suspender, reiniciar, apagar, ventana de mensaje, notificación, ejecutar órdenes, en varios equipos a la vez | **hecha (0.8)**; chat, actualizar el agente y energía por Intel AMT, más adelante |
 | 8 | **Grupos de equipos**: crear, editar, borrar, invitaciones (enlaces de instalación del agente), usuarios y permisos del grupo, mover equipos | **hecha (0.9)**; ajustes del grupo (consentimiento, avisos, borrado automático) y grupos de Intel AMT o locales, más adelante |
-| 9 | **Usuarios y cuentas** (siguiente, administradores): usuarios, grupos de usuarios, permisos, mi cuenta (doble factor, llaves, sesiones) | |
-| 10 | **Servidor**: sucesos, estadísticas, grabaciones de sesiones, informes, avisos | |
+| 9 | **Usuarios y cuentas**: usuarios, grupos de usuarios, permisos, mi cuenta (doble factor, llaves, tokens de acceso) | **hecha (0.10)**; añadir una llave de seguridad (necesita el WebAuthn del navegador), doble factor por correo o SMS y sesiones abiertas, más adelante |
+| 10 | **Servidor** (siguiente): sucesos, estadísticas, grabaciones de sesiones, informes, avisos | |
 | 11 | **Redirección de puertos** (para sustituir a MeshCentral Router) y relés RDP/SSH | |
 | 12 | Versión firmada, instalador (winget) y actualizaciones automáticas | |

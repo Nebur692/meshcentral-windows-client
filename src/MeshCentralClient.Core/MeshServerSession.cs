@@ -291,7 +291,11 @@ public sealed partial class MeshServerSession : IAsyncDisposable
 
     private void OnEvent(JsonObject e)
     {
-        if (OnGroupOrAccountEvent(e)) return;
+        // Groups and the own account first, so user subscribers already see the session's new User.
+        // Primero grupos y la propia cuenta, para que quien escucha usuarios ya vea el User nuevo de la sesión.
+        var handled = OnGroupOrAccountEvent(e);
+        OnUserEvent(e);
+        if (handled) return;
         var handler = DeviceChanged;
         if (handler is null) return;
         DeviceChangedEventArgs? args = e.Str("action") switch

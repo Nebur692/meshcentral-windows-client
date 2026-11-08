@@ -167,6 +167,10 @@ public sealed partial class MeshServerSession
         return AddMeshUser(group, new JsonObject { ["userids"] = new JsonArray(memberId) }, rights, null, ct);
     }
 
+    /// <summary>Gives a user group these rights on the device group: every member gets them. / Da a un grupo de usuarios estos permisos: los recibe cada miembro.</summary>
+    public Task<string> AddUserGroupAsync(DeviceGroup group, UserGroup userGroup, long rights, CancellationToken ct = default) =>
+        ChangeMemberRightsAsync(group, userGroup.Id, rights, ct);
+
     private async Task<string> AddMeshUser(DeviceGroup group, JsonObject who, long rights, IReadOnlyList<string>? names, CancellationToken ct)
     {
         who["action"] = "addmeshuser";
@@ -330,6 +334,21 @@ public sealed partial class MeshServerSession
                 break;
             case "accountchange" when e["account"] is JsonObject a && a.Str("_id") == User.Id:
                 User = UserInfo.From(a);
+                // Leaving a user group only changes the account (measured: no meshchange comes), so the groups seen through
+                // it are worked out again here. / Salir de un grupo de usuarios solo cambia la cuenta (medido: no llega
+                // meshchange), así que los grupos que se veían por él se recalculan aquí.
+                if (!ServerInfo.ManageAllDeviceGroups)
+                {
+                    var lost = _groups.Values.Where(g => GroupRights(User, ServerInfo, g) == 0).Select(g => g.Id).ToList();
+                    if (lost.Count > 0)
+                    {
+                        var kept = new Dictionary<string, DeviceGroup>(_groups);
+                        foreach (var id in lost) kept.Remove(id);
+                        _groups = kept;
+                        foreach (var id in lost)
+                            try { GroupChanged?.Invoke(this, new(GroupChangeKind.Removed, id, null)); } catch (Exception) { }
+                    }
+                }
                 return true;
             default:
                 return false;

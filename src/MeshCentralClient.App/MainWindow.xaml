@@ -115,6 +115,8 @@
         </Grid>
         <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
           <Button x:Name="GroupsButton" Content="{app:T GroupsButton}" Click="Groups_Click" Margin="0,0,8,0" />
+          <Button x:Name="UsersButton" Content="{app:T UsersButton}" Click="Users_Click" Margin="0,0,8,0" />
+          <Button x:Name="AccountButton" Content="{app:T AccountButton}" Click="Account_Click" Margin="0,0,8,0" />
           <Button x:Name="RefreshButton" Content="{app:T Refresh}" Click="Refresh_Click" Margin="0,0,8,0" />
           <Button x:Name="DisconnectButton" Content="{app:T Disconnect}" Click="Disconnect_Click" />
         </StackPanel>
