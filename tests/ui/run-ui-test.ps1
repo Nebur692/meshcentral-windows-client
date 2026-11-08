@@ -173,6 +173,10 @@ try {
   if ($LASTEXITCODE -ne 0) { throw "UI test failed ($LASTEXITCODE)" }
 }
 finally {
+  # How the agent ended, for when tunnels stop opening. / Cómo acabó el agente, por si dejan de abrirse los túneles.
+  Write-Host "agent $($agentProc.Id): exited=$($agentProc.HasExited)"
+  Get-ChildItem $agent | ForEach-Object { Write-Host "  agent file: $($_.Name) $($_.Length)" }
+  Get-ChildItem $agent -Filter '*.log' | ForEach-Object { Write-Host "== $($_.Name)"; Get-Content $_.FullName -Tail 30 | ForEach-Object { "  agent| $_" } }
   foreach ($p in @($agentProc, $server, $feedProc, $oidcProc)) { if ($p -and -not $p.HasExited) { Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue } }
   if ($sshStarted) {
     # What the SSH server logged, for when the SSH test fails. / Lo que apuntó el servidor SSH, por si falla su prueba.
