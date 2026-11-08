@@ -238,18 +238,13 @@ public sealed class DesktopWindow : Window
 
     // Keys go out one after another through this queue, so a Ctrl+V that waits for the clipboard keeps its place.
     // Las teclas salen una tras otra por esta cola, así que un Ctrl+V que espera al portapapeles conserva su sitio.
-    private Task _keys = Task.CompletedTask;
+    private readonly InOrder _keys = new();
+    private Task _lastKey = Task.CompletedTask;
 
-    private void Queue(Func<Task> send)
+    private void Queue(Func<Task> send) => _lastKey = _keys.Run(async () =>
     {
-        var before = _keys;
-        _keys = Next();
-        async Task Next()
-        {
-            try { await before; } catch (Exception) { }
-            try { await send(); } catch (MeshClientException) { } // a closed tunnel is told by the status / un túnel cerrado lo dice el estado
-        }
-    }
+        try { await send(); } catch (MeshClientException) { } // a closed tunnel is told by the status / un túnel cerrado lo dice el estado
+    });
 
     private void OnKey(KeyEventArgs e, bool down)
     {
@@ -279,7 +274,7 @@ public sealed class DesktopWindow : Window
         if (_c.Session is not { } s) return Task.CompletedTask;
         foreach (var vk in _pressed.ToList()) Queue(() => s.SendKeyAsync(Generic(vk), false));
         _pressed.Clear();
-        return _keys;
+        return _lastKey;
     }
 
     /// <summary>

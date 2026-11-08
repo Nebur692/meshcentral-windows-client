@@ -7,6 +7,7 @@ using Xunit;
 /// <summary>The device clipboard's scripts and answers, without a device. / Los guiones y respuestas del portapapeles del equipo, sin equipo.</summary>
 public class RemoteClipboardTests
 {
+    /// <summary>What goes on the screen: here, the whole answer, to read it as ParseAnswer does. / Lo que va a la pantalla: aquí, la respuesta entera, para leerla como ParseAnswer.</summary>
     private static string Answer(JsonObject o) => RemoteClipboard.Marker + Convert.ToBase64String(Encoding.UTF8.GetBytes(o.ToJsonString())) + RemoteClipboard.EndMarker;
 
     [Fact]
@@ -165,17 +166,19 @@ public class RemoteClipboardTests
             var output = p.StandardOutput.ReadToEndAsync();
             var errors = p.StandardError.ReadToEndAsync();
             Assert.True(p.WaitForExit(60_000), "Windows PowerShell did not finish");
-            var answer = RemoteClipboard.ParseAnswer(output.Result);
-            Assert.True(answer is not null, $"no answer in: {output.Result} {errors.Result}");
-            Assert.NotEqual("error", answer!.Str("kind"));
+            var note = RemoteClipboard.ParseAnswer(output.Result);
+            Assert.True(note is not null, $"no note in: {output.Result} {errors.Result}");
+            var path = note!.Str("path")!;
+            var answer = (JsonObject)JsonNode.Parse(File.ReadAllText(path))!;
+            File.Delete(path);
+            Assert.NotEqual("error", answer.Str("kind"));
             return answer;
         }
-        // A text too long for the terminal's screen goes to a file, named in the answer. / Un texto demasiado largo para la pantalla va a un fichero.
-        var big = new string('x', 5000);
-        var note = AsTheAgent("$rid='r1'\n$o=[ordered]@{kind='text';text='" + big + "'}\n" + RemoteClipboard.AnswerForTests);
-        Assert.Equal("answerfile", note.Str("kind"));
-        Assert.Contains(big, File.ReadAllText(note.Str("path")!), StringComparison.Ordinal);
-        File.Delete(note.Str("path")!);
+        // Text of any size and alphabet comes whole, whatever the terminal does: it never goes through the screen.
+        // Un texto de cualquier tamaño y alfabeto llega entero, haga lo que haga la terminal: no pasa por la pantalla.
+        var big = string.Concat(Enumerable.Repeat("ñandú €«»\r\n", 2000));
+        var bigAnswer = AsTheAgent("$rid='r1'\n$o=[ordered]@{kind='text';text=[Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('" + Convert.ToBase64String(Encoding.UTF8.GetBytes(big)) + "'))}\n" + RemoteClipboard.AnswerForTests);
+        Assert.Equal(big, bigAnswer.Str("text"));
         var folder = AsTheAgent(RemoteClipboard.PrepareScript("t" + Guid.NewGuid().ToString("N")[..8])).Str("folder")!;
         File.WriteAllText(Path.Combine(folder, "a.txt"), "hola");
         var set = RemoteClipboard.ToClip(AsTheAgent(RemoteClipboard.SetFilesScript(new[] { Path.Combine(folder, "a.txt") })), long.MaxValue);

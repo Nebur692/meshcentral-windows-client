@@ -52,8 +52,7 @@ public sealed class SshTerminal : ITerminalConnection
     private EventHandler<ReadOnlyMemory<byte>>? _output;
     private Task? _reading;
     private int _ended;
-    private readonly object _writeOrder = new();
-    private Task _lastWrite = Task.CompletedTask;
+    private readonly InOrder _writes = new();
 
     private SshTerminal(PortMapping mapping, SshClient client, ShellStream shell)
     {
@@ -179,24 +178,15 @@ public sealed class SshTerminal : ITerminalConnection
     /// La terminal manda cada tecla por su cuenta, sin esperar a la anterior, y el flujo SSH no admite dos escrituras a la
     /// vez (visto: «whoami» llegó como «whami»): salen una tras otra, en el orden en que se llamaron.
     /// </summary>
-    public Task WriteAsync(string text, CancellationToken ct = default)
+    public Task WriteAsync(string text, CancellationToken ct = default) => _writes.Run(async () =>
     {
-        lock (_writeOrder)
+        try
         {
-            var before = _lastWrite;
-            return _lastWrite = Next();
-            async Task Next()
-            {
-                try { await before.ConfigureAwait(false); } catch (MeshClientException) { }
-                try
-                {
-                    await _shell.WriteAsync(Encoding.UTF8.GetBytes(text), ct).ConfigureAwait(false);
-                    await _shell.FlushAsync(ct).ConfigureAwait(false);
-                }
-                catch (Exception ex) when (ex is SshException or IOException or ObjectDisposedException) { throw Lost(ex); }
-            }
+            await _shell.WriteAsync(Encoding.UTF8.GetBytes(text), ct).ConfigureAwait(false);
+            await _shell.FlushAsync(ct).ConfigureAwait(false);
         }
-    }
+        catch (Exception ex) when (ex is SshException or IOException or ObjectDisposedException) { throw Lost(ex); }
+    });
 
     public Task ResizeAsync(int cols, int rows, CancellationToken ct = default)
     {

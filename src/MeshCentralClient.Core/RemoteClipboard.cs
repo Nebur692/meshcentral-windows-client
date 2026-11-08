@@ -30,19 +30,22 @@ public sealed record RemoteClip(ClipKind Kind, string? Text, IReadOnlyList<strin
 /// has: a PowerShell of the signed-in user reads or fills the clipboard, and the files tunnel moves the bytes.
 /// Measured on GitHub's Windows (08-11): runcommands with runAsUser never answers, not even to Write-Output, and while it
 /// hangs the agent drops every later batch; the user PowerShell terminal tunnel (what the website opens) answers. So one
-/// such terminal stays open for the viewer. A terminal repaints, splits long lines at its width and adds escape
-/// sequences, so the script travels as one short line (gzip + base64, run with iex) in an STA runspace (the Windows
-/// clipboard needs STA), each answer carries the id of its request, goes in base64 between two marks and is read across
-/// lines; a large one (a long copied text) goes to a file and comes through the files tunnel.
+/// such terminal stays open for the viewer, and the script travels as one short line (gzip + base64, run with iex) in an
+/// STA runspace (the Windows clipboard needs STA). A terminal is a screen, not a channel: it splits long lines, adds
+/// escape sequences and, once it scrolls, leaves out what looks already painted (seen: the sixth answer never read). So
+/// every answer goes to a file, written whole and then renamed, and comes through the files tunnel; on the screen goes
+/// only a short note saying where, and if that note is lost the app sees the file in the folder.
 /// El portapapeles completo de un equipo Windows (texto, imágenes, ficheros), no solo el de texto de MeshCentral.
 /// getclip/setclip del agente solo llevan una cadena, así que el texto va con setclip y lo demás con lo que la app ya
 /// tiene: un PowerShell del usuario con sesión lee o llena el portapapeles, y el túnel de ficheros mueve los bytes.
 /// Medido en el Windows de GitHub (08-11): runcommands con runAsUser no contesta nunca, ni a Write-Output, y mientras se
 /// cuelga el agente tira las tandas siguientes; el túnel de terminal PowerShell del usuario (el que abre la web) sí
-/// contesta. Así que el visor deja abierta una terminal de esas. Una terminal repinta, parte las líneas largas a su ancho
-/// y mete secuencias de escape, así que el guion viaja en una línea corta (gzip + base64, con iex) en un runspace STA (el
-/// portapapeles de Windows lo pide), cada respuesta lleva el id de su petición, va en base64 entre dos marcas y se lee a
-/// través de las líneas; una grande (un texto largo copiado) va a un fichero y llega por el túnel de ficheros.
+/// contesta. Así que el visor deja abierta una terminal de esas, y el guion viaja en una línea corta (gzip + base64, con
+/// iex) en un runspace STA (el portapapeles de Windows lo pide). Una terminal es una pantalla, no un canal: parte las
+/// líneas largas, mete secuencias de escape y, al desplazarse, se salta lo que parece ya pintado (visto: la sexta
+/// respuesta no se leyó nunca). Así que cada respuesta va a un fichero, escrito entero y luego renombrado, y llega por el
+/// túnel de ficheros; a la pantalla va solo una nota corta con dónde está, y si esa nota se pierde la app ve el fichero en
+/// la carpeta.
 /// </summary>
 public sealed class RemoteClipboard : IAsyncDisposable
 {
@@ -122,9 +125,9 @@ public sealed class RemoteClipboard : IAsyncDisposable
     internal static string Quote(string s) => "'" + s.Replace("'", "''", StringComparison.Ordinal) + "'";
 
     private const string Answer =
-        "$o.id=$rid; $j=ConvertTo-Json $o -Compress -Depth 3\n"
-        + "if($j.Length -gt 3000){ $d=Join-Path $env:TEMP 'MeshCentralClient'; New-Item -ItemType Directory -Force $d | Out-Null; $p=Join-Path $d ('answer-'+$rid+'.json'); [IO.File]::WriteAllText($p,$j); $j=ConvertTo-Json ([ordered]@{kind='answerfile';id=$rid;path=$p}) -Compress }\n"
-        + "'" + Marker + "'+[Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($j))+'" + EndMarker + "'";
+        "$o.id=$rid; $d=Join-Path $env:TEMP 'MeshCentralClient\\answers'; New-Item -ItemType Directory -Force $d | Out-Null\n"
+        + "$p=Join-Path $d ($rid+'.json'); [IO.File]::WriteAllText($p+'.tmp',(ConvertTo-Json $o -Compress -Depth 3)); [IO.File]::Move($p+'.tmp',$p)\n"
+        + "'" + Marker + "'+[Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes((ConvertTo-Json ([ordered]@{id=$rid;path=$p}) -Compress)))+'" + EndMarker + "'";
 
     private const string ImageHash = "$g=[Windows.Forms.Clipboard]::GetImage(); $m=New-Object IO.MemoryStream; $g.Save($m,[Drawing.Imaging.ImageFormat]::Png); $b=$m.ToArray(); $h=[BitConverter]::ToString([Security.Cryptography.SHA256]::Create().ComputeHash($b)).Replace('-','');";
 
@@ -278,15 +281,16 @@ public sealed class RemoteClipboard : IAsyncDisposable
         if (s is not null) { try { await s.DisposeAsync().ConfigureAwait(false); } catch (Exception ex) when (ex is MeshClientException or ObjectDisposedException) { } }
     }
 
+    private string? _answers;
+
     private async Task<JsonObject> RunAsync(string script, string what, CancellationToken ct)
     {
         var shell = await ShellAsync(ct).ConfigureAwait(false);
         var id = Guid.NewGuid().ToString("N")[..12];
         lock (_screen) _screen.Clear();
-        JsonObject? o = null;
         await shell.WriteAsync(OneLine("$rid=" + Quote(id) + "\n" + script) + "\r", ct).ConfigureAwait(false);
-        var answered = await WaitAsync(() => (o = ParseAnswer(_screen.ToString(), id)) is not null, TimeSpan.FromSeconds(60), ct).ConfigureAwait(false);
-        if (!answered)
+        var path = await WaitForAnswerAsync(id, ct).ConfigureAwait(false);
+        if (path is null)
         {
             string seen;
             lock (_screen) seen = Escapes.Replace(_screen.ToString(), "");
@@ -296,17 +300,36 @@ public sealed class RemoteClipboard : IAsyncDisposable
                 ? new MeshClientException(MeshFailure.ConnectionLost, "portapapeles/sincronizar/conexion-cortada", $"The device's PowerShell closed while it was going to {what} (is anyone signed in there?).")
                 : new MeshClientException(MeshFailure.UnexpectedResponse, "portapapeles/sincronizar/respuesta-ilegible", $"The device's PowerShell did not answer while it was going to {what} (is Windows PowerShell blocked there?): {Short(seen)}");
         }
-        var answer = o!;
-        if (answer.Str("kind") == "answerfile") answer = await ReadAnswerFileAsync(answer, ct).ConfigureAwait(false);
+        var answer = await ReadAnswerFileAsync(path, ct).ConfigureAwait(false);
         if (answer.Str("kind") == "error")
             throw new MeshClientException(MeshFailure.Rejected, "portapapeles/sincronizar/rechazo-remoto", $"The device could not {what}: {answer.Str("error")}") { ServerMessage = answer.Str("error") };
         return answer;
     }
 
-    /// <summary>An answer too large for the terminal's screen, from its file; the file is removed. / Una respuesta demasiado grande para la pantalla de la terminal, de su fichero; se borra.</summary>
-    private async Task<JsonObject> ReadAnswerFileAsync(JsonObject note, CancellationToken ct)
+    /// <summary>Where the answer is: said on the screen or, once the folder is known, seen in it. / Dónde está la respuesta: dicho en la pantalla o, ya conocida la carpeta, visto en ella.</summary>
+    private async Task<string?> WaitForAnswerAsync(string id, CancellationToken ct)
     {
-        var path = (note.Str("path") ?? "").Replace('\\', '/');
+        var limit = DateTime.UtcNow.AddSeconds(60);
+        while (DateTime.UtcNow < limit)
+        {
+            JsonObject? note = null;
+            if (await WaitAsync(() => (note = ParseAnswer(_screen.ToString(), id)) is not null, TimeSpan.FromMilliseconds(400), ct).ConfigureAwait(false))
+            {
+                var said = note!.Str("path")?.Replace('\\', '/');
+                if (said is not null) _answers = Parent(said);
+                return said;
+            }
+            if (_shellEnded) return null;
+            if (_answers is null) continue;
+            var files = await FilesAsync(ct).ConfigureAwait(false);
+            if ((await files.ListAsync(_answers, ct).ConfigureAwait(false)).Entries.Any(e => e.Name == id + ".json")) return _answers + "/" + id + ".json";
+        }
+        return null;
+    }
+
+    /// <summary>An answer, from its file; the file is removed. / Una respuesta, de su fichero; se borra.</summary>
+    private async Task<JsonObject> ReadAnswerFileAsync(string path, CancellationToken ct)
+    {
         var files = await FilesAsync(ct).ConfigureAwait(false);
         using var json = new MemoryStream();
         await files.DownloadAsync(path, json, null, ct).ConfigureAwait(false);

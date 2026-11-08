@@ -156,6 +156,15 @@ public sealed class DesktopClipboardTests(ITestOutputHelper output) : IDisposabl
         Assert.Equal(t2, ClipboardTool.Text());
         Shot("text-from-device");
 
+        // 7. A long text, far larger than any terminal screen, comes whole. / Un texto largo, mucho mayor que una pantalla de terminal, llega entero.
+        desk.AsWindow().SetForeground();
+        Thread.Sleep(1500);
+        var longText = string.Concat(Enumerable.Repeat("línea larga ñ€ " + _tag + "\r\n", 800));
+        ClipboardTool.SetText(longText);
+        win.SetForeground();
+        Until(() => Notice() == $"Text copied on the device ({ClipboardTool.Text().Length} characters) is on this PC.", "the long text brought from the device", Notice);
+        Assert.Equal(longText.TrimEnd(), ClipboardTool.Text().TrimEnd());
+
         foreach (var d in new[] { there, here }) { try { Directory.Delete(d, true); } catch (Exception) { } }
     }
 }
