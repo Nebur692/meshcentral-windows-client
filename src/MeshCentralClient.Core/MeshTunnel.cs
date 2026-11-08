@@ -166,13 +166,11 @@ public sealed class MeshTunnel : IAsyncDisposable
     {
         if (_ws.State != WebSocketState.Open)
             throw new MeshClientException(MeshFailure.ConnectionLost, "tunel/ver-pantalla/conexion-cortada", "The tunnel is closed.");
-        await _sendLock.WaitAsync(ct).ConfigureAwait(false);
-        try { await _ws.SendAsync(data, type, true, ct).ConfigureAwait(false); }
+        try { await WholeMessage.SendAsync(_ws, _sendLock, data, type, ct).ConfigureAwait(false); }
         catch (Exception ex) when (ex is WebSocketException or IOException or ObjectDisposedException)
         {
             throw new MeshClientException(MeshFailure.ConnectionLost, "tunel/ver-pantalla/conexion-cortada", "The tunnel was closed.", ex);
         }
-        finally { _sendLock.Release(); }
     }
 
     private async Task ReceiveLoopAsync()

@@ -217,9 +217,7 @@ public sealed partial class MeshServerSession : IAsyncDisposable
     internal async Task SendAsync(JsonObject message, CancellationToken ct)
     {
         var bytes = Encoding.UTF8.GetBytes(message.ToJsonString());
-        await _sendLock.WaitAsync(ct).ConfigureAwait(false);
-        try { await _ws.SendAsync(bytes, WebSocketMessageType.Text, true, ct).ConfigureAwait(false); }
-        finally { _sendLock.Release(); }
+        await WholeMessage.SendAsync(_ws, _sendLock, bytes, WebSocketMessageType.Text, ct).ConfigureAwait(false);
     }
 
     private Task<JsonObject> WaitFor(Func<JsonObject, bool> match, CancellationToken ct)
