@@ -62,9 +62,38 @@ public sealed class DesktopSession : IAsyncDisposable
         tunnel.DataReceived += (_, d) => OnFrame(d.Span);
         tunnel.ControlReceived += (_, c) =>
         {
-            if (c.Str("type") == "console" && c.Str("msg") is { Length: > 0 } msg) Message?.Invoke(this, msg);
+            if (c.Str("type") == "console" && c.Str("msg") is { Length: > 0 } msg) { _agentSpoke = true; Message?.Invoke(this, msg); }
         };
+        _ = AskAgainUntilTheFirstImage();
     }
+
+    private readonly CancellationTokenSource _closing = new();
+    private volatile bool _agentSpoke;
+
+    /// <summary>
+    /// A desktop opened right after the last one closed sometimes gets no image at all: the server is still closing the
+    /// agent's previous tunnel (meshdesktopmultiplex.js). Measured on GitHub (DesktopReopenTests, 2 runs of 7): nothing
+    /// came in 15 s, and asking for the screen again (refresh) brought it. So while no tile has arrived, it is asked for
+    /// again every few seconds, a few times, and never once an image is in or the agent has said why there is none
+    /// (a device without a screen: asking again would only load an agent that already answered).
+    /// Un escritorio abierto justo después de cerrar el anterior a veces no recibe ninguna imagen: el servidor aún está
+    /// cerrando el túnel anterior del agente. Medido en GitHub (DesktopReopenTests, 2 pasadas de 7): nada en 15 s, y
+    /// volver a pedir la pantalla (refrescar) la trajo. Así que mientras no ha llegado ninguna tesela se vuelve a pedir
+    /// cada pocos segundos, unas pocas veces, y nunca una vez que hay imagen o el agente ha dicho por qué no la hay
+    /// (un equipo sin pantalla: volver a pedir solo cargaría a un agente que ya contestó).
+    /// </summary>
+    private async Task AskAgainUntilTheFirstImage()
+    {
+        for (var i = 0; i < NoImageRetries; i++)
+        {
+            try { await Task.Delay(NoImageWait, _closing.Token).ConfigureAwait(false); } catch (OperationCanceledException) { return; }
+            if (Interlocked.Read(ref _tiles) > 0 || _agentSpoke) return;
+            await RefreshAsync().ConfigureAwait(false);
+        }
+    }
+
+    private static readonly TimeSpan NoImageWait = TimeSpan.FromSeconds(3);
+    private const int NoImageRetries = 5;
 
     public MeshTunnel Tunnel => _tunnel;
 
@@ -105,7 +134,7 @@ public sealed class DesktopSession : IAsyncDisposable
                     break;
                 case 17 or 65 when v.Length > 4: // agent message, alert / mensaje, alerta
                     var text = Encoding.UTF8.GetString(v, 4, v.Length - 4);
-                    if (!text.StartsWith('.')) Message?.Invoke(this, text);
+                    if (!text.StartsWith('.')) { _agentSpoke = true; Message?.Invoke(this, text); }
                     break;
                 case 82:
                     if (ParseLayout(v) is { Count: > 0 } layout) LayoutChanged?.Invoke(this, layout);
@@ -222,7 +251,11 @@ public sealed class DesktopSession : IAsyncDisposable
         return SafeSend(QualityCommand(), Bytes(0, 6, 0, 4));
     }
 
-    public ValueTask DisposeAsync() => _tunnel.DisposeAsync();
+    public ValueTask DisposeAsync()
+    {
+        _closing.Cancel();
+        return _tunnel.DisposeAsync();
+    }
 }
 
 /// <summary>
