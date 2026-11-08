@@ -1,5 +1,5 @@
 {
-  "generado": "2026-11-07T23:04:22Z",
+  "generado": "2026-11-08T06:20:11Z",
   "aviso": "Generado por bin/burburito. No editar a mano: la fuente de verdad es el burburito.json de al lado.",
   "proyecto": {
     "id": 35,
@@ -414,6 +414,162 @@
       "severidad": "aviso",
       "actuar": true,
       "titulo": "El equipo no hizo el cambio"
+    },
+    "grupos/descargar/sin-conexion": {
+      "codigo": "035-010-023-001",
+      "severidad": "aviso",
+      "actuar": true,
+      "titulo": "No se pudo descargar el agente"
+    },
+    "grupos/descargar/error-remoto": {
+      "codigo": "035-010-023-020",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "El servidor no dio el agente"
+    },
+    "grupos/descargar/respuesta-ilegible": {
+      "codigo": "035-010-023-022",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "Lo descargado no es un programa de Windows"
+    },
+    "grupos/descargar/no-autorizado": {
+      "codigo": "035-010-023-046",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "El servidor solo da el agente a navegadores con sesión"
+    },
+    "grupos/gestionar-grupos/tiempo-agotado": {
+      "codigo": "035-010-502-002",
+      "severidad": "aviso",
+      "actuar": true,
+      "titulo": "El servidor no contestó a tiempo al cambiar el grupo"
+    },
+    "grupos/gestionar-grupos/conexion-cortada": {
+      "codigo": "035-010-502-005",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "Se cortó la conexión al cambiar el grupo"
+    },
+    "grupos/gestionar-grupos/rechazo-remoto": {
+      "codigo": "035-010-502-021",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "El servidor no aceptó el cambio del grupo"
+    },
+    "grupos/gestionar-grupos/no-autorizado": {
+      "codigo": "035-010-502-046",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "Sin permiso para crear, editar o borrar ese grupo"
+    },
+    "grupos/gestionar-grupos/dato-invalido": {
+      "codigo": "035-010-502-061",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "El nombre o la descripción del grupo no valen"
+    },
+    "grupos/gestionar-usuarios-grupo/tiempo-agotado": {
+      "codigo": "035-010-503-002",
+      "severidad": "aviso",
+      "actuar": true,
+      "titulo": "El servidor no contestó a tiempo al cambiar los permisos"
+    },
+    "grupos/gestionar-usuarios-grupo/conexion-cortada": {
+      "codigo": "035-010-503-005",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "Se cortó la conexión al cambiar los permisos"
+    },
+    "grupos/gestionar-usuarios-grupo/rechazo-remoto": {
+      "codigo": "035-010-503-021",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "El servidor no aceptó el cambio de permisos"
+    },
+    "grupos/gestionar-usuarios-grupo/no-autorizado": {
+      "codigo": "035-010-503-046",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "Sin permiso para cambiar los usuarios de ese grupo"
+    },
+    "grupos/gestionar-usuarios-grupo/falta-dato": {
+      "codigo": "035-010-503-060",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "Falta el nombre de usuario"
+    },
+    "grupos/gestionar-usuarios-grupo/no-encontrado": {
+      "codigo": "035-010-503-062",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "El servidor no conoce esa cuenta"
+    },
+    "grupos/gestionar-usuarios-grupo/conflicto-estado": {
+      "codigo": "035-010-503-064",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "Una cuenta no puede cambiar sus propios permisos"
+    },
+    "grupos/mover-equipos/tiempo-agotado": {
+      "codigo": "035-010-504-002",
+      "severidad": "aviso",
+      "actuar": true,
+      "titulo": "El servidor no contestó a tiempo al mover el equipo"
+    },
+    "grupos/mover-equipos/conexion-cortada": {
+      "codigo": "035-010-504-005",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "Se cortó la conexión al mover el equipo"
+    },
+    "grupos/mover-equipos/rechazo-remoto": {
+      "codigo": "035-010-504-021",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "El servidor no movió el equipo"
+    },
+    "grupos/mover-equipos/no-autorizado": {
+      "codigo": "035-010-504-046",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "Sin permiso para mover ese equipo a ese grupo"
+    },
+    "grupos/mover-equipos/conflicto-estado": {
+      "codigo": "035-010-504-064",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "Los equipos solo se mueven entre grupos del mismo tipo"
+    },
+    "grupos/invitar-agente/tiempo-agotado": {
+      "codigo": "035-010-505-002",
+      "severidad": "aviso",
+      "actuar": true,
+      "titulo": "El servidor no contestó a tiempo al crear el enlace"
+    },
+    "grupos/invitar-agente/conexion-cortada": {
+      "codigo": "035-010-505-005",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "Se cortó la conexión al crear el enlace"
+    },
+    "grupos/invitar-agente/rechazo-remoto": {
+      "codigo": "035-010-505-021",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "El servidor no creó el enlace de invitación"
+    },
+    "grupos/invitar-agente/no-autorizado": {
+      "codigo": "035-010-505-046",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "Sin permiso para añadir equipos a ese grupo"
+    },
+    "grupos/invitar-agente/dato-invalido": {
+      "codigo": "035-010-505-061",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "La caducidad del enlace no vale"
     },
     "tunel/ver-pantalla/conexion-cortada": {
       "codigo": "035-005-020-005",

@@ -60,6 +60,12 @@
       "slug": "acciones",
       "nombre": "Las acciones sobre equipos",
       "descripcion": "MeshServerSession.Actions.cs y sus ventanas: wakedevices (encender por red), poweraction (apagar, reiniciar, suspender), toast y msg messagebox (avisos a quien usa el equipo) y runcommands con reply (órdenes con su salida). Los permisos se calculan como la web (GetNodeRights: enlaces del grupo, del equipo y de los grupos de usuarios, menos removeRights) porque poweraction y toast contestan «ok» aunque no se tenga permiso."
+    },
+    {
+      "id": 10,
+      "slug": "grupos",
+      "nombre": "Los grupos de equipos",
+      "descripcion": "MeshServerSession.Groups.cs y GroupsWindow: createmesh, editmesh, deletemesh, addmeshuser/removemeshuser (usuarios y permisos del grupo), changeDeviceMesh (mover equipos), createInviteLink y la descarga del agente (meshagents). Los permisos se comprueban antes, como la web, porque editmesh, removemeshuser y changeDeviceMesh entre grupos de distinto tipo no contestan nada cuando se rechazan."
     }
   ],
   "acciones": [
@@ -74,6 +80,30 @@
       "slug": "ejecutar-ordenes",
       "nombre": "Ejecutar órdenes en equipos",
       "descripcion": "La persona manda órdenes de cmd, PowerShell o shell a uno o varios equipos y espera su salida (runcommands con reply). No está en el vocabulario global."
+    },
+    {
+      "id": 502,
+      "slug": "gestionar-grupos",
+      "nombre": "Crear, editar o borrar un grupo de equipos",
+      "descripcion": "La persona crea un grupo, le cambia el nombre o la descripción, o lo borra con sus equipos. No está en el vocabulario global."
+    },
+    {
+      "id": 503,
+      "slug": "gestionar-usuarios-grupo",
+      "nombre": "Dar, cambiar o quitar permisos en un grupo",
+      "descripcion": "La persona añade cuentas a un grupo de equipos con unos permisos, se los cambia o las saca. No está en el vocabulario global."
+    },
+    {
+      "id": 504,
+      "slug": "mover-equipos",
+      "nombre": "Mover equipos a otro grupo",
+      "descripcion": "La persona pasa uno o varios equipos a otro grupo (changeDeviceMesh). No está en el vocabulario global."
+    },
+    {
+      "id": 505,
+      "slug": "invitar-agente",
+      "nombre": "Invitar a instalar el agente",
+      "descripcion": "La persona crea un enlace público para que alguien instale el agente en un grupo (createInviteLink). No está en el vocabulario global."
     }
   ],
   "codigos": [
@@ -796,6 +826,266 @@
       "titulo": "Se cortó la conexión mientras corrían las órdenes",
       "explicacion": "El canal de control se cerró antes de que llegara la salida; puede que las órdenes se ejecutaran.",
       "que_hacer": "Volver a conectar y mirar el historial del equipo."
+    },
+    {
+      "modulo": "grupos",
+      "accion": "gestionar-grupos",
+      "causa": "no-autorizado",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "Sin permiso para crear, editar o borrar ese grupo",
+      "explicacion": "Crear grupos lo puede prohibir el administrador del servidor; editar pide el permiso de editar el grupo y borrar, todos los permisos del grupo. La app no lo manda porque editmesh sin permiso no contesta.",
+      "que_hacer": "Pedir ese permiso a un administrador del grupo o del servidor."
+    },
+    {
+      "modulo": "grupos",
+      "accion": "gestionar-grupos",
+      "causa": "dato-invalido",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "El nombre o la descripción del grupo no valen",
+      "explicacion": "El nombre tiene que tener de 1 a 128 caracteres y la descripción hasta 1024.",
+      "que_hacer": "Escribir un nombre más corto o quitar texto de la descripción."
+    },
+    {
+      "modulo": "grupos",
+      "accion": "gestionar-grupos",
+      "causa": "rechazo-remoto",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "El servidor no aceptó el cambio del grupo",
+      "explicacion": "El servidor contestó con un error (p. ej. «Email verification required»: la cuenta tiene que verificar su correo antes de crear grupos).",
+      "que_hacer": "Leer el mensaje del servidor en Detalles y hacer lo que pide."
+    },
+    {
+      "modulo": "grupos",
+      "accion": "gestionar-grupos",
+      "causa": "tiempo-agotado",
+      "severidad": "aviso",
+      "actuar": true,
+      "titulo": "El servidor no contestó a tiempo al cambiar el grupo",
+      "explicacion": "La petición salió pero no llegó respuesta en 20 s: servidor muy cargado o conexión lenta.",
+      "que_hacer": "Volver a probar; si se repite, mirar el estado del servidor."
+    },
+    {
+      "modulo": "grupos",
+      "accion": "gestionar-grupos",
+      "causa": "conexion-cortada",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "Se cortó la conexión al cambiar el grupo",
+      "explicacion": "El canal de control se cerró antes de la respuesta; puede que el cambio se hiciera.",
+      "que_hacer": "Volver a conectar y comprobar cómo quedó."
+    },
+    {
+      "modulo": "grupos",
+      "accion": "gestionar-usuarios-grupo",
+      "causa": "no-autorizado",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "Sin permiso para cambiar los usuarios de ese grupo",
+      "explicacion": "Hace falta el permiso de gestionar usuarios del grupo, y para tocar o nombrar a un administrador del grupo, ser administrador de él. El servidor ignora sin contestar lo segundo.",
+      "que_hacer": "Pedírselo a un administrador del grupo."
+    },
+    {
+      "modulo": "grupos",
+      "accion": "gestionar-usuarios-grupo",
+      "causa": "conflicto-estado",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "Una cuenta no puede cambiar sus propios permisos",
+      "explicacion": "MeshCentral no deja a nadie cambiarse o quitarse a sí mismo de un grupo.",
+      "que_hacer": "Que lo haga otro administrador del grupo."
+    },
+    {
+      "modulo": "grupos",
+      "accion": "gestionar-usuarios-grupo",
+      "causa": "falta-dato",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "Falta el nombre de usuario",
+      "explicacion": "No se escribió ninguna cuenta a la que dar permisos.",
+      "que_hacer": "Escribir uno o varios nombres de usuario, separados por comas."
+    },
+    {
+      "modulo": "grupos",
+      "accion": "gestionar-usuarios-grupo",
+      "causa": "no-encontrado",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "El servidor no conoce esa cuenta",
+      "explicacion": "Alguno de los nombres escritos no es un usuario de este servidor (se busca por nombre de usuario, no por nombre visible ni correo).",
+      "que_hacer": "Comprobar el nombre de usuario exacto en la lista de usuarios del servidor."
+    },
+    {
+      "modulo": "grupos",
+      "accion": "gestionar-usuarios-grupo",
+      "causa": "rechazo-remoto",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "El servidor no aceptó el cambio de permisos",
+      "explicacion": "El servidor contestó con un error al dar, cambiar o quitar permisos.",
+      "que_hacer": "Leer el mensaje del servidor en Detalles."
+    },
+    {
+      "modulo": "grupos",
+      "accion": "gestionar-usuarios-grupo",
+      "causa": "tiempo-agotado",
+      "severidad": "aviso",
+      "actuar": true,
+      "titulo": "El servidor no contestó a tiempo al cambiar los permisos",
+      "explicacion": "La petición salió pero no llegó respuesta en 20 s: servidor muy cargado o conexión lenta.",
+      "que_hacer": "Volver a probar; si se repite, mirar el estado del servidor."
+    },
+    {
+      "modulo": "grupos",
+      "accion": "gestionar-usuarios-grupo",
+      "causa": "conexion-cortada",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "Se cortó la conexión al cambiar los permisos",
+      "explicacion": "El canal de control se cerró antes de la respuesta; puede que el cambio se hiciera.",
+      "que_hacer": "Volver a conectar y comprobar cómo quedó."
+    },
+    {
+      "modulo": "grupos",
+      "accion": "mover-equipos",
+      "causa": "no-autorizado",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "Sin permiso para mover ese equipo a ese grupo",
+      "explicacion": "Mover pide el permiso de editar el grupo en el equipo y los de editar el grupo y gestionar equipos en el grupo de destino.",
+      "que_hacer": "Pedir esos permisos a un administrador de los dos grupos."
+    },
+    {
+      "modulo": "grupos",
+      "accion": "mover-equipos",
+      "causa": "conflicto-estado",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "Los equipos solo se mueven entre grupos del mismo tipo",
+      "explicacion": "Un equipo con agente no puede ir a un grupo de Intel AMT o de equipos locales; el servidor tira esa petición sin contestar, por eso la app no la manda.",
+      "que_hacer": "Elegir un grupo de destino del mismo tipo."
+    },
+    {
+      "modulo": "grupos",
+      "accion": "mover-equipos",
+      "causa": "rechazo-remoto",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "El servidor no movió el equipo",
+      "explicacion": "El servidor contestó con un error («Device not found», «Permission denied»…).",
+      "que_hacer": "Actualizar la lista y volver a probar."
+    },
+    {
+      "modulo": "grupos",
+      "accion": "mover-equipos",
+      "causa": "tiempo-agotado",
+      "severidad": "aviso",
+      "actuar": true,
+      "titulo": "El servidor no contestó a tiempo al mover el equipo",
+      "explicacion": "La petición salió pero no llegó respuesta en 20 s: servidor muy cargado o conexión lenta.",
+      "que_hacer": "Volver a probar; si se repite, mirar el estado del servidor."
+    },
+    {
+      "modulo": "grupos",
+      "accion": "mover-equipos",
+      "causa": "conexion-cortada",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "Se cortó la conexión al mover el equipo",
+      "explicacion": "El canal de control se cerró antes de la respuesta; puede que el cambio se hiciera.",
+      "que_hacer": "Volver a conectar y comprobar cómo quedó."
+    },
+    {
+      "modulo": "grupos",
+      "accion": "invitar-agente",
+      "causa": "no-autorizado",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "Sin permiso para añadir equipos a ese grupo",
+      "explicacion": "Las invitaciones y descargas del agente piden el permiso de gestionar equipos del grupo, y que el administrador del servidor no haya prohibido instalar agentes a la cuenta.",
+      "que_hacer": "Pedir ese permiso a un administrador del grupo."
+    },
+    {
+      "modulo": "grupos",
+      "accion": "invitar-agente",
+      "causa": "dato-invalido",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "La caducidad del enlace no vale",
+      "explicacion": "La caducidad va de 0 (no caduca) a 99999 horas.",
+      "que_hacer": "Elegir una de las caducidades de la lista."
+    },
+    {
+      "modulo": "grupos",
+      "accion": "invitar-agente",
+      "causa": "rechazo-remoto",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "El servidor no creó el enlace de invitación",
+      "explicacion": "El servidor contestó con un error en vez del enlace.",
+      "que_hacer": "Leer el mensaje del servidor en Detalles."
+    },
+    {
+      "modulo": "grupos",
+      "accion": "invitar-agente",
+      "causa": "tiempo-agotado",
+      "severidad": "aviso",
+      "actuar": true,
+      "titulo": "El servidor no contestó a tiempo al crear el enlace",
+      "explicacion": "La petición salió pero no llegó respuesta en 20 s: servidor muy cargado o conexión lenta.",
+      "que_hacer": "Volver a probar; si se repite, mirar el estado del servidor."
+    },
+    {
+      "modulo": "grupos",
+      "accion": "invitar-agente",
+      "causa": "conexion-cortada",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "Se cortó la conexión al crear el enlace",
+      "explicacion": "El canal de control se cerró antes de la respuesta; puede que el cambio se hiciera.",
+      "que_hacer": "Volver a conectar y comprobar cómo quedó."
+    },
+    {
+      "modulo": "grupos",
+      "accion": "descargar",
+      "causa": "no-autorizado",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "El servidor solo da el agente a navegadores con sesión",
+      "explicacion": "Este servidor tiene activado lockagentdownload: la descarga directa del agente pide la sesión de la web.",
+      "que_hacer": "Usar el enlace de invitación, o descargarlo desde la web del servidor."
+    },
+    {
+      "modulo": "grupos",
+      "accion": "descargar",
+      "causa": "sin-conexion",
+      "severidad": "aviso",
+      "actuar": true,
+      "titulo": "No se pudo descargar el agente",
+      "explicacion": "La conexión con el servidor falló durante la descarga.",
+      "que_hacer": "Comprobar la conexión y volver a probar."
+    },
+    {
+      "modulo": "grupos",
+      "accion": "descargar",
+      "causa": "error-remoto",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "El servidor no dio el agente",
+      "explicacion": "El servidor contestó a la descarga con un error HTTP (p. ej. 404 si no tiene ese agente).",
+      "que_hacer": "Probar con otra versión del agente o descargarlo desde la web del servidor."
+    },
+    {
+      "modulo": "grupos",
+      "accion": "descargar",
+      "causa": "respuesta-ilegible",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "Lo descargado no es un programa de Windows",
+      "explicacion": "El servidor devolvió otra cosa (una página de error) en vez del agente.",
+      "que_hacer": "Descargarlo desde la web del servidor y avisar si se repite."
     }
   ]
 }

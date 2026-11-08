@@ -27,7 +27,7 @@ official website and `meshctrl`, so it works with **any** MeshCentral installati
 
 > Unofficial project, not affiliated with the MeshCentral authors. The device side still uses the official MeshCentral agent.
 
-### Features (version 0.7)
+### Features (version 0.9)
 
 - **Sign in** with username and password, with **two-factor** codes (authenticator app, or email code when the server offers it).
 - **Single sign-on**: if the server offers it (OpenID Connect, SAML, Microsoft, Google, GitHub…), a button signs in on
@@ -52,14 +52,18 @@ official website and `meshctrl`, so it works with **any** MeshCentral installati
 - **Device actions**, on one or several selected devices: wake up, restart, power off and sleep (always asked first), a
   notification or a message window for whoever uses the device, and **run commands** in cmd, PowerShell or sh with each
   device's output. Only what the account is allowed to do is offered.
+- **Device groups**: create, rename and delete them; give other accounts rights on a group (every right of the
+  website, as checkboxes), change them or take them away; **move devices** between groups; and add new devices with an
+  **invitation link** (a public page with the installers), the **Windows agent** with the group built in, or the
+  **Linux / macOS command**. Changes made anywhere else appear at once.
 - **Open in the browser** from the device's menu.
 - **Light, dark or like Windows**, remembered.
 - **Updates itself**: when a new version is published, it offers it, checks its SHA-256 fingerprint and restarts as
   the new version; a file that does not match is never installed.
 - **English and Spanish** interface, following the Windows language.
 
-The goal is everything the MeshCentral website does. Coming next: device actions (wake, power, messages, run commands),
-groups, users and port mapping — see [the plan](docs/PLAN.md).
+The goal is everything the MeshCentral website does. Coming next: users and accounts, server events and recordings, and
+port mapping — see [the plan](docs/PLAN.md).
 
 ### Install
 
@@ -101,7 +105,7 @@ web oficial y `meshctrl`, así que funciona con **cualquier** instalación de Me
 
 > Proyecto no oficial, sin relación con los autores de MeshCentral. En los equipos se sigue usando el agente oficial de MeshCentral.
 
-### Qué hace (versión 0.7)
+### Qué hace (versión 0.9)
 
 - **Entrar** con usuario y contraseña, con código de **doble factor** (app de autenticación, o código por correo si el servidor lo ofrece).
 - **Inicio de sesión único**: si el servidor lo ofrece (OpenID Connect, SAML, Microsoft, Google, GitHub…), un botón
@@ -126,14 +130,18 @@ web oficial y `meshctrl`, así que funciona con **cualquier** instalación de Me
 - **Acciones sobre equipos**, en uno o varios equipos elegidos: encender, reiniciar, apagar y suspender (siempre
   pregunta antes), una notificación o una ventana de mensaje para quien usa el equipo, y **ejecutar órdenes** en cmd,
   PowerShell o sh con la salida de cada equipo. Solo se ofrece lo que la cuenta tiene permiso para hacer.
+- **Grupos de equipos**: crearlos, renombrarlos y borrarlos; dar permisos en un grupo a otras cuentas (todos los de la
+  web, como casillas), cambiarlos o quitarlos; **mover equipos** de un grupo a otro; y añadir equipos nuevos con un
+  **enlace de invitación** (una página pública con los instaladores), el **agente de Windows** con el grupo dentro o la
+  **orden de Linux / macOS**. Lo que se cambie en otro sitio aparece al momento.
 - **Abrir en el navegador** desde el menú del equipo.
 - **Claro, oscuro o como Windows**, y lo recuerda.
 - **Se actualiza sola**: cuando se publica una versión nueva, la ofrece, comprueba su huella SHA-256 y se reabre ya
   actualizada; un fichero que no coincide no se instala nunca.
 - Interfaz en **inglés y español**, según el idioma de Windows.
 
-La meta es todo lo que hace la web de MeshCentral. Lo siguiente: acciones sobre el equipo (encender, energía,
-mensajes, ejecutar órdenes), grupos, usuarios y redirección de puertos; está en [el plan](docs/PLAN.md).
+La meta es todo lo que hace la web de MeshCentral. Lo siguiente: usuarios y cuentas, sucesos y grabaciones del
+servidor, y redirección de puertos; está en [el plan](docs/PLAN.md).
 
 ### Instalar
 

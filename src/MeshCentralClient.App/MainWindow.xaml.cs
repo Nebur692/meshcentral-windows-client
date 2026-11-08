@@ -353,6 +353,7 @@ public partial class MainWindow : Window
     {
         _session = session;
         session.DeviceChanged += (_, e) => Dispatcher.BeginInvoke(() => ApplyChange(session, e));
+        session.GroupChanged += (_, e) => Dispatcher.BeginInvoke(() => ApplyGroupChange(session, e));
         session.Closed += (_, e) => Dispatcher.BeginInvoke(() => OnSessionLost(session, e));
         SessionTitle.Text = string.IsNullOrEmpty(session.ServerInfo.Name) ? session.Server.Host : session.ServerInfo.Name;
         SessionSubtitle.Text = $"{session.User.Name} · {session.Server}";
@@ -386,6 +387,18 @@ public partial class MainWindow : Window
     }
 
     private string GroupName(string id) => _groupNames.TryGetValue(id, out var n) ? n : id;
+
+    /// <summary>A group created, renamed or deleted (here or anywhere else). Deleting a group removes its devices from the server.
+    /// Un grupo creado, renombrado o borrado (aquí o en otro sitio). Borrar un grupo quita sus equipos del servidor.</summary>
+    private void ApplyGroupChange(MeshServerSession from, GroupChangedEventArgs e)
+    {
+        if (!ReferenceEquals(from, _session)) return;
+        if (e.Group is { } g) _groupNames[g.Id] = g.Name; else _groupNames.Remove(e.GroupId);
+        foreach (var row in _rows.Where(r => r.Device.GroupId == e.GroupId).ToList())
+            if (e.Group is null) _rows.Remove(row); else row.GroupName = e.Group.Name;
+        _view?.Refresh();
+        UpdateCount();
+    }
 
     private void ApplyChange(MeshServerSession from, DeviceChangedEventArgs e)
     {
@@ -498,6 +511,7 @@ public partial class MainWindow : Window
         PowerMenu.IsEnabled = abilities.Any(a => a.Power);
         SendMessageItem.IsEnabled = abilities.Any(a => a.Notify || a.MessageBox);
         RunCommandsItem.IsEnabled = abilities.Any(a => a.RunCommands);
+        MoveToGroupItem.IsEnabled = MoveTargets(SelectedDevices()).Count > 0;
     }
 
     private void OpenTerminal_Click(object sender, RoutedEventArgs e) => OpenTerminal(TunnelProtocol.Terminal);
@@ -624,6 +638,37 @@ public partial class MainWindow : Window
         _sessionWindows.Add(w);
         w.Closed += (_, _) => _sessionWindows.Remove(w);
         w.Show();
+    }
+
+    // ------------------------------------------------------------------ groups / grupos
+
+    private GroupsWindow? _groupsWindow;
+
+    private void Groups_Click(object sender, RoutedEventArgs e)
+    {
+        if (_session is not { } s) return;
+        if (_groupsWindow is { IsLoaded: true }) { _groupsWindow.Activate(); return; }
+        var w = _groupsWindow = new GroupsWindow(s, id => _rows.Count(r => r.Device.GroupId == id));
+        _sessionWindows.Add(w);
+        w.Closed += (_, _) => { _sessionWindows.Remove(w); if (ReferenceEquals(_groupsWindow, w)) _groupsWindow = null; };
+        w.Show();
+    }
+
+    /// <summary>Groups where at least one of these devices can go. / Grupos a los que puede ir al menos uno de estos equipos.</summary>
+    private List<DeviceGroup> MoveTargets(List<Device> devices) => _session is not { } s ? new()
+        : s.Groups.Where(g => devices.Any(d => s.CanMove(d, g))).OrderBy(g => g.Name, StringComparer.CurrentCultureIgnoreCase).ToList();
+
+    private async void MoveToGroup_Click(object sender, RoutedEventArgs e)
+    {
+        if (_session is not { } s) return;
+        var selected = SelectedDevices();
+        var targets = MoveTargets(selected);
+        if (targets.Count == 0) { ActionStatus.Text = L.T("NoTargetGroup"); return; }
+        if (MoveDialog.Ask(this, selected.Select(d => d.Name).ToList(), targets) is not { } target) return;
+        var can = selected.Where(d => s.CanMove(d, target)).ToList();
+        var skipped = selected.Except(can).Select(d => d.Name).ToList();
+        try { await s.MoveDevicesAsync(can, target); Status(L.F("Moved", can.Count, target.Name), skipped); }
+        catch (MeshClientException ex) { ErrorWindow.Show(this, UserError.From(ex, s.ServerInfo.Version)); }
     }
 
     private void CopyName_Click(object sender, RoutedEventArgs e)

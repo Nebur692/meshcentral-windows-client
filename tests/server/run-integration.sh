@@ -62,7 +62,10 @@ docker run --rm --network "$NET" --add-host "mesh.test:$SRV_IP" --cpus 2 --memor
          # 1.3.1 with exactly what the website sends), and after two crashes it stops. So the desktop test runs last.
          # Pedir el escritorio al agente Linux sin pantalla cuelga al propio agente (MeshAgent, medido en 1.3.1 con
          # exactamente lo que manda la web), y a los dos cuelgues se para. Por eso la prueba del escritorio va la última.
-         t --filter "FullyQualifiedName!~DesktopIntegrationTests" --logger "console;verbosity=normal" &&
+         # Moving the agent to another group goes alone too: meanwhile the others would not find their device.
+         # Mover el agente a otro grupo también va solo: mientras, las demás no encontrarían su equipo.
+         t --filter "FullyQualifiedName!~DesktopIntegrationTests&FullyQualifiedName!~GroupsMoveIntegrationTests" --logger "console;verbosity=normal" &&
+         t --no-build --filter "FullyQualifiedName~GroupsMoveIntegrationTests" --logger "console;verbosity=normal" &&
          t --no-build --filter "FullyQualifiedName~DesktopIntegrationTests" --logger "console;verbosity=normal"' || {
   rc=$?
   # On failure, what the agent and the server were doing: without it a dropped agent can only be guessed at.

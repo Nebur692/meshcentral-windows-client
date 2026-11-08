@@ -114,6 +114,7 @@
                      Margin="12,0,0,0" VerticalAlignment="Center" />
         </Grid>
         <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+          <Button x:Name="GroupsButton" Content="{app:T GroupsButton}" Click="Groups_Click" Margin="0,0,8,0" />
           <Button x:Name="RefreshButton" Content="{app:T Refresh}" Click="Refresh_Click" Margin="0,0,8,0" />
           <Button x:Name="DisconnectButton" Content="{app:T Disconnect}" Click="Disconnect_Click" />
         </StackPanel>
@@ -151,6 +152,7 @@
               </MenuItem>
               <MenuItem x:Name="SendMessageItem" Header="{app:T SendMessageItem}" Click="SendMessage_Click" />
               <MenuItem x:Name="RunCommandsItem" Header="{app:T RunCommandsItem}" Click="RunCommands_Click" />
+              <MenuItem x:Name="MoveToGroupItem" Header="{app:T MoveToGroupItem}" Click="MoveToGroup_Click" />
               <Separator />
               <MenuItem Header="{app:T OpenInBrowser}" Click="OpenInBrowser_Click" />
               <MenuItem Header="{app:T CopyName}" Click="CopyName_Click" />

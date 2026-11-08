@@ -43,6 +43,10 @@ public sealed partial class MeshServerSession : IAsyncDisposable
     public ServerInfo ServerInfo { get; private set; } = new("", "", null);
     public UserInfo User { get; private set; } = new("", "", false);
 
+    /// <summary>Raised from the receive thread when a device group is created, changed or deleted.
+    /// Se lanza desde el hilo de recepción cuando se crea, cambia o borra un grupo de equipos.</summary>
+    public event EventHandler<GroupChangedEventArgs>? GroupChanged;
+
     /// <summary>Raised from the receive thread. / Se lanza desde el hilo de recepción.</summary>
     public event EventHandler<DeviceChangedEventArgs>? DeviceChanged;
 
@@ -287,12 +291,15 @@ public sealed partial class MeshServerSession : IAsyncDisposable
 
     private void OnEvent(JsonObject e)
     {
+        if (OnGroupOrAccountEvent(e)) return;
         var handler = DeviceChanged;
         if (handler is null) return;
         DeviceChangedEventArgs? args = e.Str("action") switch
         {
             "addnode" when e["node"] is JsonObject n => new(DeviceChangeKind.Added, n.Str("_id") ?? "", Device.From(n)),
             "changenode" when e["node"] is JsonObject n => new(DeviceChangeKind.Changed, n.Str("_id") ?? "", Device.From(n)),
+            // Moved to another group: the node comes whole, with its new meshid. / Movido a otro grupo: el equipo llega entero, con su meshid nuevo.
+            "nodemeshchange" when e["node"] is JsonObject n => new(DeviceChangeKind.Changed, n.Str("_id") ?? "", Device.From(n)),
             "removenode" => new(DeviceChangeKind.Removed, e.Str("nodeid") ?? "", null),
             "nodeconnect" => new(DeviceChangeKind.ConnectionChanged, e.Str("nodeid") ?? "",
                 new Device(e.Str("nodeid") ?? "", e.Str("meshid") ?? "", "", null, null, 0,

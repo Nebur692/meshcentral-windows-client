@@ -5,7 +5,10 @@ namespace MeshCentralClient.Core;
 public sealed record ServerInfo(string Name, string Domain, string? Version)
 {
     internal static ServerInfo From(JsonObject o) => new(
-        o.Str("name") ?? "", o.Str("domain") ?? "", o.Str("serverVersion") ?? o.Str("version")) { ManageAllDeviceGroups = o.Bool("manageAllDeviceGroups") };
+        o.Str("name") ?? "", o.Str("domain") ?? "", o.Str("serverVersion") ?? o.Str("version")) { ManageAllDeviceGroups = o.Bool("manageAllDeviceGroups"), Features = o.Long("features") ?? 0 };
+
+    /// <summary>The server's feature bits (serverinfo.features), as the website reads them. / Los bits de funciones del servidor.</summary>
+    public long Features { get; init; }
 
     /// <summary>The server lets this account manage every device group (managealldevicegroups). / El servidor deja a esta cuenta gestionar todos los grupos.</summary>
     public bool ManageAllDeviceGroups { get; init; }
@@ -15,7 +18,11 @@ public sealed record UserInfo(string Id, string Name, bool IsFullAdministrator)
 {
     internal static UserInfo From(JsonObject o) => new(
         o.Str("_id") ?? "", o.Str("name") ?? o.Str("_id") ?? "", o.Long("siteadmin") == 0xFFFFFFFF)
-    { Links = JsonExtensions.Links(o), RemoveRights = o.Long("removeRights") };
+    { Links = JsonExtensions.Links(o), RemoveRights = o.Long("removeRights"), SiteRights = o.Long("siteadmin") ?? 0 };
+
+    /// <summary>Server-wide rights (siteadmin): 0xFFFFFFFF is a full administrator; bit 64 forbids new device groups, bit 4096 forbids installing agents.
+    /// Permisos en todo el servidor (siteadmin): 0xFFFFFFFF es administrador completo; el bit 64 prohíbe grupos nuevos y el 4096 instalar agentes.</summary>
+    public long SiteRights { get; init; }
 
     /// <summary>What the account is linked to (groups, devices, user groups "ugrp/…") and with which rights. / A qué está enlazada la cuenta y con qué permisos.</summary>
     public IReadOnlyDictionary<string, long> Links { get; init; } = JsonExtensions.NoLinks;
@@ -30,10 +37,30 @@ public enum DeviceGroupKind { Unknown = 0, IntelAmtOnly = 1, Agents = 2, LocalDe
 public sealed record DeviceGroup(string Id, string Name, string? Description, DeviceGroupKind Kind)
 {
     internal static DeviceGroup From(JsonObject o) => new(
-        o.Str("_id") ?? "", o.Str("name") ?? "", o.Str("desc"), (DeviceGroupKind)(o.Long("mtype") ?? 0)) { Links = JsonExtensions.Links(o) };
+        o.Str("_id") ?? o.Str("meshid") ?? "", o.Str("name") ?? "", o.Str("desc"), (DeviceGroupKind)(o.Long("mtype") ?? 0))
+    { Links = JsonExtensions.Links(o), Members = GroupMember.From(o) };
 
     /// <summary>Who has rights on the group: accounts and user groups. / Quién tiene permisos en el grupo: cuentas y grupos de usuarios.</summary>
     public IReadOnlyDictionary<string, long> Links { get; init; } = JsonExtensions.NoLinks;
+
+    /// <summary>The same links with the names the server keeps in them. / Los mismos enlaces con los nombres que guarda el servidor.</summary>
+    public IReadOnlyList<GroupMember> Members { get; init; } = Array.Empty<GroupMember>();
+}
+
+/// <summary>An account ("user/…") or user group ("ugrp/…") with rights on a device group. / Una cuenta o grupo de usuarios con permisos en un grupo de equipos.</summary>
+public sealed record GroupMember(string Id, string Name, long Rights)
+{
+    public bool IsUserGroup => Id.StartsWith("ugrp/", StringComparison.Ordinal);
+
+    internal static IReadOnlyList<GroupMember> From(JsonObject o)
+    {
+        if (o["links"] is not JsonObject links) return Array.Empty<GroupMember>();
+        var list = new List<GroupMember>();
+        foreach (var (id, v) in links)
+            if (v is JsonObject l && l.Long("rights") is long r)
+                list.Add(new GroupMember(id, l.Str("name") ?? id.Split('/').Last(), r));
+        return list;
+    }
 }
 
 /// <summary>Connection flags of a device (MeshCentral "conn"). / Formas en que está conectado un equipo («conn»).</summary>
