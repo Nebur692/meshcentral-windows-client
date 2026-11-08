@@ -137,4 +137,8 @@ try {
 }
 finally {
   foreach ($p in @($agentProc, $server, $feedProc, $oidcProc)) { if ($p -and -not $p.HasExited) { Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue } }
+  # A test may have restarted a hung agent: whatever runs from this run's agent file is stopped too.
+  # Una prueba puede haber reiniciado un agente colgado: también se para lo que corra desde el agente de esta pasada.
+  $agentExe = Join-Path $agent 'meshagent.exe'
+  Get-Process meshagent -ErrorAction SilentlyContinue | Where-Object { $_.Path -eq $agentExe } | Stop-Process -Force -ErrorAction SilentlyContinue
 }

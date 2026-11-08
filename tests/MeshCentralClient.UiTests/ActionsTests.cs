@@ -7,6 +7,7 @@ using FlaUI.Core.Input;
 using FlaUI.Core.Tools;
 using FlaUI.Core.WindowsAPI;
 using FlaUI.UIA3;
+using MeshCentralClient.Core;
 using Xunit;
 using Wait = FlaUI.Core.Input.Wait;
 
@@ -96,12 +97,14 @@ public sealed class ActionsTests : IDisposable
     /// <summary>
     /// Closes the agent's message window. Measured 08-11 on GitHub (2 runs of 4): the agent's window came up blank and
     /// never answered WM_CLOSE, and left open it covered the next tests. The app's part was already checked (the window
-    /// appeared with its title); the window belongs to a child process of the agent, so when it hangs that process is
-    /// stopped, with a screenshot saying so — never the agent itself.
+    /// appeared with its title). The window belongs sometimes to a child process of the agent and sometimes (seen 08-11)
+    /// to the agent itself: a hung child is stopped; a hung agent is restarted as the run script starts it, and the next
+    /// tests begin only once it is back online. Either way a screenshot says so.
     /// Cierra la ventana de mensaje del agente. Medido el 08-11 en GitHub (2 pasadas de 4): la ventana del agente salió en
     /// blanco y nunca atendió WM_CLOSE, y abierta tapaba las pruebas siguientes. Lo de la app ya se comprobó (la ventana
-    /// salió con su título); la ventana es de un proceso hijo del agente, así que si se cuelga se para ese proceso, con
-    /// una captura que lo dice — nunca el agente.
+    /// salió con su título). La ventana es a veces de un proceso hijo del agente y a veces (visto el 08-11) del propio
+    /// agente: un hijo colgado se para; un agente colgado se reinicia como lo arranca el guion, y las pruebas siguientes
+    /// empiezan cuando vuelve a estar conectado. En los dos casos, una captura lo dice.
     /// </summary>
     private static void CloseAgentBox(string title)
     {
@@ -111,11 +114,41 @@ public sealed class ActionsTests : IDisposable
         if (Retry.WhileFalse(() => FindWindow(null, title) == IntPtr.Zero, TimeSpan.FromSeconds(10), TimeSpan.FromMilliseconds(250)).Result) return;
         GetWindowThreadProcessId(h, out var pid);
         var agent = int.Parse(Env("MESHUI_AGENT_PID"));
-        if (pid == 0 || pid == agent) throw new Exception($"the message window did not close, and it belongs to {(pid == 0 ? "no process" : "the agent itself")}");
+        if (pid == 0) throw new Exception("the message window did not close, and it belongs to no process");
+        if (pid == agent) { RestartAgent(title); return; }
         Shot("message-box-hung-stopped");
         Console.WriteLine($"the agent's message window hung; its process {pid} (agent {agent}) was stopped");
         Process.GetProcessById((int)pid).Kill();
         Until(() => FindWindow(null, title) == IntPtr.Zero, "the message window did not close");
+    }
+
+    /// <summary>The agent itself hung on its message window: started again the way the run script starts it, and back
+    /// online before the next test. / El propio agente se colgó en su ventana de mensaje: se arranca otra vez como lo
+    /// arranca el guion, y conectado antes de la prueba siguiente.</summary>
+    private static void RestartAgent(string title)
+    {
+        Shot("message-box-hung-agent-restarted");
+        var old = Process.GetProcessById(int.Parse(Env("MESHUI_AGENT_PID")));
+        var exe = old.MainModule!.FileName;
+        Console.WriteLine($"the agent's own message window hung; the agent {old.Id} ({exe}) is restarted");
+        old.Kill();
+        old.WaitForExit(15_000);
+        Until(() => FindWindow(null, title) == IntPtr.Zero, "the hung message window gone with the agent");
+        var fresh = Process.Start(new ProcessStartInfo(exe, "connect") { WorkingDirectory = Path.GetDirectoryName(exe)!, UseShellExecute = true, WindowStyle = ProcessWindowStyle.Hidden })!;
+        Environment.SetEnvironmentVariable("MESHUI_AGENT_PID", fresh.Id.ToString());
+        Until(() => AgentOnline().GetAwaiter().GetResult(), "the restarted agent back online");
+    }
+
+    private static async Task<bool> AgentOnline()
+    {
+        try
+        {
+            Assert.True(ServerAddress.TryParse(Env("MESHUI_SERVER"), out var a));
+            await using var s = await MeshServerSession.ConnectAsync(a!, new("admin", "Admin-Pass-1234"), new CertificateTrust(Env("MESHUI_CERT_SHA256")));
+            await s.GetDeviceGroupsAsync();
+            return (await s.GetDevicesAsync()).Any(d => d.Name == Environment.MachineName && d.IsOnline);
+        }
+        catch (MeshClientException) { return false; }
     }
 
     [Fact]
