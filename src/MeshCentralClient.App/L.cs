@@ -400,7 +400,7 @@ public static class L
         ["ColTime"] = ("Time", "Hora"),
         ["ColWhere"] = ("Device or group", "Equipo o grupo"),
         ["ColMessage"] = ("Event", "Suceso"),
-        ["FilterEvents"] = ("Filter…", "Filtrar…"),
+        ["FilterEvents"] = ("Filter", "Filtrar"),
         ["ExportCsv"] = ("Export CSV…", "Exportar CSV…"),
         ["EventsCount"] = ("{0} event(s)", "{0} suceso(s)"),
         ["Exported"] = ("Saved in {0}.", "Guardado en {0}."),

@@ -439,7 +439,7 @@ public static class Notifications
         var w = new Window
         {
             Title = string.IsNullOrEmpty(n.Title) ? L.T("NotificationTitle") : L.F("NotificationFrom", n.Title), Owner = owner, SizeToContent = SizeToContent.WidthAndHeight,
-            ResizeMode = ResizeMode.NoResize, ShowActivated = false, Topmost = true, ShowInTaskbar = false, MaxWidth = 460,
+            ResizeMode = ResizeMode.NoResize, ShowActivated = false, Topmost = true, ShowInTaskbar = false, MinWidth = 320, MaxWidth = 460,
             Content = new StackPanel { Margin = new Thickness(18), Children = { text, close } },
         };
         AP.SetAutomationId(w, "NotificationWindow");
