@@ -126,6 +126,7 @@ try {
   $env:MESHUI_UPDATE_FEED_BAD = "http://127.0.0.1:$port/latest-bad.json"
   $env:MESHUI_EXE99_SHA = $sha99
   $env:MESHUI_EXE = $Exe
+  $env:MESHUI_AGENT_PID = $agentProc.Id
   $env:MESHUI_SERVER = 'mesh.test:4443'
   # The server's own certificate, for tests that use the core directly. / El certificado del servidor, para las pruebas que usan el núcleo directamente.
   $env:MESHUI_CERT_SHA256 = (New-Object System.Security.Cryptography.X509Certificates.X509Certificate2 (Join-Path $data 'webserver-cert-public.crt')).GetCertHashString('SHA256')

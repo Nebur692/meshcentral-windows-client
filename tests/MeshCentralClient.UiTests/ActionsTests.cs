@@ -33,7 +33,7 @@ public sealed class ActionsTests : IDisposable
     public void Dispose()
     {
         // A message window left open freezes UI Automation for the next tests: closed by its title. / Una ventana de mensaje abierta congela UI Automation: se cierra por su título.
-        if (_boxTitle is not null && FindWindow(null, _boxTitle) is var h && h != IntPtr.Zero) PostMessage(h, 0x0010, IntPtr.Zero, IntPtr.Zero);
+        if (_boxTitle is not null) { try { CloseAgentBox(_boxTitle); } catch (Exception) { } }
         try { _app?.Close(); } catch (Exception) { }
         try { _app?.Kill(); } catch (Exception) { }
         _app?.Dispose();
@@ -90,6 +90,34 @@ public sealed class ActionsTests : IDisposable
     [System.Runtime.InteropServices.DllImport("user32.dll")]
     private static extern bool PostMessage(IntPtr hWnd, uint msg, IntPtr w, IntPtr l);
 
+    [System.Runtime.InteropServices.DllImport("user32.dll")]
+    private static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint processId);
+
+    /// <summary>
+    /// Closes the agent's message window. Measured 08-11 on GitHub (2 runs of 4): the agent's window came up blank and
+    /// never answered WM_CLOSE, and left open it covered the next tests. The app's part was already checked (the window
+    /// appeared with its title); the window belongs to a child process of the agent, so when it hangs that process is
+    /// stopped, with a screenshot saying so — never the agent itself.
+    /// Cierra la ventana de mensaje del agente. Medido el 08-11 en GitHub (2 pasadas de 4): la ventana del agente salió en
+    /// blanco y nunca atendió WM_CLOSE, y abierta tapaba las pruebas siguientes. Lo de la app ya se comprobó (la ventana
+    /// salió con su título); la ventana es de un proceso hijo del agente, así que si se cuelga se para ese proceso, con
+    /// una captura que lo dice — nunca el agente.
+    /// </summary>
+    private static void CloseAgentBox(string title)
+    {
+        var h = FindWindow(null, title);
+        if (h == IntPtr.Zero) return;
+        PostMessage(h, 0x0010 /* WM_CLOSE */, IntPtr.Zero, IntPtr.Zero);
+        if (Retry.WhileFalse(() => FindWindow(null, title) == IntPtr.Zero, TimeSpan.FromSeconds(10), TimeSpan.FromMilliseconds(250)).Result) return;
+        GetWindowThreadProcessId(h, out var pid);
+        var agent = int.Parse(Env("MESHUI_AGENT_PID"));
+        if (pid == 0 || pid == agent) throw new Exception($"the message window did not close, and it belongs to {(pid == 0 ? "no process" : "the agent itself")}");
+        Shot("message-box-hung-stopped");
+        Console.WriteLine($"the agent's message window hung; its process {pid} (agent {agent}) was stopped");
+        Process.GetProcessById((int)pid).Kill();
+        Until(() => FindWindow(null, title) == IntPtr.Zero, "the message window did not close");
+    }
+
     [Fact]
     public void A_person_acts_on_a_device_from_its_menu()
     {
@@ -142,8 +170,7 @@ public sealed class ActionsTests : IDisposable
         Until(() => (shown = FindWindow(null, title)) != IntPtr.Zero && IsWindowVisible(shown), "the agent's message window did not appear");
         Shot("message-box");
         Until(() => Id(win, "ActionStatus").Name.StartsWith("Message sent to 1"), "message status", () => Id(win, "ActionStatus").Name);
-        PostMessage(shown, 0x0010 /* WM_CLOSE */, IntPtr.Zero, IntPtr.Zero);
-        Until(() => FindWindow(null, title) == IntPtr.Zero, "the message window did not close");
+        CloseAgentBox(title);
 
         //    A notification. / Una notificación.
         Menu(win, "SendMessageItem");
