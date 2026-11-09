@@ -53,9 +53,32 @@ jobs:
       - name: Publish
         run: dotnet publish src/MeshCentralClient.App -c Release -r win-x64 --self-contained -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:DebugType=none -o out
       - uses: actions/upload-artifact@v5
+        id: upload
         with:
           name: MeshCentralClient-win-x64
           path: out/MeshCentralClient.exe
+          if-no-files-found: error
+      # Signed by SignPath (docs/CODE_SIGNING.md) only for a tag, and only once the repository has the variable
+      # SIGNPATH_ORGANIZATION_ID and the secret SIGNPATH_API_TOKEN; each request waits for its approval there.
+      # Firmado por SignPath (docs/CODE_SIGNING.md) solo en una etiqueta, y solo cuando el repositorio tiene la variable
+      # SIGNPATH_ORGANIZATION_ID y el secreto SIGNPATH_API_TOKEN; cada petición espera allí a su aprobación.
+      - name: Sign with SignPath
+        if: startsWith(github.ref, 'refs/tags/v') && vars.SIGNPATH_ORGANIZATION_ID != ''
+        uses: signpath/github-action-submit-signing-request@v3
+        with:
+          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+          organization-id: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
+          project-slug: meshcentral-windows-client
+          signing-policy-slug: release-signing
+          github-artifact-id: ${{ steps.upload.outputs.artifact-id }}
+          wait-for-completion: true
+          wait-for-completion-timeout-in-seconds: 18000
+          output-artifact-directory: signed
+      - uses: actions/upload-artifact@v5
+        if: startsWith(github.ref, 'refs/tags/v') && vars.SIGNPATH_ORGANIZATION_ID != ''
+        with:
+          name: MeshCentralClient-win-x64-signed
+          path: signed/MeshCentralClient.exe
           if-no-files-found: error
 
   ui:
@@ -112,7 +135,8 @@ jobs:
           [ -s "docs/releases/$tag.md" ] || { echo "missing docs/releases/$tag.md"; exit 1; }
       - uses: actions/download-artifact@v5
         with:
-          name: MeshCentralClient-win-x64
+          # The signed one once SignPath is set up. / El firmado cuando SignPath esté configurado.
+          name: ${{ vars.SIGNPATH_ORGANIZATION_ID != '' && 'MeshCentralClient-win-x64-signed' || 'MeshCentralClient-win-x64' }}
           path: dist
       - name: Fingerprint
         run: cd dist && sha256sum MeshCentralClient.exe > MeshCentralClient.exe.sha256 && cat MeshCentralClient.exe.sha256
@@ -123,4 +147,6 @@ jobs:
         # Una etiqueta como v1.2.3-beta.1 es una versión de prueba: la app nunca las ofrece, ni es la última publicada.
         run: |
           case "${GITHUB_REF_NAME}" in *-*) pre=--prerelease ;; *) pre= ;; esac
-          gh release create "${GITHUB_REF_NAME}" dist/MeshCentralClient.exe dist/MeshCentralClient.exe.sha256 --title "${GITHUB_REF_NAME}" --notes-file "docs/releases/${GITHUB_REF_NAME}.md" $pre
+          # Every release page links the code signing policy, as SignPath asks. / Cada versión enlaza la política de firma, como pide SignPath.
+          { cat "docs/releases/${GITHUB_REF_NAME}.md"; printf '\n---\n\n[Code signing policy](https://github.com/%s/blob/main/docs/CODE_SIGNING.md)\n' "${GITHUB_REPOSITORY}"; } > notes.md
+          gh release create "${GITHUB_REF_NAME}" dist/MeshCentralClient.exe dist/MeshCentralClient.exe.sha256 --title "${GITHUB_REF_NAME}" --notes-file notes.md $pre

@@ -11,7 +11,7 @@
 [![Ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/nebur69265723)
 [![PayPal](https://img.shields.io/badge/PayPal-donate-00457C?logo=paypal&logoColor=white)](https://paypal.me/0SkillS)
 
-🇬🇧 [English](#english) · 🇪🇸 [Español](#español)
+🇬🇧 [English](#english) · 🇪🇸 [Español](#español) · [Code signing policy](docs/CODE_SIGNING.md)
 
 </div>
 
@@ -27,7 +27,7 @@ official website and `meshctrl`, so it works with **any** MeshCentral installati
 
 > Unofficial project, not affiliated with the MeshCentral authors. The device side still uses the official MeshCentral agent.
 
-### Features (version 0.11)
+### Features (version 0.13)
 
 - **Sign in** with username and password, with **two-factor** codes (authenticator app, or email code when the server offers it).
 - **Single sign-on**: if the server offers it (OpenID Connect, SAML, Microsoft, Google, GitHub…), a button signs in on
@@ -89,6 +89,8 @@ and run it. It is a single self-contained file: nothing else to install, no admi
 settings live in `%APPDATA%\MeshCentralClient`, so replacing or updating the exe keeps them. Keep the exe in a
 folder of yours (not Program Files) so it can update itself.
 
+[Code signing policy](docs/CODE_SIGNING.md): what is signed, by whom, and what the app connects to.
+
 ### Requirements on the server
 
 Any recent MeshCentral (tested with 1.3.1). The account must not have the "no tools" restriction (`NOMESHCMD`),
@@ -122,7 +124,7 @@ web oficial y `meshctrl`, así que funciona con **cualquier** instalación de Me
 
 > Proyecto no oficial, sin relación con los autores de MeshCentral. En los equipos se sigue usando el agente oficial de MeshCentral.
 
-### Qué hace (versión 0.11)
+### Qué hace (versión 0.13)
 
 - **Entrar** con usuario y contraseña, con código de **doble factor** (app de autenticación, o código por correo si el servidor lo ofrece).
 - **Inicio de sesión único**: si el servidor lo ofrece (OpenID Connect, SAML, Microsoft, Google, GitHub…), un botón
@@ -186,6 +188,8 @@ Descarga `MeshCentralClient.exe` de la última [versión publicada](https://gith
 y ábrelo. Es un único fichero autónomo: no hay que instalar nada más ni ser administrador. Tus servidores y ajustes
 se guardan en `%APPDATA%\MeshCentralClient`, así que al cambiar o actualizar el exe se mantienen. Ten el exe en una
 carpeta tuya (no en Archivos de programa) para que pueda actualizarse sola.
+
+[Code signing policy](docs/CODE_SIGNING.md) (política de firma de código): qué se firma, quién lo firma y a qué se conecta la app.
 
 ### Qué necesita el servidor
 
