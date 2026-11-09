@@ -26,6 +26,8 @@ internal sealed class UserShell(MeshServerSession session, Device device, UserSh
     private FilesSession? _files;
     private TaskCompletionSource _changed = new(TaskCreationOptions.RunContinuationsAsynchronously);
     private bool _shellEnded;
+    private const int SilencesToGiveUp = 2;
+    private int _silences;
     private string? _answers;
 
     /// <summary>Windows, with remote control and neither terminal nor files taken away.
@@ -82,15 +84,19 @@ internal sealed class UserShell(MeshServerSession session, Device device, UserSh
         }
         if (full == true) return shell;
         // A limited language says it itself. Silence means two things, measured: a forbidden PowerShell and nobody signed in look the
-        // same, with the tunnel open and nothing on it, so the agent is asked. Only a user who is there and cannot use it is final;
-        // nobody may sign in later. / Un lenguaje limitado lo dice él. El silencio significa dos cosas, medido: un PowerShell prohibido
-        // y nadie con sesión se ven igual, con el túnel abierto y nada en él, así que se le pregunta al agente. Solo es definitivo un
-        // usuario que está y no puede usarlo; alguien puede entrar después.
+        // same, with the tunnel open and nothing on it, so the agent is asked. A slow moment could look the same too, and giving up lasts
+        // as long as the viewer, so silence only counts when it repeats. / Un lenguaje limitado lo dice él. El silencio significa dos
+        // cosas, medido: un PowerShell prohibido y nadie con sesión se ven igual, con el túnel abierto y nada en él, así que se le pregunta
+        // al agente. Un momento lento también podría parecerlo, y rendirse dura lo que dura el visor, así que el silencio solo cuenta si se repite.
         var there = full == false || await SomeoneIsSignedInAsync(ct).ConfigureAwait(false);
         await CloseShellAsync().ConfigureAwait(false);
         if (!there) throw new MeshClientException(MeshFailure.ConnectionLost, codes.Lost, "Nobody is signed in on the device.");
-        Restricted = true;
-        throw RestrictedFailure("run anything as that user");
+        if (full == false || ++_silences >= SilencesToGiveUp)
+        {
+            Restricted = true;
+            throw RestrictedFailure("run anything as that user");
+        }
+        throw new MeshClientException(MeshFailure.Timeout, codes.Unreadable, "The PowerShell of the user signed in on the device did not answer.");
     }
 
     /// <summary>Someone at the screen or by Remote Desktop, among all that the agent's cmd prints with "query user" (its banner, the echo, a localized header). Not being able to tell counts as nobody, which is not final.
