@@ -137,6 +137,22 @@ public sealed class ActionsTests : IDisposable
         var fresh = Process.Start(new ProcessStartInfo(exe, "connect") { WorkingDirectory = Path.GetDirectoryName(exe)!, UseShellExecute = true, WindowStyle = ProcessWindowStyle.Hidden })!;
         Environment.SetEnvironmentVariable("MESHUI_AGENT_PID", fresh.Id.ToString());
         Until(() => AgentOnline().GetAwaiter().GetResult(), "the restarted agent back online");
+        // Waking it needs its network as the server knows it, which a fresh agent sends a moment after connecting.
+        // Despertarlo necesita su red tal como la sabe el servidor, que un agente recién arrancado manda un momento después de conectar.
+        Until(() => AgentNetworkKnown().GetAwaiter().GetResult(), "the restarted agent's network known to the server");
+    }
+
+    private static async Task<bool> AgentNetworkKnown()
+    {
+        try
+        {
+            Assert.True(ServerAddress.TryParse(Env("MESHUI_SERVER"), out var a));
+            await using var s = await MeshServerSession.ConnectAsync(a!, new("admin", "Admin-Pass-1234"), new CertificateTrust(Env("MESHUI_CERT_SHA256")));
+            await s.GetDeviceGroupsAsync();
+            var me = (await s.GetDevicesAsync()).Single(d => d.Name == Environment.MachineName);
+            return (await s.GetNetworkInfoAsync(me.Id)).Count > 0;
+        }
+        catch (MeshClientException) { return false; }
     }
 
     private static async Task<bool> AgentOnline()

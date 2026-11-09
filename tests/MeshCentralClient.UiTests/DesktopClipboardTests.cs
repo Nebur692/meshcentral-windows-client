@@ -56,6 +56,19 @@ public sealed class DesktopClipboardTests(ITestOutputHelper output) : IDisposabl
     private static AutomationElement Id(AutomationElement root, string id) => WaitFor(() => root.FindFirstDescendant(cf => cf.ByAutomationId(id)), id);
     private AutomationElement Anywhere(string id) => WaitFor(() => _automation.GetDesktop().FindFirstDescendant(cf => cf.ByAutomationId(id)), id);
 
+    [System.Runtime.InteropServices.DllImport("user32.dll")] private static extern IntPtr GetForegroundWindow();
+
+    /// <summary>The window is in front and the focused element is in its process. / La ventana está delante y el elemento con el foco es de su proceso.</summary>
+    private bool HoldsKeyboard(Window window)
+    {
+        try
+        {
+            return GetForegroundWindow() == window.Properties.NativeWindowHandle.ValueOrDefault
+                && _automation.FocusedElement() is { } f && f.Properties.ProcessId.ValueOrDefault == window.Properties.ProcessId.ValueOrDefault;
+        }
+        catch (Exception) { return false; }
+    }
+
     private static void Until(Func<bool> condition, string what, Func<string>? seen = null)
     {
         if (Retry.WhileFalse(condition, Timeout, TimeSpan.FromMilliseconds(300)).Result) return;
@@ -303,6 +316,9 @@ public sealed class DesktopClipboardTests(ITestOutputHelper output) : IDisposabl
         window.SetForeground();
         Keyboard.TypeSimultaneously(VirtualKeyShort.CONTROL, VirtualKeyShort.ALT, VirtualKeyShort.PAUSE);
         Until(() => window.BoundingRectangle.Height >= screen.Height, "full screen by keys", () => window.BoundingRectangle.ToString());
+        // The new frame takes the keyboard back a moment later; a person never presses again within those milliseconds.
+        // El marco nuevo recupera el teclado un momento después; una persona nunca vuelve a pulsar en esos milisegundos.
+        Until(() => HoldsKeyboard(window), "the keyboard back in full screen", () => _automation.FocusedElement()?.Properties.ProcessId.ValueOrDefault.ToString() ?? "none");
         Keyboard.TypeSimultaneously(VirtualKeyShort.CONTROL, VirtualKeyShort.ALT, VirtualKeyShort.PAUSE);
         Until(() => window.BoundingRectangle == normal, "back by keys", () => window.BoundingRectangle.ToString());
     }
