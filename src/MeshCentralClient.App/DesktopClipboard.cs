@@ -53,6 +53,9 @@ public sealed class DesktopClipboard : IAsyncDisposable
     /// <summary>A transfer going on, for the viewer's bar, on the UI thread; null when it ends. / Una transferencia en marcha, para la barra del visor, en el hilo de la interfaz; null al acabar.</summary>
     public event Action<ClipTransfer?>? Transfer;
 
+    /// <summary>It turned out that only text can go, on the UI thread. / Resultó que solo puede ir el texto, en el hilo de la interfaz.</summary>
+    public event Action? OnlyText;
+
     public bool CanAll => _remote.CanAll;
 
     private static string OldLocalRoot => Path.Combine(AppPaths.Local, "clipboard");
@@ -139,7 +142,7 @@ public sealed class DesktopClipboard : IAsyncDisposable
             }
             _localSynced = seq;
         }
-        catch (MeshClientException ex) { Say(UserError.From(ex, _session.ServerInfo.Version).Message); }
+        catch (MeshClientException ex) { Told(ex); }
         // Asked for by the person: it is not offered again until something else is copied. / Lo pidió la persona: no se vuelve a ofrecer hasta que se copie otra cosa.
         catch (OperationCanceledException) when (!_life.IsCancellationRequested) { _localSynced = seq; Say(L.T("ClipCancelled")); }
         catch (OperationCanceledException) { }
@@ -181,12 +184,48 @@ public sealed class DesktopClipboard : IAsyncDisposable
 
     /// <summary>The viewer was left, or something was copied inside it, or the toolbar's "bring it": offers here what the device copied.
     /// Se salió del visor, o se copió algo dentro, o el «traer» de la barra: ofrece aquí lo que copió el equipo.</summary>
-    public void Left() { if (_remote.CanAll) _ = PullAsync(); }
+    public void Left()
+    {
+        if (_remote.CanAll) _ = PullAsync();
+        else if (_remote.CanText) _ = PullTextAsync();
+    }
+
+    /// <summary>Only text, which needs nothing of the user's: rights without terminal or files, or a restricted PowerShell.
+    /// Solo texto, que no necesita nada del usuario: permisos sin terminal o ficheros, o un PowerShell restringido.</summary>
+    private async Task PullTextAsync()
+    {
+        try { await _push; } catch (Exception) { }
+        await _one.WaitAsync(_life.Token);
+        try
+        {
+            var text = await _remote.ReadTextAsync(_life.Token);
+            if (text is null || RemoteClipboard.TextSignature(text) == _remoteSynced) return;
+            await OnUi(() => Clipboard.SetDataObject(new DataObject(DataFormats.UnicodeText, text), copy: true));
+            Say(L.F("ClipTextFromDevice", text.Length));
+            _remoteSynced = RemoteClipboard.TextSignature(text);
+            _localSynced = await OnUi(GetClipboardSequenceNumber);
+        }
+        catch (MeshClientException ex) { Say(UserError.From(ex, _session.ServerInfo.Version).Message); }
+        catch (COMException) { Say(L.T("ClipBusy")); }
+        catch (OperationCanceledException) { }
+        finally { _one.Release(); }
+    }
+
+    /// <summary>What a failure says; a PowerShell found restricted is said once and leaves text only.
+    /// Lo que dice un fallo; un PowerShell que resulta restringido se dice una vez y deja solo el texto.</summary>
+    private void Told(MeshClientException ex)
+    {
+        if (_remote.CanAll || !_remote.CanText) { Say(UserError.From(ex, _session.ServerInfo.Version).Message); return; }
+        if (!_toldTextOnly) Say(L.T("ClipOnlyText"));
+        _toldTextOnly = true;
+        Application.Current?.Dispatcher.BeginInvoke(() => OnlyText?.Invoke());
+    }
 
     private async Task PullAsync()
     {
         try { await _push; } catch (Exception) { }
         await _one.WaitAsync(_life.Token);
+        var leftForText = false;
         try
         {
             var clip = await _remote.ReadAsync(_life.Token);
@@ -224,10 +263,16 @@ public sealed class DesktopClipboard : IAsyncDisposable
             _remoteSynced = clip.Signature;
             _localSynced = await OnUi(GetClipboardSequenceNumber);
         }
-        catch (MeshClientException ex) { Say(UserError.From(ex, _session.ServerInfo.Version).Message); }
+        catch (MeshClientException ex)
+        {
+            Told(ex);
+            // What leaves text only still brings the text of this time. / Lo que deja solo el texto aún trae el texto de esta vez.
+            if (!_remote.CanAll && _remote.CanText) leftForText = true;
+        }
         catch (COMException) { Say(L.T("ClipBusy")); }
         catch (OperationCanceledException) { }
         finally { Show(null); _one.Release(); }
+        if (leftForText) await PullTextAsync();
     }
 
     // The clipboard belongs to the UI thread; it may be busy a moment, so it is tried a few times.

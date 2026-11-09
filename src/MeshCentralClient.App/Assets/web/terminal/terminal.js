@@ -41,7 +41,7 @@
     if (e.type !== 'keydown') return true;
     if (e.code === 'Insert' && e.shiftKey && !e.ctrlKey) { paste(); return false; }
     if (e.code === 'Insert' && e.ctrlKey && !e.shiftKey) { copy(); return false; }
-    if (e.code === 'KeyC' && e.ctrlKey && !e.shiftKey && !e.altKey && term.hasSelection()) { copy(); term.clearSelection(); return false; }
+    if ((e.code === 'KeyC' || e.key === 'c') && e.ctrlKey && !e.shiftKey && !e.altKey && term.hasSelection()) { copy(); term.clearSelection(); return false; }
     if (!e.ctrlKey || !e.shiftKey) return true;
     if (e.code === 'KeyC') { copy(); return false; }
     if (e.code === 'KeyV') { paste(); return false; }

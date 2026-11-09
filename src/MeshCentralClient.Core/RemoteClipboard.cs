@@ -69,7 +69,7 @@ public sealed class RemoteClipboard : IAsyncDisposable
 
     /// <summary>Text, images and files: Windows, with remote control and neither terminal nor files taken away.
     /// Texto, imágenes y ficheros: Windows, con control remoto y sin quitar terminal ni ficheros.</summary>
-    public bool CanAll => UserShell.Can(_session, _device);
+    public bool CanAll => UserShell.Can(_session, _device) && !_user.Restricted;
 
     /// <summary>
     /// Full rights are 0xFFFFFFFF, every bit on, the "no terminal" and "no files" ones too: as the server does
@@ -79,6 +79,9 @@ public sealed class RemoteClipboard : IAsyncDisposable
     /// </summary>
     internal static bool RightsAllowAll(long rights) =>
         rights == 0xFFFFFFFF || ((rights & (long)MeshRights.RemoteControl) != 0 && (rights & (long)(MeshRights.NoTerminal | MeshRights.NoFiles)) == 0);
+
+    /// <summary>The device's text with MeshCentral's own getclip, or null. / El texto del equipo con el getclip de MeshCentral, o null.</summary>
+    public Task<string?> ReadTextAsync(CancellationToken ct = default) => _session.GetDeviceClipboardTextAsync(_device, ct);
 
     /// <summary>Text only, with MeshCentral's own setclip: remote control. / Solo texto, con el setclip de MeshCentral: control remoto.</summary>
     public bool CanText => _device.HasAgent && (_session.RightsOn(_device) & (long)MeshRights.RemoteControl) != 0;

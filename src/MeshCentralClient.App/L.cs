@@ -513,7 +513,7 @@ public static class L
         ["FullScreenExit"] = ("Exit full screen", "Salir de pantalla completa"),
         ["FullScreenHelp"] = ("Also Ctrl+Alt+Pause, as in Remote Desktop.", "También Ctrl+Alt+Pausa, como en Escritorio remoto."),
         ["ClipTooBigToDevice"] = ("What you copied is {0}: press «Take copy» to send it.", "Lo copiado ocupa {0}: pulsa «Llevar lo copiado» para mandarlo."),
-        ["ClipOnlyText"] = ("Only text is shared: images and files need the terminal and files on this device.", "Solo se comparte el texto: imágenes y ficheros piden la terminal y los ficheros de este equipo."),
+        ["ClipOnlyText"] = ("Only text is shared: images and files need the terminal and files on this device, and a PowerShell its user may use. Use Files for them.", "Solo se comparte el texto: imágenes y ficheros piden la terminal y los ficheros de este equipo, y un PowerShell que su usuario pueda usar. Para ellos, usa Ficheros."),
         ["ClipBusy"] = ("Another program is using the clipboard; try again.", "Otro programa está usando el portapapeles; prueba otra vez."),
         // Port mappings, SSH and RDP / Redirecciones, SSH y RDP
         ["PortsButton"] = ("Port mappings", "Redirecciones"),

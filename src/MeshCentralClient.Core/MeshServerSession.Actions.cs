@@ -127,6 +127,26 @@ public sealed partial class MeshServerSession
             "portapapeles/sincronizar/tiempo-agotado", "portapapeles/sincronizar/conexion-cortada", ct, TimeSpan.FromSeconds(15)).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Null when there is none: the agent does not answer an empty clipboard, nor the server one it forbids (meshcore.js).
+    /// Tag 3 is what the agent keeps out of the device's history; a viewer asks every time it is left.
+    /// Null si no hay: el agente no contesta si está vacío, ni el servidor si lo prohíbe (meshcore.js). El tag 3 es el que el
+    /// agente deja fuera del historial del equipo; un visor pregunta cada vez que se sale de él.
+    /// </summary>
+    public async Task<string?> GetDeviceClipboardTextAsync(Device device, CancellationToken ct = default)
+    {
+        if (!Has(RightsOn(device), MeshRights.RemoteControl)) throw Denied("portapapeles/sincronizar/no-autorizado", "use the clipboard");
+        if (!device.HasAgent) throw Offline("portapapeles/sincronizar/sin-conexion");
+        try
+        {
+            var r = await RequestAsync(new JsonObject { ["action"] = "msg", ["type"] = "getclip", ["nodeid"] = device.Id, ["tag"] = 3 },
+                o => o.Str("action") == "msg" && o.Str("type") == "getclip",
+                "portapapeles/sincronizar/tiempo-agotado", "portapapeles/sincronizar/conexion-cortada", ct, TimeSpan.FromSeconds(8)).ConfigureAwait(false);
+            return r.Str("data");
+        }
+        catch (MeshClientException ex) when (ex.Failure == MeshFailure.Timeout) { return null; }
+    }
+
     private static MeshClientException Denied(string key, string what) =>
         new(MeshFailure.Rejected, key, $"This account has no rights to {what} on this device.");
 

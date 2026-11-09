@@ -78,6 +78,30 @@ public class RemoteClipboardTests
         Assert.Empty(RemoteClipboard.ToClip(new JsonObject { ["kind"] = "none" }).Files);
     }
 
+    [Theory]
+    [InlineData("PS C:\\> if(...){'MCC'+'-LIMITED'}else{'MCC'+'-FULL'}", null)] // only the echo / solo el eco
+    [InlineData("eco\r\nMCC-FULL\r\nPS C:\\>", true)]
+    [InlineData("eco\r\nMCC-LIMITED\r\nPS C:\\>", false)]
+    [InlineData("\u001b[1mMCC-\u001b[0mLIMITED", false)] // painted in pieces / pintado a trozos
+    [InlineData("", null)]
+    public void The_language_of_the_users_powershell_is_told_by_the_answer_not_the_echo(string screen, bool? expected)
+    {
+        Assert.Equal(expected, UserShell.IsFull(screen));
+        Assert.Null(UserShell.IsFull(UserShell.LanguageProbe)); // what is typed never answers / lo tecleado nunca contesta
+    }
+
+    private const string Banner = "Microsoft Windows [Version 10]\r\n(c) Microsoft Corporation.\r\n\r\nC:\\Agent>query user\r\n";
+
+    [Theory]
+    [InlineData(Banner + " USERNAME  SESSIONNAME  ID  STATE\r\n>ana  console  1  Active\r\n\r\nC:\\Agent>exit\r\n", true)]
+    [InlineData(Banner + " NOMBRE DE USUARIO  NOMBRE DE SESIÓN  ID  ESTADO\r\n ana  rdp-tcp#3  2  Activo\r\n\r\nC:\\Agent>exit\r\n", true)]
+    // As measured with nobody signed in: more lines than a header and a row, all of them no session.
+    // Tal como se midió sin nadie con sesión: más líneas que una cabecera y una fila, y ninguna es una sesión.
+    [InlineData(Banner + "No existe un usuario para *\r\n\r\nC:\\Agent>exit\r\n", false)]
+    [InlineData("", false)]
+    public void Who_is_signed_in_comes_from_the_lines_of_query_user(string answer, bool expected) =>
+        Assert.Equal(expected, UserShell.HasSessions(answer));
+
     [Fact]
     public void Signatures_ignore_line_ends_and_path_spelling_but_not_content()
     {

@@ -153,6 +153,7 @@ public sealed class DesktopWindow : Window
             if (_c.Clipboard is not { } clip) return;
             clip.Notice += t => { _clipNotice.Text = t; _clipNotice.ToolTip = t; if (_full) ShowBar(); };
             clip.Transfer += ShowTransfer;
+            clip.OnlyText += () => _clipTo.Visibility = _clipFrom.Visibility = Visibility.Collapsed;
             _clipTo.Visibility = _clipFrom.Visibility = clip.CanAll ? Visibility.Visible : Visibility.Collapsed;
             if (IsActive) clip.Entered();
         }

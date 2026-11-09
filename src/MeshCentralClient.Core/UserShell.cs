@@ -33,6 +33,28 @@ internal sealed class UserShell(MeshServerSession session, Device device, UserSh
     internal static bool Can(MeshServerSession session, Device device) =>
         device.IsWindows && device.CanOpenTerminal && device.CanOpenFiles && RemoteClipboard.RightsAllowAll(session.RightsOn(device));
 
+    /// <summary>
+    /// Asks the shell its language mode, in a line whose echo cannot pass for the answer. A domain may leave a user's PowerShell
+    /// in constrained language: measured, every script here fails then, each after a full wait.
+    /// Pregunta al shell su modo de lenguaje, en una línea cuyo eco no puede pasar por la respuesta. Un dominio puede dejar el
+    /// PowerShell de un usuario en modo restringido: medido, entonces falla todo guion de aquí, cada uno tras una espera entera.
+    /// </summary>
+    internal const string LanguageProbe = "if($ExecutionContext.SessionState.LanguageMode -ne 'FullLanguage'){'MCC'+'-LIMITED'}else{'MCC'+'-FULL'}";
+
+    /// <summary>True for a full shell, false for a restricted one, null while it has not said. / True si es completo, false si está restringido, null si aún no lo ha dicho.</summary>
+    internal static bool? IsFull(string screen)
+    {
+        var clean = RemoteClipboard.Escapes.Replace(screen, "");
+        if (clean.Contains("MCC-LIMITED", StringComparison.Ordinal)) return false;
+        return clean.Contains("MCC-FULL", StringComparison.Ordinal) ? true : null;
+    }
+
+    /// <summary>Its PowerShell turned out restricted: nothing is tried again while this exists. / Su PowerShell resultó restringido: no se vuelve a intentar nada mientras exista esto.</summary>
+    internal bool Restricted { get; private set; }
+
+    private MeshClientException RestrictedFailure(string what) =>
+        new(MeshFailure.Rejected, codes.Unreadable, $"The device could not {what}: a policy restricts or forbids PowerShell to the user signed in there.");
+
     internal async Task<FilesSession> FilesAsync(CancellationToken ct)
     {
         if (_files is { Tunnel.IsOpen: true }) return _files;
@@ -50,9 +72,41 @@ internal sealed class UserShell(MeshServerSession session, Device device, UserSh
         shell.Ended += (_, _) => { lock (_screen) { _shellEnded = true; _changed.TrySetResult(); } };
         shell.Output += (_, d) => { lock (_screen) { _screen.Append(Encoding.UTF8.GetString(d.Span)); _changed.TrySetResult(); } };
         _shell = shell;
-        await WaitAsync(() => RemoteClipboard.Escapes.Replace(_screen.ToString(), "").Contains("PS ", StringComparison.Ordinal), TimeSpan.FromSeconds(15), ct).ConfigureAwait(false);
-        return shell;
+        var prompt = await WaitAsync(() => RemoteClipboard.Escapes.Replace(_screen.ToString(), "").Contains("PS ", StringComparison.Ordinal), TimeSpan.FromSeconds(20), ct).ConfigureAwait(false);
+        bool? full = null;
+        if (prompt)
+        {
+            await shell.WriteAsync(LanguageProbe + "\r", ct).ConfigureAwait(false);
+            await WaitAsync(() => IsFull(_screen.ToString()) is not null, TimeSpan.FromSeconds(15), ct).ConfigureAwait(false);
+            lock (_screen) full = IsFull(_screen.ToString());
+        }
+        if (full == true) return shell;
+        // A limited language says it itself. Silence means two things, measured: a forbidden PowerShell and nobody signed in look the
+        // same, with the tunnel open and nothing on it, so the agent is asked. Only a user who is there and cannot use it is final;
+        // nobody may sign in later. / Un lenguaje limitado lo dice él. El silencio significa dos cosas, medido: un PowerShell prohibido
+        // y nadie con sesión se ven igual, con el túnel abierto y nada en él, así que se le pregunta al agente. Solo es definitivo un
+        // usuario que está y no puede usarlo; alguien puede entrar después.
+        var there = full == false || await SomeoneIsSignedInAsync(ct).ConfigureAwait(false);
+        await CloseShellAsync().ConfigureAwait(false);
+        if (!there) throw new MeshClientException(MeshFailure.ConnectionLost, codes.Lost, "Nobody is signed in on the device.");
+        Restricted = true;
+        throw RestrictedFailure("run anything as that user");
     }
+
+    /// <summary>Someone at the screen or by Remote Desktop, among all that the agent's cmd prints with "query user" (its banner, the echo, a localized header). Not being able to tell counts as nobody, which is not final.
+    /// Alguien en la pantalla o por Escritorio remoto, entre todo lo que escribe el cmd del agente con «query user» (su cabecera, el eco, títulos traducidos). No poder saberlo cuenta como nadie, que no es definitivo.</summary>
+    private async Task<bool> SomeoneIsSignedInAsync(CancellationToken ct)
+    {
+        try
+        {
+            var answer = await session.RunCommandsAsync(device, "query user", CommandShell.Cmd, asUser: false, ct: ct).ConfigureAwait(false);
+            return HasSessions(answer);
+        }
+        catch (MeshClientException) { return false; }
+    }
+
+    internal static bool HasSessions(string queryUser) =>
+        System.Text.RegularExpressions.Regex.IsMatch(queryUser, @"\s(console|rdp-tcp#\d+)\s", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
 
     /// <summary>Until <paramref name="done"/> holds on what the terminal has shown, the terminal ends or the time passes. / Hasta que se cumpla, acabe la terminal o pase el tiempo.</summary>
     private async Task<bool> WaitAsync(Func<bool> done, TimeSpan limit, CancellationToken ct)
@@ -85,6 +139,7 @@ internal sealed class UserShell(MeshServerSession session, Device device, UserSh
     /// <param name="answerLimit">How long the script may take; 60 s if null. / Cuánto puede tardar el guion; 60 s si es null.</param>
     internal async Task<JsonObject> RunAsync(string script, string what, CancellationToken ct, TimeSpan? answerLimit = null)
     {
+        if (Restricted) throw RestrictedFailure(what);
         var shell = await ShellAsync(ct).ConfigureAwait(false);
         if (_answers is null && script != RemoteClipboard.HelloScript) await RunAsync(RemoteClipboard.HelloScript, "start", ct).ConfigureAwait(false);
         var id = Guid.NewGuid().ToString("N")[..12];
