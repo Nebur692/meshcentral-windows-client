@@ -103,6 +103,12 @@ public sealed class DeviceTests : IDisposable
         Assert.DoesNotContain(page.FindAllDescendants(cf => cf.ByControlType(ControlType.Edit)), e => Value(e) == "Physical Memory");
         Shot("general");
 
+        // What a person looks for without opening the inventory, from a real Windows agent. / Lo que una persona busca sin abrir el inventario, de un agente de Windows real.
+        var memory = Id(page, "DeviceMemory").Patterns.Value.Pattern.Value.Value;
+        Assert.Contains("GB", memory, StringComparison.Ordinal);
+        Assert.Contains("GB", Id(page, "DeviceDisks").Patterns.Value.Pattern.Value.Value, StringComparison.Ordinal);
+        Assert.Contains("C:", Id(page, "DeviceVolumes").Patterns.Value.Pattern.Value.Value, StringComparison.Ordinal);
+
         ShowTab(page, "TabNetwork");
         Until(() => Id(page, "NetworkList").FindAllDescendants(cf => cf.ByControlType(ControlType.DataItem)).Length > 0, "no network interface");
         Shot("network");

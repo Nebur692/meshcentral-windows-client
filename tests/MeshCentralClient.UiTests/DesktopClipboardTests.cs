@@ -102,13 +102,27 @@ public sealed class DesktopClipboardTests(ITestOutputHelper output) : IDisposabl
     }
 
     /// <summary>Ctrl+V in a real Explorer window on the folder, the gesture of a person. / Ctrl+V en una ventana de verdad del Explorador sobre la carpeta, el gesto de una persona.</summary>
-    private void PasteInExplorer(string folder)
+    private void PasteInExplorer(string folder, params AutomationElement[] inTheWay)
     {
         _explorer ??= OpenExplorer(folder);
-        _explorer.SetForeground();
-        _explorer.Focus();
+        // Windows does not bring to the front a window another process opened, it only flashes it (seen in a capture): nothing
+        // may cover it, and a click activates it. / Windows no trae al frente una ventana que abrió otro proceso, solo la hace
+        // parpadear (visto en una captura): nada debe taparla, y un clic la activa.
+        foreach (var w in inTheWay) w.Patterns.Window.Pattern.SetWindowVisualState(FlaUI.Core.Definitions.WindowVisualState.Minimized);
         Thread.Sleep(500);
+        _explorer.Click();
+        Thread.Sleep(500);
+        Shot("explorer-before-paste");
         Keyboard.TypeSimultaneously(VirtualKeyShort.CONTROL, VirtualKeyShort.KEY_V);
+    }
+
+    /// <summary>WPF keeps a hidden element in the automation tree for a while, only marked as off screen. / WPF deja un rato en el árbol de automatización un elemento escondido, solo marcado fuera de pantalla.</summary>
+    private static bool Shown(AutomationElement root, string id) =>
+        root.FindFirstDescendant(cf => cf.ByAutomationId(id)) is { } e && !e.IsOffscreen;
+
+    private static void Restore(params AutomationElement[] windows)
+    {
+        foreach (var w in windows) w.Patterns.Window.Pattern.SetWindowVisualState(FlaUI.Core.Definitions.WindowVisualState.Normal);
     }
 
     private Window OpenExplorer(string folder)
@@ -153,10 +167,11 @@ public sealed class DesktopClipboardTests(ITestOutputHelper output) : IDisposabl
         Assert.Empty(ClipboardTool.Files());
         var target = Directory.CreateDirectory(Path.Combine(_dir.FullName, "pasted")).FullName;
         var pasted = Path.Combine(target, Path.GetFileName(there));
-        PasteInExplorer(target);
+        PasteInExplorer(target, win, desk);
         Until(() => File.Exists(Path.Combine(pasted, "sub", "b.txt")) && new FileInfo(Path.Combine(pasted, "sub", "b.txt")).Length > 0, "the folder pasted by Explorer");
         Assert.Equal("desde el equipo " + _tag, File.ReadAllText(Path.Combine(pasted, "a.txt")));
         Assert.Equal("b desde el equipo " + _tag, File.ReadAllText(Path.Combine(pasted, "sub", "b.txt")));
+        Restore(win, desk);
 
         // 2b. A big one: Explorer's own window with its bar, what Remote Desktop shows. / Uno grande: la ventana del propio Explorador con su barra, lo que enseña Escritorio remoto.
         desk.AsWindow().SetForeground();
@@ -166,7 +181,7 @@ public sealed class DesktopClipboardTests(ITestOutputHelper output) : IDisposabl
         win.SetForeground();
         // The notice reads the same as before: what tells is the real file leaving the clipboard. / El aviso dice lo mismo que antes: lo que distingue es que el fichero de verdad deja el portapapeles.
         Until(() => ClipboardTool.Files().Length == 0 && Notice() == offered, "the big file offered from the device", Notice);
-        PasteInExplorer(target);
+        PasteInExplorer(target, win, desk);
         var copying = Retry.WhileNull(() => _automation.GetDesktop().FindFirstChild(cf => cf.ByClassName("OperationStatusWindow")), Timeout, TimeSpan.FromMilliseconds(100)).Result;
         Shot("explorer-copy-window");
         Assert.True(copying is not null, "Explorer never showed its copy window");
@@ -174,18 +189,18 @@ public sealed class DesktopClipboardTests(ITestOutputHelper output) : IDisposabl
         Until(() => Retry.WhileNotNull(() => _automation.GetDesktop().FindFirstChild(cf => cf.ByClassName("OperationStatusWindow")), Timeout).Result && File.Exists(pastedBig), "the big file pasted");
         Assert.Equal(new FileInfo(big).Length, new FileInfo(pastedBig).Length);
         Assert.Equal(System.Security.Cryptography.SHA256.HashData(File.ReadAllBytes(big)), System.Security.Cryptography.SHA256.HashData(File.ReadAllBytes(pastedBig)));
+        Restore(win, desk);
 
         // 2c. Taking it to the device shows a bar, and Cancel stops it. / Llevarlo al equipo enseña una barra, y Cancelar lo para.
         ClipboardTool.SetText("nada " + _tag);
         Thread.Sleep(500);
         ClipboardTool.SetFiles(big);
         desk.AsWindow().SetForeground();
-        var cancel = Id(desk, "ClipCancelButton");
-        Id(desk, "ClipProgress");
+        Until(() => Shown(desk, "ClipCancelButton") && Shown(desk, "ClipProgress"), "the bar and Cancel while taking it", Notice);
         Shot("taking-with-bar");
-        cancel.AsButton().Invoke();
+        Id(desk, "ClipCancelButton").AsButton().Invoke();
         Until(() => Notice() == "Cancelled: nothing was left on the device's clipboard.", "the transfer cancelled", Notice);
-        Assert.Null(desk.FindFirstDescendant(cf => cf.ByAutomationId("ClipCancelButton")));
+        Until(() => !Shown(desk, "ClipCancelButton"), "Cancel leaving when it ended");
         // Leaving reads the device's clipboard (the same file, nothing new); let it end before copying something else.
         // Al salir se lee el portapapeles del equipo (el mismo fichero, nada nuevo); que acabe antes de copiar otra cosa.
         win.SetForeground();
@@ -251,13 +266,13 @@ public sealed class DesktopClipboardTests(ITestOutputHelper output) : IDisposabl
         Shot("full-screen-bar-floating");
         // It hides by itself with the mouse away; the top edge brings it back. / Se esconde sola con el ratón lejos; el borde de arriba la devuelve.
         Mouse.MoveTo(screen.Width / 2, screen.Height / 2);
-        Until(() => desk.FindFirstDescendant(cf => cf.ByAutomationId("FullScreenButton")) is null, "the bar hiding");
+        Until(() => !Shown(desk, "FullScreenButton"), "the bar hiding");
         Shot("full-screen-bar-hidden");
         Mouse.MoveTo(screen.Width / 2, screen.Height / 3);
         Mouse.MoveTo(screen.Width / 2, 0);
-        var button = Id(desk, "FullScreenButton");
+        Until(() => Shown(desk, "FullScreenButton"), "the bar back");
         Shot("full-screen-bar-back");
-        button.AsButton().Invoke();
+        Id(desk, "FullScreenButton").AsButton().Invoke();
         // The usual size can be as wide as a small screen, so it is compared with itself. / El tamaño normal puede ser tan ancho como una pantalla pequeña, así que se compara consigo mismo.
         Until(() => window.BoundingRectangle == normal, "the window back to its size", () => window.BoundingRectangle.ToString());
 
