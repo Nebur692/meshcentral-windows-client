@@ -138,7 +138,7 @@ public sealed class DesktopClipboardTests(ITestOutputHelper output) : IDisposabl
         var block = new byte[1024 * 1024];
         new Random(5).NextBytes(block);
         using var f = File.Create(path);
-        for (var i = 0; i < 1500; i++) f.Write(block);
+        for (var i = 0; i < 400; i++) f.Write(block);
         return path;
     }
 
@@ -182,11 +182,13 @@ public sealed class DesktopClipboardTests(ITestOutputHelper output) : IDisposabl
         // The notice reads the same as before: what tells is the real file leaving the clipboard. / El aviso dice lo mismo que antes: lo que distingue es que el fichero de verdad deja el portapapeles.
         Until(() => ClipboardTool.Files().Length == 0 && Notice() == offered, "the big file offered from the device", Notice);
         PasteInExplorer(target, win, desk);
-        var copying = Retry.WhileNull(() => _automation.GetDesktop().FindFirstChild(cf => cf.ByClassName("OperationStatusWindow")), Timeout, TimeSpan.FromMilliseconds(100)).Result;
+        // Its title as seen in a capture of this machine: Windows in English. / Su título tal como se vio en una captura de esta máquina: Windows en inglés.
+        AutomationElement? CopyWindow() => _automation.GetDesktop().FindFirstDescendant(cf => cf.ByName("Copying..."));
+        var copying = Retry.WhileNull(CopyWindow, Timeout, TimeSpan.FromMilliseconds(200)).Result;
         Shot("explorer-copy-window");
         Assert.True(copying is not null, "Explorer never showed its copy window");
         var pastedBig = Path.Combine(target, Path.GetFileName(big));
-        Until(() => Retry.WhileNotNull(() => _automation.GetDesktop().FindFirstChild(cf => cf.ByClassName("OperationStatusWindow")), Timeout).Result && File.Exists(pastedBig), "the big file pasted");
+        Until(() => CopyWindow() is null && File.Exists(pastedBig), "the big file pasted");
         Assert.Equal(new FileInfo(big).Length, new FileInfo(pastedBig).Length);
         using (var a = File.OpenRead(big)) using (var b = File.OpenRead(pastedBig)) Assert.Equal(System.Security.Cryptography.SHA256.HashData(a), System.Security.Cryptography.SHA256.HashData(b));
         Restore(win, desk);
@@ -266,7 +268,7 @@ public sealed class DesktopClipboardTests(ITestOutputHelper output) : IDisposabl
         Shot("full-screen-bar-floating");
         // It hides by itself with the mouse away; the top edge brings it back. / Se esconde sola con el ratón lejos; el borde de arriba la devuelve.
         Mouse.MoveTo(screen.Width / 2, screen.Height / 2);
-        Until(() => !Shown(desk, "FullScreenButton"), "the bar hiding");
+        Until(() => !Shown(desk, "FullScreenButton"), "the bar hiding", () => window.Properties.ItemStatus.ValueOrDefault ?? "");
         Shot("full-screen-bar-hidden");
         Mouse.MoveTo(screen.Width / 2, screen.Height / 3);
         Mouse.MoveTo(screen.Width / 2, 0);

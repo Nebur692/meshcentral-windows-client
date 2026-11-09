@@ -227,6 +227,7 @@ public sealed class DesktopWindow : Window
     private void HideBarIfIdle()
     {
         // Never from under the mouse, an open list or a transfer going on. / Nunca bajo el ratón, con una lista abierta o con una transferencia en marcha.
+        System.Windows.Automation.AutomationProperties.SetItemStatus(this, $"over={_floating.IsMouseOver} transfer={_transferring} list={_quality.IsDropDownOpen || _displays.IsDropDownOpen}");
         if (_floating.IsMouseOver || _quality.IsDropDownOpen || _displays.IsDropDownOpen || _transferring) return;
         _hideBar.Stop();
         _floating.Visibility = Visibility.Collapsed;
