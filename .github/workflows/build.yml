@@ -148,5 +148,5 @@ jobs:
         run: |
           case "${GITHUB_REF_NAME}" in *-*) pre=--prerelease ;; *) pre= ;; esac
           # Every release page links the code signing policy, as SignPath asks. / Cada versión enlaza la política de firma, como pide SignPath.
-          { cat "docs/releases/${GITHUB_REF_NAME}.md"; printf '\n---\n\n[Code signing policy](https://github.com/%s/blob/main/docs/CODE_SIGNING.md)\n' "${GITHUB_REPOSITORY}"; } > notes.md
+          { cat "docs/releases/${GITHUB_REF_NAME}.md"; printf '\n---\n\n[Code signing policy](https://github.com/%s/blob/main/docs/CODE_SIGNING.md): code signing by SignPath.io, certificate by SignPath Foundation.\n' "${GITHUB_REPOSITORY}"; } > notes.md
           gh release create "${GITHUB_REF_NAME}" dist/MeshCentralClient.exe dist/MeshCentralClient.exe.sha256 --title "${GITHUB_REF_NAME}" --notes-file notes.md $pre
