@@ -57,6 +57,18 @@ public sealed class DesktopClipboardTests(ITestOutputHelper output) : IDisposabl
     private AutomationElement Anywhere(string id) => WaitFor(() => _automation.GetDesktop().FindFirstDescendant(cf => cf.ByAutomationId(id)), id);
 
     [System.Runtime.InteropServices.DllImport("user32.dll")] private static extern IntPtr GetForegroundWindow();
+    [System.Runtime.InteropServices.DllImport("user32.dll")] private static extern short GetAsyncKeyState(int vk);
+
+    /// <summary>Ctrl and Alt up for a whole second. / Ctrl y Alt sueltas durante un segundo entero.</summary>
+    private static bool ModifiersQuiet()
+    {
+        for (var i = 0; i < 20; i++)
+        {
+            if ((GetAsyncKeyState(0x11) & 0x8000) != 0 || (GetAsyncKeyState(0x12) & 0x8000) != 0) return false;
+            Thread.Sleep(50);
+        }
+        return true;
+    }
 
     /// <summary>The window is in front and the focused element is in its process. / La ventana está delante y el elemento con el foco es de su proceso.</summary>
     private bool HoldsKeyboard(Window window)
@@ -319,6 +331,11 @@ public sealed class DesktopClipboardTests(ITestOutputHelper output) : IDisposabl
         // The new frame takes the keyboard back a moment later; a person never presses again within those milliseconds.
         // El marco nuevo recupera el teclado un momento después; una persona nunca vuelve a pulsar en esos milisegundos.
         Until(() => HoldsKeyboard(window), "the keyboard back in full screen", () => _automation.FocusedElement()?.Properties.ProcessId.ValueOrDefault.ToString() ?? "none");
+        // Here the device IS this PC: the Ctrl and Alt the viewer sent come back through the agent into this same keyboard, and one
+        // landing in the middle of the next press breaks it. A real remote device has its own keyboard.
+        // Aquí el equipo ES este PC: el Ctrl y el Alt que mandó el visor vuelven por el agente a este mismo teclado, y uno que caiga en
+        // mitad de la siguiente pulsación la rompe. Un equipo remoto de verdad tiene su propio teclado.
+        Until(ModifiersQuiet, "Ctrl and Alt quiet after the echo from the agent");
         Keyboard.TypeSimultaneously(VirtualKeyShort.CONTROL, VirtualKeyShort.ALT, VirtualKeyShort.PAUSE);
         Until(() => window.BoundingRectangle == normal, "back by keys", () => window.BoundingRectangle.ToString());
     }
