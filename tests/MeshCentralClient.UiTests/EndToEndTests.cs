@@ -197,12 +197,16 @@ public sealed class EndToEndTests(ITestOutputHelper output) : IDisposable
         var ps = FindAnywhere("TerminalWindow");
         Assert.True(Retry.WhileFalse(() => ps.FindFirstDescendant(cf => cf.ByAutomationId("TerminalStatus"))?.Name.StartsWith("Select to copy") == true, TimeSpan.FromSeconds(45), TimeSpan.FromMilliseconds(300)).Result, "PowerShell did not open");
         Find("TerminalView", ps).Click();
-        // Typed before its first prompt, the keys are lost (seen in a capture). / Tecleadas antes de su primer aviso, las teclas se pierden (visto en una captura).
-        Assert.NotNull(Retry.WhileNull(() => ps.FindAllDescendants().FirstOrDefault(e => SafeName(e).Replace("\u00a0", " ").TrimStart().StartsWith("PS ", StringComparison.Ordinal)), TimeSpan.FromSeconds(30), TimeSpan.FromMilliseconds(300)).Result);
-        Thread.Sleep(1000);
-        Keyboard.Type("6*7");
-        Keyboard.Type(VirtualKeyShort.ENTER);
-        var psAnswer = Retry.WhileNull(() => ps.FindAllDescendants().FirstOrDefault(e => SafeName(e).Replace("\u00a0", " ").Trim() == "42"), TimeSpan.FromSeconds(30), TimeSpan.FromMilliseconds(500)).Result;
+        // PowerShell shows its prompt before it has finished loading and drops what is typed meanwhile (seen in captures, as in any
+        // console), so the order is repeated until it answers. / PowerShell enseña su aviso antes de acabar de cargar y tira lo que se
+        // teclea entretanto (visto en capturas, como en cualquier consola), así que la orden se repite hasta que conteste.
+        AutomationElement? psAnswer = null;
+        for (var attempt = 0; attempt < 8 && psAnswer is null; attempt++)
+        {
+            Keyboard.Type("6*7");
+            Keyboard.Type(VirtualKeyShort.ENTER);
+            psAnswer = Retry.WhileNull(() => ps.FindAllDescendants().FirstOrDefault(e => SafeName(e).Replace("\u00a0", " ").Trim() == "42"), TimeSpan.FromSeconds(5), TimeSpan.FromMilliseconds(300)).Result;
+        }
         Shot("powershell-output");
         Assert.NotNull(psAnswer);
         ClipboardTool.SetText("nothing yet");
