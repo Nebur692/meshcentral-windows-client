@@ -165,6 +165,12 @@ public sealed class EndToEndTests(ITestOutputHelper output) : IDisposable
         var copied = Retry.WhileFalse(() => ClipboardTool.Text() == "42", TimeSpan.FromSeconds(10), TimeSpan.FromMilliseconds(300)).Result;
         Shot("terminal-selected");
         Assert.True(copied, "selecting did not copy: the clipboard has \"" + ClipboardTool.Text() + "\"");
+        Assert.StartsWith("Copied (2 characters)", term.FindFirstDescendant(cf => cf.ByAutomationId("TerminalStatus"))?.Name);
+
+        //     Ctrl+C on a selection copies and does not interrupt; a person expects it. / Ctrl+C sobre una selección copia y no interrumpe; es lo que espera una persona.
+        ClipboardTool.SetText("nothing yet");
+        Keyboard.TypeSimultaneously(VirtualKeyShort.CONTROL, VirtualKeyShort.KEY_C);
+        Assert.True(Retry.WhileFalse(() => ClipboardTool.Text() == "42", TimeSpan.FromSeconds(10), TimeSpan.FromMilliseconds(300)).Result, "Ctrl+C on a selection did not copy");
 
         //     Right click pastes (and runs nothing by itself: Enter is ours). / El clic derecho pega (y no ejecuta nada solo: el Intro es nuestro).
         ClipboardTool.SetText("set /a 7*8");
@@ -182,6 +188,28 @@ public sealed class EndToEndTests(ITestOutputHelper output) : IDisposable
         Shot("terminal-pasted");
         Assert.NotNull(pasted);
         term.AsWindow().Close();
+
+        // 3e. The same in PowerShell, which a person found did not copy on a real device. / Lo mismo en PowerShell, que una persona vio que no copiaba en un equipo real.
+        var row = Find("DeviceList").FindFirstDescendant(cf => cf.ByName(machine))!;
+        row.Patterns.SelectionItem.Pattern.Select();
+        row.RightClick();
+        FindAnywhere("PowerShellItem").AsMenuItem().Invoke();
+        var ps = FindAnywhere("TerminalWindow");
+        Assert.True(Retry.WhileFalse(() => ps.FindFirstDescendant(cf => cf.ByAutomationId("TerminalStatus"))?.Name.StartsWith("Select to copy") == true, TimeSpan.FromSeconds(45), TimeSpan.FromMilliseconds(300)).Result, "PowerShell did not open");
+        Find("TerminalView", ps).Click();
+        Thread.Sleep(2000); // its first prompt / su primer aviso
+        Keyboard.Type("6*7");
+        Keyboard.Type(VirtualKeyShort.ENTER);
+        var psAnswer = Retry.WhileNull(() => ps.FindAllDescendants().FirstOrDefault(e => SafeName(e).Replace("\u00a0", " ").Trim() == "42"), TimeSpan.FromSeconds(30), TimeSpan.FromMilliseconds(500)).Result;
+        Shot("powershell-output");
+        Assert.NotNull(psAnswer);
+        ClipboardTool.SetText("nothing yet");
+        var psCell = psAnswer!.BoundingRectangle;
+        Mouse.DoubleClick(new System.Drawing.Point(psCell.Left + 4, psCell.Top + psCell.Height / 2));
+        var psCopied = Retry.WhileFalse(() => ClipboardTool.Text() == "42", TimeSpan.FromSeconds(10), TimeSpan.FromMilliseconds(300)).Result;
+        Shot("powershell-selected");
+        Assert.True(psCopied, "selecting did not copy in PowerShell: the clipboard has \"" + ClipboardTool.Text() + "\"");
+        ps.AsWindow().Close();
 
         // 4. Disconnect and sign in with the two-factor account. / Desconectar y entrar con la cuenta de doble factor.
         Click("DisconnectButton");

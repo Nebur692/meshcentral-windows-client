@@ -115,7 +115,7 @@ public sealed class TerminalWindow : Window
                 Title = $"{_kindName} — {_device.Name} — {m["title"]}";
                 break;
             case "copy":
-                try { Clipboard.SetText(m["text"]?.ToString() ?? ""); } catch (Exception) { }
+                _ = CopyAsync(m["text"]?.ToString() ?? "");
                 break;
             case "paste-request":
                 string text = "";
@@ -123,6 +123,28 @@ public sealed class TerminalWindow : Window
                 if (text.Length > 0) Post(new JsonObject { ["t"] = "paste", ["text"] = text });
                 break;
         }
+    }
+
+    /// <summary>To the clipboard, which another program may hold for a moment; and it says how it went, as copying has no other sign.
+    /// Al portapapeles, que otro programa puede tener un momento; y dice cómo fue, porque copiar no da otra señal.</summary>
+    private async Task CopyAsync(string text)
+    {
+        var told = L.T("ClipBusy");
+        for (var i = 0; i < 10; i++)
+        {
+            try
+            {
+                Clipboard.SetDataObject(new DataObject(DataFormats.UnicodeText, text), copy: true);
+                told = L.F("TerminalCopied", text.Length);
+                break;
+            }
+            catch (System.Runtime.InteropServices.COMException) { await Task.Delay(100); }
+        }
+        var before = _status.Text;
+        var shown = _status.Text = told;
+        await Task.Delay(TimeSpan.FromSeconds(3));
+        // Unless something else was said meanwhile. / Salvo que entretanto se haya dicho otra cosa.
+        if (_status.Text == shown) _status.Text = before == shown ? (_terminal?.IsRecorded == true ? L.T("TerminalRecorded") : L.T("TerminalHelp")) : before;
     }
 
     // A failed keystroke after the tunnel closed is already reported by Closed. / Una tecla que falla tras cerrarse el túnel ya la avisa Closed.

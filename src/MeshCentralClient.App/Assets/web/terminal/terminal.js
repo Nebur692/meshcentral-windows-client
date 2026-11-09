@@ -31,16 +31,17 @@
 
   // Copy and paste like PuTTY: selecting copies (drag, double click a word, triple click a line); right click,
   // middle click and Shift+Insert paste; Ctrl+Insert copies. Ctrl+Shift+C / Ctrl+Shift+V also work. Ctrl+C and
-  // Ctrl+V stay for the remote programs, as in PuTTY.
+  // Ctrl+V stay for the remote programs, as in PuTTY, except Ctrl+C on a selection, which copies, as in Windows Terminal.
   // Copiar y pegar como PuTTY: seleccionar copia (arrastrar, doble clic en una palabra, triple clic en una línea); el
   // clic derecho, el central y Mayús+Insert pegan; Ctrl+Insert copia. También Ctrl+Mayús+C / Ctrl+Mayús+V. Ctrl+C y
-  // Ctrl+V siguen siendo de los programas remotos, como en PuTTY.
+  // Ctrl+V siguen siendo de los programas remotos, como en PuTTY, salvo Ctrl+C sobre una selección, que copia, como en Terminal de Windows.
   const copy = () => { if (term.hasSelection()) send({ t: 'copy', text: term.getSelection() }); };
   const paste = () => send({ t: 'paste-request' });
   term.attachCustomKeyEventHandler((e) => {
     if (e.type !== 'keydown') return true;
     if (e.code === 'Insert' && e.shiftKey && !e.ctrlKey) { paste(); return false; }
     if (e.code === 'Insert' && e.ctrlKey && !e.shiftKey) { copy(); return false; }
+    if (e.code === 'KeyC' && e.ctrlKey && !e.shiftKey && !e.altKey && term.hasSelection()) { copy(); term.clearSelection(); return false; }
     if (!e.ctrlKey || !e.shiftKey) return true;
     if (e.code === 'KeyC') { copy(); return false; }
     if (e.code === 'KeyV') { paste(); return false; }

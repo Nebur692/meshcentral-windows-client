@@ -269,7 +269,7 @@ public sealed class DesktopClipboardTests(ITestOutputHelper output) : IDisposabl
         Shot("full-screen-bar-floating");
         // It hides by itself with the mouse away; the top edge brings it back. / Se esconde sola con el ratón lejos; el borde de arriba la devuelve.
         Mouse.MoveTo(screen.Width / 2, screen.Height / 2);
-        Until(() => !Shown(desk, "FullScreenButton"), "the bar hiding", () => window.Properties.ItemStatus.ValueOrDefault ?? "");
+        Until(() => !Shown(desk, "FullScreenButton"), "the bar hiding");
         Shot("full-screen-bar-hidden");
         Mouse.MoveTo(screen.Width / 2, screen.Height / 3);
         Mouse.MoveTo(screen.Width / 2, 0);
