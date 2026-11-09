@@ -190,9 +190,9 @@ public sealed class EndToEndTests(ITestOutputHelper output) : IDisposable
         term.AsWindow().Close();
 
         // 3e. The same in PowerShell, which a person found did not copy on a real device. / Lo mismo en PowerShell, que una persona vio que no copiaba en un equipo real.
-        var row = Find("DeviceList").FindFirstDescendant(cf => cf.ByName(machine))!;
-        row.Patterns.SelectionItem.Pattern.Select();
-        row.RightClick();
+        var psRow = Find("DeviceList").FindFirstDescendant(cf => cf.ByName(machine))!;
+        psRow.Patterns.SelectionItem.Pattern.Select();
+        psRow.RightClick();
         FindAnywhere("PowerShellItem").AsMenuItem().Invoke();
         var ps = FindAnywhere("TerminalWindow");
         Assert.True(Retry.WhileFalse(() => ps.FindFirstDescendant(cf => cf.ByAutomationId("TerminalStatus"))?.Name.StartsWith("Select to copy") == true, TimeSpan.FromSeconds(45), TimeSpan.FromMilliseconds(300)).Result, "PowerShell did not open");
