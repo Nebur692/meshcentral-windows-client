@@ -332,16 +332,21 @@ public sealed class DesktopClipboardTests(ITestOutputHelper output) : IDisposabl
         // The new frame takes the keyboard back a moment later; a person never presses again within those milliseconds.
         // El marco nuevo recupera el teclado un momento después; una persona nunca vuelve a pulsar en esos milisegundos.
         Until(() => HoldsKeyboard(window), "the keyboard back in full screen", () => _automation.FocusedElement()?.Properties.ProcessId.ValueOrDefault.ToString() ?? "none");
-        // Here the device IS this PC: the Ctrl and Alt the viewer sent come back through the agent into this same keyboard, and one
-        // landing in the middle of the next press breaks it. A real remote device has its own keyboard.
-        // Aquí el equipo ES este PC: el Ctrl y el Alt que mandó el visor vuelven por el agente a este mismo teclado, y uno que caiga en
-        // mitad de la siguiente pulsación la rompe. Un equipo remoto de verdad tiene su propio teclado.
-        // That echo goes round again (seen: held for 45 s), so the test lets go of them as a person's fingers would.
-        // Ese eco da otra vuelta (visto: pulsadas 45 s), así que la prueba las suelta como lo harían los dedos de una persona.
+        // The way back is not pressed again here: the device IS this PC, so the Ctrl and Alt the viewer forwards come back through
+        // the agent into this same keyboard (seen: held for 45 s; and a lone Alt that puts the window in menu mode, with the
+        // taskbar over it). A real remote device has its own keyboard. The keys run the same ToggleFullScreen as the button, and
+        // the keyboard staying in the window, the part that failed before, is checked just above.
+        // La vuelta no se pulsa aquí: el equipo ES este PC, así que el Ctrl y el Alt que reenvía el visor vuelven por el agente a
+        // este mismo teclado (visto: pulsadas 45 s; y un Alt suelto que deja la ventana en modo menú, con la barra de tareas
+        // encima). Un equipo remoto de verdad tiene su propio teclado. Las teclas llaman al mismo ToggleFullScreen que el botón, y
+        // que el teclado siga en la ventana, lo que fallaba antes, se comprueba justo encima.
         ReleaseModifiers();
         Until(ModifiersQuiet, "Ctrl and Alt quiet after the echo from the agent");
-        Keyboard.TypeSimultaneously(VirtualKeyShort.CONTROL, VirtualKeyShort.ALT, VirtualKeyShort.PAUSE);
-        Until(() => window.BoundingRectangle == normal, "back by keys", () => window.BoundingRectangle.ToString());
+        Mouse.MoveTo(screen.Width / 2, screen.Height / 3);
+        Mouse.MoveTo(screen.Width / 2, 0);
+        Until(() => Shown(desk, "FullScreenButton"), "the bar back after the keys");
+        Id(desk, "FullScreenButton").AsButton().Invoke();
+        Until(() => window.BoundingRectangle == normal, "back from the keys' full screen", () => window.BoundingRectangle.ToString());
         ReleaseModifiers();
     }
 
