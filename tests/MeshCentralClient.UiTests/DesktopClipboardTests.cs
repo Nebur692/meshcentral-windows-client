@@ -263,6 +263,21 @@ public sealed class DesktopClipboardTests(ITestOutputHelper output) : IDisposabl
         var (_, desk) = OpenDesktop();
         var window = desk.AsWindow();
         var normal = window.BoundingRectangle;
+
+        // The viewer offers what the device's menu offers: from it, a terminal opens. / El visor ofrece lo que ofrece el menú del equipo: desde él se abre una terminal.
+        Id(desk, "DeviceMenuButton").AsButton().Invoke();
+        foreach (var offered in new[] { "ViewerDetailsItem", "ViewerFilesItem", "ViewerRunCommandsItem", "ViewerPowerMenu" }) Anywhere(offered);
+        Assert.Null(_automation.GetDesktop().FindFirstDescendant(cf => cf.ByAutomationId("ViewerDesktopItem"))); // already here / ya está aquí
+        Shot("viewer-device-menu");
+        Anywhere("ViewerTerminalItem").AsMenuItem().Invoke();
+        var term = Anywhere("TerminalWindow");
+        term.AsWindow().Close();
+        window.SetForeground();
+        Id(desk, "KeysMenuButton").AsButton().Invoke();
+        Anywhere("LockInputItem");
+        Shot("viewer-keys-menu");
+        Keyboard.Type(VirtualKeyShort.ESCAPE);
+
         var screen = _automation.GetDesktop().BoundingRectangle;
         Id(desk, "FullScreenButton").AsButton().Invoke();
         Until(() => window.BoundingRectangle.Width >= screen.Width && window.BoundingRectangle.Height >= screen.Height, "the window covering the screen", () => window.BoundingRectangle.ToString());

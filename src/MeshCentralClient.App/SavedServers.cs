@@ -17,6 +17,31 @@ public sealed class SavedServer
     /// <summary>MeshCentral strategy ("oidc", "saml"…) when this account signs in with single sign-on. / Estrategia cuando la cuenta entra por inicio único.</summary>
     public string? SingleSignOn { get; set; }
 
+    /// <summary>A login token of this account, protected as the password is. / Un token de entrada de esta cuenta, protegido como la contraseña.</summary>
+    public string? ProtectedToken { get; set; }
+    public DateTimeOffset? TokenExpires { get; set; }
+
+    /// <summary>The person said no to remembering this single sign-on. / La persona dijo que no a recordar este inicio único.</summary>
+    public bool DoNotRememberSession { get; set; }
+
+    public (string User, string Password)? ReadToken()
+    {
+        if (string.IsNullOrEmpty(ProtectedToken) || TokenExpires is { } end && end <= DateTimeOffset.UtcNow) return null;
+        try
+        {
+            var both = Encoding.UTF8.GetString(ProtectedData.Unprotect(Convert.FromBase64String(ProtectedToken), Entropy, DataProtectionScope.CurrentUser)).Split('\n', 2);
+            return both.Length == 2 ? (both[0], both[1]) : null;
+        }
+        catch (Exception) { return null; } // another user or a reinstalled Windows / otro usuario o un Windows reinstalado
+    }
+
+    public void WriteToken(string? user, string? password, DateTimeOffset? expires)
+    {
+        TokenExpires = expires;
+        ProtectedToken = user is null || password is null ? null
+            : Convert.ToBase64String(ProtectedData.Protect(Encoding.UTF8.GetBytes(user + "\n" + password), Entropy, DataProtectionScope.CurrentUser));
+    }
+
     public override string ToString() =>
         (string.IsNullOrEmpty(Username) ? Address : $"{Username} @ {Address}") + (SingleSignOn is null ? "" : $" ({L.T("SsoSaved")})");
 

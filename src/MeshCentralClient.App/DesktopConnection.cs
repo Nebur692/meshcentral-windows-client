@@ -28,6 +28,9 @@ public sealed class DesktopConnection : IAsyncDisposable
     }
 
     public DeviceRow Device { get; }
+
+    /// <summary>The session of the server, for what this viewer asks of the device beyond its picture. / La sesión del servidor, para lo que este visor le pide al equipo además de la imagen.</summary>
+    internal MeshServerSession Server => _session;
     public DesktopSession? Session { get; private set; }
 
     /// <summary>Copy and paste of everything with a Windows device; null elsewhere. / Copiar y pegar de todo con un equipo Windows; null en los demás.</summary>

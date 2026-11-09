@@ -26,6 +26,7 @@
     <!-- Web pages shown in WebView2 (terminal), embedded so the app stays a single file.
          Páginas que se ven en WebView2 (terminal), incrustadas para que la app siga siendo un solo fichero. -->
     <EmbeddedResource Include="Assets\web\**\*" LogicalName="web/%(RecursiveDir)%(Filename)%(Extension)" />
+    <Resource Include="Assets\app.ico" />
   </ItemGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="MeshCentralClient.App.Tests" />

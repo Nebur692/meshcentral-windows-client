@@ -104,12 +104,28 @@ public sealed class SsoTests : IDisposable
         Assert.Null(Anywhere("SsoWindow")); // it closed itself / se cerró sola
         Shot("alice-in");
 
+        // The person is asked before anything that lets in without the provider is kept. / Se le pregunta a la persona antes de guardar nada que deje entrar sin el proveedor.
+        var ask = WaitFor(() => _automation.GetDesktop().FindFirstDescendant(cf => cf.ByName("Remember this session")), "the question about remembering");
+        Shot("alice-remember");
+        WaitFor(() => ask.FindFirstDescendant(cf => cf.ByAutomationId("6")), "its Yes").AsButton().Invoke();
+        var saved = Path.Combine(_dir.FullName, "appdata", "MeshCentralClient", "servers.json");
+        Assert.True(Retry.WhileFalse(() => File.Exists(saved) && File.ReadAllText(saved).Contains("ProtectedToken\":\"", StringComparison.Ordinal), Timeout, TimeSpan.FromMilliseconds(300)).Result, "the remembered session was not kept");
+        Assert.DoesNotContain("~t:", File.ReadAllText(saved), StringComparison.Ordinal); // never in the clear / nunca en claro
+
         // Second time: the provider remembers the person, no page to fill. / La segunda vez el proveedor la recuerda: nada que rellenar.
         Find(win, "DisconnectButton").AsButton().Invoke();
         Find(win, "ConnectButton");
         Assert.Contains("single sign-on", Find(win, "ServerBox").AsComboBox().Items.First().Text);
-        SignIn(win, "alice", expectProviderPage: false);
-        Assert.StartsWith("alice ·", Find(win, "SessionSubtitle").Name);
+        // Second time: remembered, not even the provider's window. / La segunda vez: recordada, ni la ventana del proveedor.
+        var sawProvider = false;
+        Find(win, "ServerBox").AsComboBox().EditableText = Env("MESHUI_SERVER");
+        Find(win, "ConnectButton").AsButton().Invoke();
+        Assert.True(Retry.WhileFalse(() =>
+        {
+            sawProvider |= Anywhere("SsoWindow") is not null;
+            return win.FindFirstDescendant(cf => cf.ByAutomationId("SessionSubtitle")) is { } sub && !sub.IsOffscreen && sub.Name.StartsWith("alice ·", StringComparison.Ordinal);
+        }, Timeout, TimeSpan.FromMilliseconds(100)).Result, "the remembered session did not sign in");
+        Assert.False(sawProvider, "the provider's window opened although the session was remembered");
         Shot("alice-again");
     }
 

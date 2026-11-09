@@ -129,6 +129,7 @@ public partial class MainWindow : Window
         try
         {
             var trust = new CertificateTrust(_saved.PinFor(key));
+            if (await RememberedSessionAsync(key, address, trust) is { } remembered) { await OpenSessionAsync(remembered); return; }
             if (method is null)
             {
                 var found = await SignInMethods.DiscoverAsync(address, trust);
@@ -162,6 +163,7 @@ public partial class MainWindow : Window
                 if (_saved.Save() is { } problem) ErrorWindow.Show(this, problem);
                 RefreshSavedList();
                 await OpenSessionAsync(session);
+                await OfferToRememberAsync(session, saved, method);
             }
             else if (w.Failure is { } f)
             {
@@ -170,6 +172,99 @@ public partial class MainWindow : Window
             // closed by the person: nothing to say / la cerró la persona: nada que decir
         }
         finally { SetBusy(false); }
+    }
+
+    private static readonly TimeSpan RememberedFor = TimeSpan.FromDays(90);
+
+    /// <summary>
+    /// A single sign-on remembered in a login token, the server's own way of letting an app in without a password. The provider's cookie
+    /// does not outlive the app when it is a session one, which a person found as "it does not remember me". A token the server refuses is forgotten,
+    /// and the provider's page comes.
+    /// Un inicio único recordado en un token de entrada, la forma del propio servidor de dejar entrar a una app sin contraseña. La cookie del
+    /// proveedor no sobrevive a la app si es de sesión, y una persona lo vio como «no me recuerda». Un token que el servidor rechaza se olvida, y
+    /// sale la página del proveedor.
+    /// </summary>
+    private async Task<MeshServerSession?> RememberedSessionAsync(string key, ServerAddress address, CertificateTrust trust)
+    {
+        var saved = _saved.Items.FirstOrDefault(i => i.Address == key && i.SingleSignOn is not null && i.ReadToken() is not null);
+        if (saved?.ReadToken() is not { } token) return null;
+        try { return await MeshServerSession.ConnectAsync(address, new PasswordCredentials(token.User, token.Password), trust); }
+        catch (MeshClientException ex)
+        {
+            if (ex.Failure == MeshFailure.InvalidCredentials)
+            {
+                saved.WriteToken(null, null, null);
+                if (_saved.Save() is { } problem) ErrorWindow.Show(this, problem);
+            }
+            return null;
+        }
+    }
+
+    /// <summary>It lets in without the provider or its second factor, so it is the person who decides. / Deja entrar sin el proveedor ni su doble factor, así que lo decide la persona.</summary>
+    private async Task OfferToRememberAsync(MeshServerSession session, SavedServer saved, SingleSignOn method)
+    {
+        if (RememberBox.IsChecked != true)
+        {
+            if (saved.DoNotRememberSession) return;
+            if (MessageBox.Show(this, L.F("RememberSessionAsk", method.DisplayName, (int)RememberedFor.TotalDays), L.T("RememberSessionTitle"), MessageBoxButton.YesNo, MessageBoxImage.Question, MessageBoxResult.No) != MessageBoxResult.Yes)
+            {
+                saved.DoNotRememberSession = true;
+                if (_saved.Save() is { } declined) ErrorWindow.Show(this, declined);
+                return;
+            }
+        }
+        try
+        {
+            var name = "MeshCentral Windows Client · " + Environment.MachineName;
+            foreach (var old in (await session.GetLoginTokensAsync()).Where(t => t.Name == name)) await session.RemoveLoginTokenAsync(old);
+            var token = await session.CreateLoginTokenAsync(name, RememberedFor);
+            saved.WriteToken(token.TokenUser, token.Password, token.Expires);
+            saved.DoNotRememberSession = false;
+            if (_saved.Save() is { } problem) ErrorWindow.Show(this, problem);
+        }
+        catch (MeshClientException ex)
+        {
+            MessageBox.Show(this, L.F("RememberSessionFailed", ex.ServerMessage ?? ex.Message), L.T("RememberSessionTitle"), MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+    }
+
+    /// <summary>Forgetting a server also tries to remove its token there; if it cannot, it ends by itself. / Olvidar un servidor intenta también quitar allí su token; si no puede, caduca solo.</summary>
+    private static async Task RemoveTokenAsync(SavedServer s)
+    {
+        if (s.ReadToken() is not { } token || !ServerAddress.TryParse(s.Address, out var address)) return;
+        try
+        {
+            await using var session = await MeshServerSession.ConnectAsync(address!, new PasswordCredentials(token.User, token.Password), new CertificateTrust(s.CertificateSha256));
+            foreach (var t in (await session.GetLoginTokensAsync()).Where(t => t.TokenUser == token.User)) await session.RemoveLoginTokenAsync(t);
+        }
+        catch (MeshClientException) { }
+    }
+
+    /// <summary>
+    /// The actions of a device's menu for its remote desktop window, which then are always the same as here: this menu decides what each one can do.
+    /// Las acciones del menú de un equipo para la ventana de su escritorio remoto, que así siempre son las mismas que aquí: este menú decide lo que puede cada una.
+    /// </summary>
+    internal IReadOnlyList<object> DeviceMenuFor(Device device)
+    {
+        void SelectIt()
+        {
+            var row = _rows.FirstOrDefault(r => r.Device.Id == device.Id);
+            if (row is null) return;
+            DeviceList.SelectedItems.Clear();
+            DeviceList.SelectedItem = row;
+        }
+        SelectIt();
+        DeviceMenu_Opened(this, new RoutedEventArgs());
+        object Copy(object item)
+        {
+            if (item is not MenuItem source) return new Separator();
+            var copy = new MenuItem { Header = source.Header, IsEnabled = source.IsEnabled, Visibility = source.Visibility };
+            if (source.Name.Length > 0) System.Windows.Automation.AutomationProperties.SetAutomationId(copy, "Viewer" + source.Name);
+            if (source.HasItems) foreach (var inside in source.Items) copy.Items.Add(Copy(inside));
+            else copy.Click += (_, _) => { SelectIt(); DeviceMenu_Opened(this, new RoutedEventArgs()); source.RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent, source)); };
+            return copy;
+        }
+        return DeviceList.ContextMenu.Items.Cast<object>().Where(i => !ReferenceEquals(i, DesktopItem)).Select(Copy).ToList();
     }
 
     private void SavePin(string key, string user, string fp)
@@ -192,6 +287,7 @@ public partial class MainWindow : Window
         if (_saved.Save() is { } problem) ShowError(problem);
         // Also what the Windows browser keeps of a single sign-on there. / También lo que guarda el navegador de Windows de un inicio único allí.
         if (s.SingleSignOn is not null && ServerAddress.TryParse(s.Address, out var forgotten)) _ = SsoWindow.ForgetAsync(forgotten!);
+        _ = RemoveTokenAsync(s);
         RefreshSavedList();
         ServerBox.Text = ""; UserBox.Text = ""; PasswordBox.Password = ""; RememberBox.IsChecked = false;
         ForgetButton.Visibility = Visibility.Collapsed;

@@ -47,6 +47,16 @@ public class OidcIntegrationTests(ITestOutputHelper output)
         Assert.Contains("~oidc:", s.User.Id);
         Assert.Contains("alice", s.User.Name);
         Assert.NotNull(await s.GetDeviceGroupsAsync()); // the session really works / la sesión funciona de verdad
+
+        // Remembered: its login token signs in again without the provider, and it can open tunnels. / Recordada: su token entra otra vez sin el proveedor, y puede abrir túneles.
+        var token = await s.CreateLoginTokenAsync("mcc-prueba-" + Guid.NewGuid().ToString("N")[..6], TimeSpan.FromMinutes(5));
+        await using (var again = await MeshServerSession.ConnectAsync(Server, new PasswordCredentials(token.TokenUser, token.Password!), Pinned))
+        {
+            Assert.Equal(s.User.Id, again.User.Id);
+            Assert.NotNull(await again.GetDeviceGroupsAsync());
+        }
+        await s.RemoveLoginTokenAsync(token);
+        await Assert.ThrowsAsync<MeshClientException>(() => MeshServerSession.ConnectAsync(Server, new PasswordCredentials(token.TokenUser, token.Password!), Pinned));
     }
 
     [Fact]

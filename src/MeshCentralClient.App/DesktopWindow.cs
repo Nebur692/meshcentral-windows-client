@@ -33,19 +33,21 @@ public sealed class DesktopWindow : Window
     private readonly TextBlock _status = new() { VerticalAlignment = VerticalAlignment.Center, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(12, 0, 12, 0) };
     // Notices of an action (typed text, clipboard empty): apart from the status, which the picture keeps rewriting.
     // Avisos de una acción (texto escrito, portapapeles vacío): aparte del estado, que la imagen va reescribiendo.
-    private readonly Button _clipTo = new() { Content = "⇡ " + L.T("ClipToDevice"), Margin = new Thickness(0, 0, 6, 0), Visibility = Visibility.Collapsed, ToolTip = L.T("ClipToDeviceHelp") };
-    private readonly Button _clipFrom = new() { Content = "⇣ " + L.T("ClipFromDevice"), Margin = new Thickness(0, 0, 6, 0), Visibility = Visibility.Collapsed, ToolTip = L.T("ClipFromDeviceHelp") };
+    private readonly Button _clipTo = new() { Visibility = Visibility.Collapsed };
+    private readonly Button _clipFrom = new() { Visibility = Visibility.Collapsed };
+    private readonly Button _closeViewer = new() { Visibility = Visibility.Collapsed };
     // What copy and paste is doing, apart from the other notices. / Lo que hace el copiar y pegar, aparte de los demás avisos.
     private readonly TextBlock _clipNotice = new() { VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 12, 0), Opacity = 0.85, MaxWidth = 420, TextTrimming = TextTrimming.CharacterEllipsis };
     private readonly TextBlock _notice = new() { VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 12, 0), FontWeight = FontWeights.SemiBold };
-    private readonly ComboBox _displays = new() { MinWidth = 130, Visibility = Visibility.Collapsed, Margin = new Thickness(0, 0, 6, 0) };
-    private readonly ComboBox _quality = new() { MinWidth = 110, Margin = new Thickness(0, 0, 6, 0) };
-    private readonly Button _split = new() { Margin = new Thickness(0, 0, 6, 0), Visibility = Visibility.Collapsed };
-    private readonly Button _fullButton = new() { Margin = new Thickness(0, 0, 6, 0) };
+    private readonly ComboBox _displays = new() { MinWidth = 120, Visibility = Visibility.Collapsed, Margin = new Thickness(2, 0, 2, 0), VerticalAlignment = VerticalAlignment.Center };
+    private readonly ComboBox _quality = new() { MinWidth = 110, Margin = new Thickness(2, 0, 2, 0), VerticalAlignment = VerticalAlignment.Center };
+    private readonly Button _split = new() { Visibility = Visibility.Collapsed };
+    private readonly Button _fullButton = new();
+    private bool _menuOpen, _inputLocked;
     private readonly ProgressBar _transfer = new() { Width = 140, Height = 12, Margin = new Thickness(0, 0, 8, 0), VerticalAlignment = VerticalAlignment.Center, Maximum = 1, Visibility = Visibility.Collapsed };
     private readonly Button _transferCancel = new() { Margin = new Thickness(0, 0, 8, 0), Visibility = Visibility.Collapsed };
     private readonly DockPanel _dock = new();
-    private readonly Border _floating = new() { HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Top, CornerRadius = new CornerRadius(0, 0, 8, 8), MaxWidth = 1000, Visibility = Visibility.Collapsed,
+    private readonly Border _floating = new() { HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Top, CornerRadius = new CornerRadius(0, 0, 10, 10), MaxWidth = 1100, Visibility = Visibility.Collapsed,
         Effect = new System.Windows.Media.Effects.DropShadowEffect { BlurRadius = 12, ShadowDepth = 2, Opacity = 0.5 } };
     private readonly Border _handle = new() { HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Top, Width = 96, Height = 6, CornerRadius = new CornerRadius(0, 0, 4, 4), Background = Brushes.Gray, Opacity = 0.8, Visibility = Visibility.Collapsed };
     // At normal priority: at its default one a picture that keeps changing never lets it run (measured: the bar never hid).
@@ -76,27 +78,39 @@ public sealed class DesktopWindow : Window
 
         // The buttons wrap when the window is narrow, and the status and notices have their own line: nothing is cut off.
         // Los botones saltan de fila si la ventana es estrecha, y estado y avisos tienen su línea: no se corta nada.
-        var bar = _bar = new StackPanel { Margin = new Thickness(12, 8, 12, 8) };
-        var tools = new WrapPanel { HorizontalAlignment = HorizontalAlignment.Right };
-        if (_primary)
-        {
-            tools.Children.Add(_split);
-            tools.Children.Add(_displays);
-            tools.Children.Add(_quality);
-        }
-        tools.Children.Add(Action("CtrlAltDelButton", "Ctrl+Alt+Del", async s => await s.SendCtrlAltDelAsync()));
-        tools.Children.Add(Action("WinKeyButton", "⊞ Win", async s => { await s.SendKeyAsync(0x5B, true, true); await s.SendKeyAsync(0x5B, false, true); }));
-        tools.Children.Add(Action("TypeClipboardButton", L.T("TypeClipboard"), TypeClipboardAsync));
+        var bar = _bar = new StackPanel { Margin = new Thickness(10, 6, 10, 6) };
+        var tools = new WrapPanel { HorizontalAlignment = HorizontalAlignment.Center };
+        // In groups, from what acts on the device to what acts on this window. / Por grupos, de lo que actúa sobre el equipo a lo que actúa sobre esta ventana.
+        tools.Children.Add(MenuButton("DeviceMenuButton", Glyphs.Device, L.T("DeviceMenuButton"), () => (Application.Current.MainWindow as MainWindow)?.DeviceMenuFor(_c.Device.Device) ?? Array.Empty<object>()));
+        tools.Children.Add(MenuButton("KeysMenuButton", Glyphs.Keyboard, L.T("KeysMenuButton"), KeysMenu));
+        tools.Children.Add(Action("CtrlAltDelButton", null, "Ctrl+Alt+Del", "Ctrl+Alt+Del", async s => await s.SendCtrlAltDelAsync()));
+        tools.Children.Add(Action("WinKeyButton", Glyphs.Windows, null, "Win", async s => { await s.SendKeyAsync(0x5B, true, true); await s.SendKeyAsync(0x5B, false, true); }));
+        tools.Children.Add(Gap());
+        tools.Children.Add(Action("TypeClipboardButton", Glyphs.Type, null, L.T("TypeClipboard"), TypeClipboardAsync));
+        Flat(_clipTo, Glyphs.Up, null, L.T("ClipToDevice") + ". " + L.T("ClipToDeviceHelp"));
+        Flat(_clipFrom, Glyphs.Down, null, L.T("ClipFromDevice") + ". " + L.T("ClipFromDeviceHelp"));
         tools.Children.Add(_clipTo);
         tools.Children.Add(_clipFrom);
-        if (_primary) tools.Children.Add(Action("RefreshDesktop", L.T("Refresh"), async s => await s.RefreshAsync()));
+        tools.Children.Add(Gap());
+        if (_primary)
+        {
+            Flat(_split, Glyphs.Monitors, null, L.T("SplitDisplays"));
+            tools.Children.Add(_split);
+            tools.Children.Add(_displays);
+            _quality.ToolTip = L.T("QualityHelp");
+            tools.Children.Add(_quality);
+            tools.Children.Add(Action("RefreshDesktop", Glyphs.Refresh, null, L.T("Refresh"), async s => await s.RefreshAsync()));
+        }
         Id(_fullButton, "FullScreenButton");
-        _fullButton.Content = L.T("FullScreen");
-        _fullButton.ToolTip = L.T("FullScreenHelp");
+        Flat(_fullButton, Glyphs.FullScreen, null, L.T("FullScreen") + ". " + L.T("FullScreenHelp"));
         _fullButton.Click += (_, _) => ToggleFullScreen();
         tools.Children.Add(_fullButton);
+        Id(_closeViewer, "CloseViewerButton");
+        Flat(_closeViewer, Glyphs.Close, null, L.T("CloseViewer"));
+        _closeViewer.Click += (_, _) => Close();
+        tools.Children.Add(_closeViewer);
         bar.Children.Add(tools);
-        var info = new DockPanel { Margin = new Thickness(0, 6, 0, 0) };
+        var info = new DockPanel { Margin = new Thickness(0, 4, 0, 0) };
         DockPanel.SetDock(_notice, Dock.Right); DockPanel.SetDock(_clipNotice, Dock.Right); DockPanel.SetDock(_transfer, Dock.Right); DockPanel.SetDock(_transferCancel, Dock.Right);
         info.Children.Add(_notice);
         info.Children.Add(_transferCancel);
@@ -231,7 +245,9 @@ public sealed class DesktopWindow : Window
             ResizeMode = _beforeFull.Resize;
             WindowState = _beforeFull.State;
         }
-        _fullButton.Content = L.T(_full ? "FullScreenExit" : "FullScreen");
+        Flat(_fullButton, _full ? Glyphs.BackToWindow : Glyphs.FullScreen, null, L.T(_full ? "FullScreenExit" : "FullScreen") + ". " + L.T("FullScreenHelp"));
+        _closeViewer.Visibility = _full ? Visibility.Visible : Visibility.Collapsed;
+        ShowStatus();
         // Changing the frame can leave the window without keyboard focus, and then not even these keys arrive (measured). This asks
         // for it after the change has settled. / Cambiar el marco puede dejar la ventana sin foco de teclado, y entonces ni estas teclas
         // llegan (medido). Se pide cuando el cambio ya se ha asentado.
@@ -248,7 +264,7 @@ public sealed class DesktopWindow : Window
     private void HideBarIfIdle()
     {
         // Never from under the mouse, an open list or a transfer going on. / Nunca bajo el ratón, con una lista abierta o con una transferencia en marcha.
-        if (_floating.IsMouseOver || _quality.IsDropDownOpen || _displays.IsDropDownOpen || _transferring) return;
+        if (_floating.IsMouseOver || _quality.IsDropDownOpen || _displays.IsDropDownOpen || _transferring || _menuOpen) return;
         _hideBar.Stop();
         _floating.Visibility = Visibility.Collapsed;
         if (IsActive) _surface.Focus();
@@ -258,9 +274,94 @@ public sealed class DesktopWindow : Window
 
     private static void Id(UIElement e, string id) => System.Windows.Automation.AutomationProperties.SetAutomationId(e, id);
 
-    private Button Action(string id, string text, Func<DesktopSession, Task> run)
+    /// <summary>The icons of the bar, from the font Windows brings. / Los iconos de la barra, de la fuente que trae Windows.</summary>
+    private static class Glyphs
     {
-        var b = new Button { Content = text, Margin = new Thickness(0, 0, 6, 0) };
+        public const string Device = "\uE7F4", Keyboard = "\uE765", Windows = "\uE782", Type = "\uE8D2", Up = "\uE74A", Down = "\uE74B", Monitors = "\uE7F4",
+            Refresh = "\uE72C", FullScreen = "\uE740", BackToWindow = "\uE73F", Close = "\uE711", ChevronDown = "\uE70D";
+    }
+
+    private static readonly FontFamily IconFont = new("Segoe Fluent Icons, Segoe MDL2 Assets");
+
+    /// <summary>A flat button of the bar: its icon, its text if it needs one, and what it does said in a tooltip and to screen readers.
+    /// Un botón plano de la barra: su icono, su texto si lo necesita, y lo que hace dicho en una ayuda y a los lectores de pantalla.</summary>
+    private static void Flat(Button b, string? glyph, string? text, string help)
+    {
+        var face = new StackPanel { Orientation = Orientation.Horizontal };
+        if (glyph is not null) face.Children.Add(new TextBlock { Text = glyph, FontFamily = IconFont, FontSize = 15, VerticalAlignment = VerticalAlignment.Center });
+        if (text is not null) face.Children.Add(new TextBlock { Text = text, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(glyph is null ? 0 : 7, 0, 0, 0) });
+        b.Content = face;
+        b.ToolTip = help;
+        System.Windows.Automation.AutomationProperties.SetName(b, help);
+        b.Background = Brushes.Transparent;
+        b.BorderThickness = new Thickness(0);
+        b.Padding = new Thickness(9, 6, 9, 6);
+        b.Margin = new Thickness(1, 0, 1, 0);
+    }
+
+    private static Border Gap() => new() { Width = 1, Height = 20, Margin = new Thickness(6, 0, 6, 0), Background = Brushes.Gray, Opacity = 0.4, VerticalAlignment = VerticalAlignment.Center };
+
+    /// <summary>A button that opens a list made at that moment. / Un botón que abre una lista hecha en ese momento.</summary>
+    private Button MenuButton(string id, string glyph, string text, Func<IReadOnlyList<object>> items)
+    {
+        var b = new Button();
+        Id(b, id);
+        Flat(b, glyph, text, text);
+        if (b.Content is StackPanel face) face.Children.Add(new TextBlock { Text = Glyphs.ChevronDown, FontFamily = IconFont, FontSize = 9, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(6, 1, 0, 0) });
+        b.Click += (_, _) =>
+        {
+            var menu = new ContextMenu { PlacementTarget = b, Placement = System.Windows.Controls.Primitives.PlacementMode.Bottom };
+            foreach (var item in items()) menu.Items.Add(item);
+            _menuOpen = true;
+            menu.Closed += (_, _) => { _menuOpen = false; if (_full) ShowBar(); if (IsActive) _surface.Focus(); };
+            menu.IsOpen = true;
+        };
+        return b;
+    }
+
+    private MenuItem KeyItem(string text, params (int Vk, bool Extended)[] keys)
+    {
+        var item = new MenuItem { Header = text };
+        item.Click += async (_, _) =>
+        {
+            if (_c.Session is not { } s) return;
+            foreach (var (vk, ext) in keys) await s.SendKeyAsync(vk, true, ext);
+            foreach (var (vk, ext) in keys.Reverse()) await s.SendKeyAsync(vk, false, ext);
+            if (IsActive) _surface.Focus();
+        };
+        return item;
+    }
+
+    private IReadOnlyList<object> KeysMenu()
+    {
+        const int Win = 0x5B, Ctrl = 0x11, Shift = 0x10, Alt = 0x12;
+        var lockScreen = new MenuItem { Header = L.T("LockScreen") };
+        System.Windows.Automation.AutomationProperties.SetAutomationId(lockScreen, "LockScreenItem");
+        lockScreen.Click += async (_, _) =>
+        {
+            // Windows keeps Win+L from injected keys, so it is asked for as the person there. / Windows no acepta Win+L de teclas inyectadas, así que se pide como quien está allí.
+            try { await _c.Server.RunCommandsAsync(_c.Device.Device, "rundll32.exe user32.dll,LockWorkStation", CommandShell.Cmd, asUser: true); }
+            catch (MeshClientException ex) { _notice.Text = UserError.From(ex, _c.ServerVersion).Message; }
+        };
+        var lockInput = new MenuItem { Header = L.T("LockInput"), IsCheckable = true, IsChecked = _inputLocked };
+        System.Windows.Automation.AutomationProperties.SetAutomationId(lockInput, "LockInputItem");
+        lockInput.Click += async (_, _) =>
+        {
+            _inputLocked = lockInput.IsChecked;
+            if (_c.Session is { } s) await s.SetInputLockAsync(_inputLocked);
+        };
+        return new object[]
+        {
+            KeyItem(L.T("KeyRun"), (Win, true), (0x52, false)), KeyItem(L.T("KeyExplorer"), (Win, true), (0x45, false)), KeyItem(L.T("KeyShowDesktop"), (Win, true), (0x44, false)),
+            KeyItem(L.T("KeyTaskManager"), (Ctrl, false), (Shift, false), (0x1B, false)), KeyItem(L.T("KeyAltTab"), (Alt, false), (0x09, false)), KeyItem(L.T("KeyAltF4"), (Alt, false), (0x73, false)),
+            KeyItem(L.T("KeyPrintScreen"), (0x2C, true)), new Separator(), lockScreen, lockInput,
+        };
+    }
+
+    private Button Action(string id, string? glyph, string? text, string help, Func<DesktopSession, Task> run)
+    {
+        var b = new Button();
+        Flat(b, glyph, text, help);
         Id(b, id);
         // Back to the picture for the next keys, but only if this window is active: focusing an inactive window brings
         // it to the front (seen in a test: typed text went to the viewer, not to the remote program).
@@ -306,10 +407,11 @@ public sealed class DesktopWindow : Window
         // Several displays at once: offered when the device has more than one. / Varias a la vez: se ofrece si el equipo tiene más de una.
         var several = (d?.Displays.Count(n => n != DesktopDisplays.All) ?? 0) > 1;
         _split.Visibility = several ? Visibility.Visible : Visibility.Collapsed;
-        _split.Content = L.T(_c.IsSplit ? "JoinDisplays" : "SplitDisplays");
+        Flat(_split, Glyphs.Monitors, null, L.T(_c.IsSplit ? "JoinDisplays" : "SplitDisplays"));
     }
 
-    private void ShowStatus() => _status.Text = _c.Status;
+    // With the frame gone, the bar is also what says which device this is. / Sin marco, la barra es también lo que dice qué equipo es.
+    private void ShowStatus() => _status.Text = _full ? $"{_c.Device.Name}  ·  {_c.Status}" : _c.Status;
 
     private async Task ApplyQualityAsync()
     {

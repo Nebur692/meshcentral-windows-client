@@ -58,6 +58,67 @@ public class HardwareSummaryTests
         Assert.Equal("XYZ", h.Serial);
     }
 
+    /// <summary>A memory device as SMBIOS lays it out (type 17). / Un dispositivo de memoria como lo dispone SMBIOS (tipo 17).</summary>
+    private static byte[] Dmi(int sizeWord, int type = 26, int speed = 2400, uint extended = 0, string maker = "Crucial")
+    {
+        var d = new byte[0x22];
+        d[0] = 17; d[1] = 0x22;
+        BitConverter.TryWriteBytes(d.AsSpan(0x0C), (ushort)sizeWord);
+        d[0x12] = (byte)type;
+        BitConverter.TryWriteBytes(d.AsSpan(0x15), (ushort)speed);
+        d[0x17] = 2; // second string / segunda cadena
+        BitConverter.TryWriteBytes(d.AsSpan(0x1C), extended);
+        return [.. d, .. System.Text.Encoding.ASCII.GetBytes("DIMM 0\0" + maker + "\0\0")];
+    }
+
+    [Fact]
+    public void The_firmwares_memory_table_says_each_module_without_dmidecode()
+    {
+        Assert.Equal(new MemoryModule(8L << 30, "DDR4", "2400 MT/s", "Crucial"), HardwareSummary.DmiModule(Dmi(8192)));
+        Assert.Equal(512L * 1024, HardwareSummary.DmiModule(Dmi(0x8000 | 512))!.Bytes); // bit 15: KB
+        Assert.Equal(64L << 30, HardwareSummary.DmiModule(Dmi(0x7FFF, extended: 65536))!.Bytes); // too big: the extended field / demasiado grande: el campo extendido
+        Assert.Null(HardwareSummary.DmiModule(Dmi(0))); // an empty slot / una ranura vacía
+        Assert.Null(HardwareSummary.DmiModule(Dmi(0xFFFF))); // unknown / desconocido
+        Assert.Null(HardwareSummary.DmiModule(new byte[] { 16, 4, 0, 0 })); // another table / otra tabla
+    }
+
+    [Fact]
+    public void A_linux_without_lshw_or_dmidecode_is_filled_from_the_probe()
+    {
+        var bare = Of("""{"identifiers":{"cpu_name":"J5005"},"linux":{"volumes":[{"size":"100","available":"50","mount_point":"/","type":"ext4"}]}}""");
+        Assert.True(bare.MissingLinuxParts(JsonNode.Parse("""{"linux":{}}""")!.AsObject()));
+        var filled = bare.WithLinuxProbe($"""
+            MCC-MEM 8041000
+            TYPE="disk" SIZE="250059350016" MODEL="Samsung SSD 860"
+            TYPE="disk" SIZE="32212254720" MODEL=""
+            TYPE="rom" SIZE="1073741312" MODEL="DVD"
+            TYPE="loop" SIZE="4096" MODEL=""
+            MCC-DMI {Convert.ToBase64String(Dmi(4096))}
+            MCC-DMI {Convert.ToBase64String(Dmi(4096))}
+            MCC-DMI {Convert.ToBase64String(Dmi(0))}
+            MCC-DMI no-es-base64!
+            """.Replace("\r", ""));
+        Assert.Equal(2, filled.Memory.Count);
+        Assert.Equal(8L << 30, filled.TotalMemory);
+        Assert.Equal(new[] { new DiskInfo("Samsung SSD 860", 250059350016, null), new DiskInfo("?", 32212254720, null) }, filled.Disks);
+        Assert.Single(filled.Volumes); // what it had stays / lo que tenía se queda
+    }
+
+    [Fact]
+    public void Without_the_firmwares_table_the_kernels_total_is_said()
+    {
+        var filled = Of("""{"linux":{}}""").WithLinuxProbe("MCC-MEM 1024\n");
+        Assert.Empty(filled.Memory);
+        Assert.Equal(1024L * 1024, filled.TotalMemory);
+    }
+
+    [Fact]
+    public void What_the_agent_already_said_is_not_replaced()
+    {
+        var known = Of(Windows.Replace("windows", "linux", StringComparison.Ordinal));
+        Assert.Equal(known.Disks, known.WithLinuxProbe("TYPE=\"disk\" SIZE=\"5\" MODEL=\"otro\"").Disks);
+    }
+
     [Fact]
     public void A_phone_reports_its_storage_as_a_number()
     {

@@ -89,11 +89,19 @@ public sealed class TerminalWindow : Window
             return;
         }
         if (_closing) { await _terminal.DisposeAsync(); return; }
-        _terminal.Ended += (_, e) => Dispatcher.BeginInvoke(() => ShowFailure(UserError.From(e, _session.ServerInfo.Version)));
+        _terminal.Ended += (_, e) => Dispatcher.BeginInvoke(() =>
+        {
+            // The shell ended right after an order (exit, logout, Ctrl+D): what was asked for, so the window goes. Ending on its own is news.
+            // El shell acabó justo tras una orden (exit, logout, Ctrl+D): lo que se pidió, así que la ventana se va. Acabar por su cuenta es noticia.
+            if (DateTime.UtcNow - _lastOrder < TimeSpan.FromSeconds(3)) Close();
+            else ShowFailure(UserError.From(e, _session.ServerInfo.Version));
+        });
         _terminal.Output += (_, d) => Post(new JsonObject { ["t"] = "data", ["b64"] = Convert.ToBase64String(d.Span) });
         _status.Text = (_terminal.IsRecorded ? L.T("TerminalRecorded") : L.T("TerminalHelp")) + (_terminal is SshTerminal ssh ? "  ·  " + ssh.HostKey.Fingerprint : "");
         Post(new JsonObject { ["t"] = "focus" });
     }
+
+    private DateTime _lastOrder = DateTime.MinValue;
 
     private void OnPageMessage(CoreWebView2WebMessageReceivedEventArgs e, TaskCompletionSource<(int, int)> ready)
     {
@@ -106,7 +114,9 @@ public sealed class TerminalWindow : Window
                 ready.TrySetResult(((int?)m["cols"] ?? 80, (int?)m["rows"] ?? 25));
                 break;
             case "input" when _terminal is { } t:
-                _ = Guard(t.WriteAsync(m["d"]?.ToString() ?? ""));
+                var typed = m["d"]?.ToString() ?? "";
+                if (typed.AsSpan().IndexOfAny('\r', '\n', '\u0004') >= 0) _lastOrder = DateTime.UtcNow;
+                _ = Guard(t.WriteAsync(typed));
                 break;
             case "size" when _terminal is { } t:
                 _ = Guard(t.ResizeAsync((int?)m["cols"] ?? 80, (int?)m["rows"] ?? 25));

@@ -7,7 +7,7 @@ internal static class HardwareText
 {
     public static string Memory(HardwareSummary h)
     {
-        if (h.Memory.Count == 0) return "";
+        if (h.Memory.Count == 0) return h.TotalMemory > 0 ? ReportFormat.Bytes(h.TotalMemory) : "";
         // Equal modules count as one line: "2 × 8.00 GB DDR4 2666 MHz Kingston". / Los módulos iguales cuentan como una línea.
         var lines = h.Memory.GroupBy(m => m).Select(g => (g.Count() > 1 ? g.Count() + " × " : "") +
             string.Join(" ", new[] { ReportFormat.Bytes(g.Key.Bytes), g.Key.Type, g.Key.Speed, g.Key.Maker }.Where(x => x is not null)));

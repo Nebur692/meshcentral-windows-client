@@ -19,6 +19,9 @@ using Xunit.Abstractions;
 [Trait("Category", "UI")]
 public sealed class EndToEndTests(ITestOutputHelper output) : IDisposable
 {
+    [System.Runtime.InteropServices.DllImport("user32.dll", CharSet = System.Runtime.InteropServices.CharSet.Unicode)]
+    private static extern IntPtr SendMessage(IntPtr window, int message, IntPtr wParam, IntPtr lParam);
+
     private static string Env(string n) => Environment.GetEnvironmentVariable(n) is { Length: > 0 } v ? v
         : throw new InvalidOperationException($"{n} is not set: run tests/ui/run-ui-test.ps1");
 
@@ -215,7 +218,14 @@ public sealed class EndToEndTests(ITestOutputHelper output) : IDisposable
         var psCopied = Retry.WhileFalse(() => ClipboardTool.Text() == "42", TimeSpan.FromSeconds(10), TimeSpan.FromMilliseconds(300)).Result;
         Shot("powershell-selected");
         Assert.True(psCopied, "selecting did not copy in PowerShell: the clipboard has \"" + ClipboardTool.Text() + "\"");
-        ps.AsWindow().Close();
+
+        // 3f. exit closes the window: it is what was asked for. / exit cierra la ventana: es lo que se pidió.
+        Keyboard.Type("exit");
+        Keyboard.Type(VirtualKeyShort.ENTER);
+        Assert.True(Retry.WhileTrue(() => { try { return _automation.GetDesktop().FindFirstDescendant(cf => cf.ByAutomationId("TerminalWindow")) is not null; } catch (Exception) { return true; } }, TimeSpan.FromSeconds(20), TimeSpan.FromMilliseconds(300)).Result, "exit did not close the terminal window");
+
+        // 3g. The window says its own icon. / La ventana dice su propio icono.
+        Assert.NotEqual(IntPtr.Zero, SendMessage(_win!.Properties.NativeWindowHandle.Value, 0x7F /* WM_GETICON */, new IntPtr(1) /* ICON_BIG */, IntPtr.Zero));
 
         // 4. Disconnect and sign in with the two-factor account. / Desconectar y entrar con la cuenta de doble factor.
         Click("DisconnectButton");

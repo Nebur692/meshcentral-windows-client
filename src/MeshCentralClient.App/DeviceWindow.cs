@@ -165,6 +165,9 @@ public sealed class DeviceWindow : Window
         string Date(DateTimeOffset? t) => t?.ToLocalTime().ToString("g", CultureInfo.CurrentCulture) ?? "—";
         var hw = info is null ? null : HardwareSummary.From(info.Hardware);
         TextBox Hw(string id, string? value) { var box = Text(value is { Length: > 0 } ? value : "—"); Id(box, id); return box; }
+        var memory = Hw("DeviceMemory", hw is null ? null : HardwareText.Memory(hw));
+        var disks = Hw("DeviceDisks", hw is null ? null : HardwareText.Disks(hw));
+        if (hw is not null && hw.MissingLinuxParts(info!.Hardware) && _session.AbilitiesOn(_device).RunCommands) _ = AskLinuxAsync(hw, memory, disks);
         var rows = new List<(string Label, UIElement Value)>
         {
             (L.T("ColName"), Text(_device.Name)),
@@ -178,8 +181,8 @@ public sealed class DeviceWindow : Window
             (L.T("Model"), Hw("DeviceModel", hw?.Model)),
             (L.T("SerialNumber"), Hw("DeviceSerial", hw?.Serial)),
             ("CPU", Text(info?.Cpu ?? "—")),
-            (L.T("Memory"), Hw("DeviceMemory", hw is null ? null : HardwareText.Memory(hw))),
-            (L.T("Disks"), Hw("DeviceDisks", hw is null ? null : HardwareText.Disks(hw))),
+            (L.T("Memory"), memory),
+            (L.T("Disks"), disks),
             (L.T("Volumes"), Hw("DeviceVolumes", hw is null ? null : HardwareText.Volumes(hw))),
             (L.T("Graphics"), Hw("DeviceGraphics", hw is null ? null : string.Join("\n", hw.Graphics))),
             ("BIOS", Text(string.Join(" ", new[] { info?.Find("bios_vendor"), info?.Find("bios_version"), info?.Find("bios_date") }.Where(x => x is not null)) is { Length: > 0 } b ? b : "—")),
@@ -211,6 +214,19 @@ public sealed class DeviceWindow : Window
         Grid.SetRow(panel, rows.Count);
         Grid.SetColumn(panel, 1);
         _general.Children.Add(panel);
+    }
+
+    /// <summary>A Linux device without lshw or dmidecode: it is asked once the page is showing. / Un equipo Linux sin lshw ni dmidecode: se le pregunta con la página ya a la vista.</summary>
+    private async Task AskLinuxAsync(HardwareSummary hw, TextBox memory, TextBox disks)
+    {
+        try
+        {
+            var answer = await _session.RunCommandsAsync(_device, HardwareSummary.LinuxProbe, MeshServerSession.ShellFor(_device, false));
+            var full = hw.WithLinuxProbe(answer);
+            if (HardwareText.Memory(full) is { Length: > 0 } m) memory.Text = m;
+            if (HardwareText.Disks(full) is { Length: > 0 } d) disks.Text = d;
+        }
+        catch (MeshClientException) { /* it stays as the agent said / se queda como lo dijo el agente */ }
     }
 
     private static TextBox Text(string value) =>

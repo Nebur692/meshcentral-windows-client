@@ -24,7 +24,17 @@ public sealed record RemoteFolder(string Path, IReadOnlyList<RemoteEntry> Entrie
 public sealed partial class FilesSession : IAsyncDisposable
 {
     private const int UploadBlock = 65564;
-    private const int UploadWindow = 16;
+    private const int UploadWindow = 32;
+
+    /// <summary>
+    /// The agent sends one block of 16 KB per ack, whatever "startack" says (meshcore.js), so a download waits a whole round trip per
+    /// block. This many acks go ahead of time, and each block received pays for the next. Measured through a delayed relay, at 80 ms of
+    /// round trip: 0.2 MB/s with one, 18 MB/s with 128, and no more with 256.
+    /// El agente manda un bloque de 16 KB por confirmación, diga lo que diga «startack» (meshcore.js), así que una descarga espera un viaje
+    /// de ida y vuelta por bloque. Se adelantan estas confirmaciones, y cada bloque recibido paga el siguiente. Medido con un relé con
+    /// retardo, a 80 ms de ida y vuelta: 0,2 MB/s con una, 18 MB/s con 128, y no más con 256.
+    /// </summary>
+    private const int DownloadWindow = 128;
     private readonly MeshTunnel _tunnel;
     private readonly SemaphoreSlim _one = new(1, 1);
     private readonly TimeSpan _timeout;
@@ -168,6 +178,8 @@ public sealed partial class FilesSession : IAsyncDisposable
                 throw new MeshClientException(MeshFailure.NotFound, "ficheros/descargar/no-encontrado", $"The device cannot open \"{remotePath}\" (it does not exist, it is a folder, or there is no permission).");
             started = true;
             await SendAsync(new JsonObject { ["action"] = "download", ["sub"] = "startack", ["id"] = id }, "ficheros/descargar/conexion-cortada", ct).ConfigureAwait(false);
+            for (var i = 1; i < DownloadWindow; i++)
+                await SendAsync(new JsonObject { ["action"] = "download", ["sub"] = "ack", ["id"] = id }, "ficheros/descargar/conexion-cortada", ct).ConfigureAwait(false);
             long received = 0;
             while (true)
             {

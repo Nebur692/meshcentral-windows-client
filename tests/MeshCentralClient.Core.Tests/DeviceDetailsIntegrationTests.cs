@@ -42,6 +42,12 @@ public class DeviceDetailsIntegrationTests(ITestOutputHelper output)
         Assert.False(string.IsNullOrEmpty(info.Find("cpu_name")));
         Assert.Contains(info.Flatten(), p => p.Path.StartsWith("agentvers"));
 
+        // The probe, run by the real agent: quoting and all. / La sonda, ejecutada por el agente real, con sus comillas y todo.
+        await s.GetDeviceGroupsAsync(); // the rights come with them / los permisos llegan con ellos
+        var probed = HardwareSummary.From(info.Hardware).WithLinuxProbe(await s.RunCommandsAsync(d, HardwareSummary.LinuxProbe, MeshServerSession.ShellFor(d, false)));
+        output.WriteLine($"memory {probed.TotalMemory}, modules {probed.Memory.Count}, disks {probed.Disks.Count}");
+        Assert.True(probed.TotalMemory > 0, "the probe did not bring the memory");
+
         var nics = await s.GetNetworkInfoAsync(d.Id);
         var eth = Assert.Single(nics, n => n.Name == "eth0");
         Assert.Contains(eth.Addresses, a => a.Family == "IPv4" && a.Address == d.Address);

@@ -25,7 +25,68 @@ public sealed record VolumeInfo(string Name, string? Label, string? FileSystem, 
 /// </summary>
 public sealed record HardwareSummary(IReadOnlyList<MemoryModule> Memory, IReadOnlyList<DiskInfo> Disks, IReadOnlyList<VolumeInfo> Volumes, IReadOnlyList<string> Graphics, string? Model, string? Serial)
 {
-    public long TotalMemory => Memory.Sum(m => m.Bytes);
+    /// <summary>What the kernel says when the modules are unknown. / Lo que dice el núcleo cuando no se conocen los módulos.</summary>
+    public long? ReportedMemory { get; init; }
+
+    public long TotalMemory => Memory.Count > 0 ? Memory.Sum(m => m.Bytes) : ReportedMemory ?? 0;
+
+    /// <summary>Linux sends memory only if it has dmidecode and disks only if it has lshw; without them nothing says what the machine has. / Linux manda la memoria solo con dmidecode y los discos solo con lshw; sin ellos nada dice lo que tiene la máquina.</summary>
+    public bool MissingLinuxParts(JsonObject hardware) => hardware["linux"] is not null && (Memory.Count == 0 || Disks.Count == 0);
+
+    /// <summary>
+    /// Asks a Linux device with nothing but what every one has: the kernel's total, lsblk, and the firmware's own memory table, which needs no
+    /// dmidecode. Read only.
+    /// Le pregunta a un equipo Linux solo con lo que tienen todos: el total del núcleo, lsblk y la tabla de memoria del propio firmware, que no
+    /// necesita dmidecode. Solo lee.
+    /// </summary>
+    public static readonly string LinuxProbe = """
+        echo "MCC-MEM $(awk '/^MemTotal:/{print $2}' /proc/meminfo)"
+        lsblk -b -d -n -P -o TYPE,SIZE,MODEL 2>/dev/null
+        for f in /sys/firmware/dmi/entries/17-*/raw; do [ -r "$f" ] && echo "MCC-DMI $(base64 -w0 "$f")"; done
+        """.ReplaceLineEndings("\n"); // a checkout on Windows must not bring a \r to a Linux shell / un checkout en Windows no debe llevar un \r a un shell de Linux
+
+    /// <summary>This summary with the holes filled from what <see cref="LinuxProbe"/> printed. / Este resumen con los huecos llenos con lo que escribió la sonda.</summary>
+    public HardwareSummary WithLinuxProbe(string output)
+    {
+        var modules = new List<MemoryModule>();
+        var disks = new List<DiskInfo>();
+        long? total = null;
+        foreach (var raw in output.Split('\n', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries))
+        {
+            if (raw.StartsWith("MCC-MEM ", StringComparison.Ordinal))
+            {
+                if (long.TryParse(raw[8..], NumberStyles.Integer, CultureInfo.InvariantCulture, out var kib)) total = kib * 1024;
+            }
+            else if (raw.StartsWith("MCC-DMI ", StringComparison.Ordinal))
+            {
+                try { if (DmiModule(Convert.FromBase64String(raw[8..])) is { } m) modules.Add(m); } catch (FormatException) { }
+            }
+            else
+            {
+                var f = Regex.Matches(raw, "([A-Z]+)=\"([^\"]*)\"").ToDictionary(m => m.Groups[1].Value, m => m.Groups[2].Value);
+                if (f.GetValueOrDefault("TYPE") == "disk" && long.TryParse(f.GetValueOrDefault("SIZE"), NumberStyles.Integer, CultureInfo.InvariantCulture, out var bytes) && bytes > 0)
+                    disks.Add(new DiskInfo(Clean(f.GetValueOrDefault("MODEL")) ?? "?", bytes, null));
+            }
+        }
+        return this with { Memory = Memory.Count > 0 ? Memory : modules, Disks = Disks.Count > 0 ? Disks : disks, ReportedMemory = total };
+    }
+
+    /// <summary>A memory device of SMBIOS (type 17), or null for an empty slot. / Un dispositivo de memoria de SMBIOS (tipo 17), o null para una ranura vacía.</summary>
+    internal static MemoryModule? DmiModule(byte[] d)
+    {
+        if (d.Length < 0x15 || d[0] != 17) return null;
+        int length = d[1];
+        if (d.Length < length) return null;
+        var size = d[0x0C] | d[0x0D] << 8;
+        if (size is 0 or 0xFFFF) return null;
+        long bytes;
+        if (size == 0x7FFF) { if (length < 0x20) return null; bytes = BitConverter.ToUInt32(d, 0x1C) * (1L << 20); }
+        else bytes = (size & 0x8000) != 0 ? (size & 0x7FFF) * 1024L : size * (1L << 20);
+        var speed = length >= 0x17 ? d[0x15] | d[0x16] << 8 : 0;
+        var strings = System.Text.Encoding.ASCII.GetString(d, length, d.Length - length).Split('\0');
+        string? Text(int at) { if (length <= at || d[at] == 0 || d[at] > strings.Length) return null; return Clean(strings[d[at] - 1]); }
+        return new MemoryModule(bytes, WindowsType(d[0x12]), speed is > 0 and < 0xFFFF ? speed + " MT/s" : null, Text(0x17));
+    }
 
     // Copies of other volumes, or not disks at all. / Copias de otros volúmenes, o que ni son discos.
     private static readonly HashSet<string> NotDisks = new(StringComparer.OrdinalIgnoreCase) { "overlay", "tmpfs", "devtmpfs", "squashfs", "efivarfs", "ramfs", "autofs", "fuse.snapfuse" };
