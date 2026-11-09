@@ -27,19 +27,21 @@ official website and `meshctrl`, so it works with **any** MeshCentral installati
 
 > Unofficial project, not affiliated with the MeshCentral authors. The device side still uses the official MeshCentral agent.
 
-### Features (version 0.13)
+### Features (version 0.14)
 
 - **Sign in** with username and password, with **two-factor** codes (authenticator app, or email code when the server offers it).
 - **Single sign-on**: if the server offers it (OpenID Connect, SAML, Microsoft, Google, GitHub…), a button signs in on
   the provider's own page, in the Windows browser — the app never sees that password. Leaving username and password
-  empty and pressing Connect does the same.
+  empty and pressing Connect does the same. Afterwards the app can **remember that sign-in for 90 days** (it asks first),
+  so the provider is not needed every time.
 - **Certificates**: a certificate Windows trusts is always accepted; for a server with its own certificate the app shows
   the SHA-256 fingerprint, asks once and remembers it — and warns loudly if it ever changes.
 - **Devices live**: every device group and device the account can see, online status updated in real time, search by
   name, system, address, tag or group.
 - **Saved servers**: address and user remembered; the password only if you ask, encrypted for your Windows user (DPAPI).
 - **Terminal**: shell, cmd or PowerShell on the device, with a full terminal (xterm.js, the same engine as the
-  website); copy and paste as in PuTTY (select to copy, right click to paste). Double-click a device to open it.
+  website); copy and paste as in PuTTY (select to copy, right click to paste) or as in Windows Terminal (Ctrl+C on a
+  selection copies, without one it interrupts); `exit` closes the window. Double-click a device to open it.
 - **Remote desktop**: see and control the device's screen with mouse and keyboard, choose the display or all of them,
   **one window per remote display on your monitors**, quality presets, Ctrl+Alt+Del and Windows-key buttons, and
   **type the clipboard** on the device (Unicode, whatever its keyboard layout). With Windows devices, **copy and paste
@@ -53,7 +55,8 @@ official website and `meshctrl`, so it works with **any** MeshCentral installati
 - **SSH inside the app**, to the device or to a machine its network reaches, with a password or an OpenSSH key, the
   server's identity checked like OpenSSH does, and the app's own terminal.
 - **Device page**: general data (description and tags editable, model, serial number, memory with its modules, disks and volumes), network interfaces, the whole hardware and agent
-  inventory with a filter, notes and history — also for devices that are offline.
+  inventory with a filter, notes and history — also for devices that are offline. A Linux device without `lshw` or
+  `dmidecode` is asked directly for its memory and disks.
 - **Files**: browse the device's drives and folders, create folders, rename, delete, upload (also by dropping files
   from Explorer) and download, with progress and cancel; **Ctrl+C / Ctrl+X / Ctrl+V with the Windows clipboard**:
   copy from the device and paste in Explorer, copy in Explorer and paste on the device, folders included, and copy or
@@ -73,13 +76,20 @@ official website and `meshctrl`, so it works with **any** MeshCentral installati
   (remote sessions, traffic, sign-ins, database) between two dates; the **server's live state** and error log for its
   administrators; and **notifications** to everyone connected or to one account, which the app also shows when they
   arrive. Everything exports to CSV.
+- **Locked-down devices**: with the agent installed as a service and a user without administrator rights (tried on a
+  real Windows domain) the terminal, PowerShell, commands and files work with the agent's rights, and the remote desktop
+  sees and answers the UAC window. If a domain restricts PowerShell for its users, the app says so once and still shares
+  text both ways.
 - **Open in the browser** from the device's menu.
 - **Light, dark or like Windows**, remembered.
 - **Updates itself**: when a new version is published, it offers it, checks its SHA-256 fingerprint and restarts as
-  the new version; a file that does not match is never installed.
+  the new version; a file that does not match is never installed. Installed or not, and "Installed apps" shows the
+  version that actually runs.
 - **English and Spanish** interface, following the Windows language.
 
-The goal is everything the MeshCentral website does, plus MeshCentral Router. Coming next: a signed release and an installer, then session recordings — see [the plan](docs/PLAN.md).
+The goal is everything the MeshCentral website does, plus MeshCentral Router. Under way: code signing (requested from
+SignPath Foundation) and a winget package (submitted to Microsoft, awaiting review); then session recordings — see
+[the plan](docs/PLAN.md).
 
 ### Install
 
@@ -92,6 +102,13 @@ and run it. It installs for your Windows account only (no administrator), adds t
 and run it. It is a single self-contained file: nothing else to install, no administrator rights. Your servers and
 settings live in `%APPDATA%\MeshCentralClient`, so replacing or updating the exe keeps them. Keep the exe in a
 folder of yours (not Program Files) so it can update itself.
+
+Windows 10 (1809 or newer) or Windows 11, 64-bit. Releases are not signed yet, so Windows SmartScreen may say
+"Windows protected your PC": choose **More info → Run anyway**. Each file has its `.sha256` fingerprint next to it in the
+release to check it.
+
+**winget:** a package (`Nebur692.MeshCentralClient`) has been submitted to Microsoft and is awaiting review; this
+section will say how to use it once it is accepted.
 
 [Code signing policy](docs/CODE_SIGNING.md): what is signed, by whom, and what the app connects to.
 
@@ -112,6 +129,11 @@ The integration tests start a disposable MeshCentral server and a real Linux age
 server-side disconnection, the terminal, the files, the remote desktop, port mapping, SSH (against a throwaway SSH server)
 and single sign-on (against a throwaway OpenID Connect provider), and remove everything when they end.
 
+Every build in GitHub Actions also runs the Windows unit tests, **end-to-end UI tests** that drive the real app against a
+real MeshCentral server and Windows agent (sign-in, terminal, files, remote desktop and clipboard, actions, groups,
+users, server, ports, SSH, self-update), and **installs, reinstalls and uninstalls** the installer on a clean Windows.
+A release is only published when all of that passes.
+
 ### License
 
 [Apache 2.0](LICENSE).
@@ -128,19 +150,21 @@ web oficial y `meshctrl`, así que funciona con **cualquier** instalación de Me
 
 > Proyecto no oficial, sin relación con los autores de MeshCentral. En los equipos se sigue usando el agente oficial de MeshCentral.
 
-### Qué hace (versión 0.13)
+### Qué hace (versión 0.14)
 
 - **Entrar** con usuario y contraseña, con código de **doble factor** (app de autenticación, o código por correo si el servidor lo ofrece).
 - **Inicio de sesión único**: si el servidor lo ofrece (OpenID Connect, SAML, Microsoft, Google, GitHub…), un botón
   entra en la propia página del proveedor, en el navegador de Windows; la app no ve nunca esa contraseña. Dejar usuario y
-  contraseña vacíos y pulsar Conectar hace lo mismo.
+  contraseña vacíos y pulsar Conectar hace lo mismo. Después la app puede **recordar esa entrada durante 90 días** (lo
+  pregunta antes), para no pasar por el proveedor cada vez.
 - **Certificados**: uno en el que confía Windows se acepta siempre; con un servidor con certificado propio la app enseña
   la huella SHA-256, pregunta una vez y la recuerda, y avisa bien claro si algún día cambia.
 - **Equipos en vivo**: todos los grupos y equipos que ve la cuenta, con el estado de conexión al momento y buscador por
   nombre, sistema, dirección, etiqueta o grupo.
 - **Servidores guardados**: recuerda la dirección y el usuario; la contraseña solo si se lo pides, cifrada para tu usuario de Windows (DPAPI).
 - **Terminal**: shell, cmd o PowerShell en el equipo, con una terminal completa (xterm.js, el mismo motor que la
-  web); copiar y pegar como en PuTTY (seleccionar copia, clic derecho pega). Doble clic en un equipo para abrirla.
+  web); copiar y pegar como en PuTTY (seleccionar copia, clic derecho pega) o como en Terminal de Windows (Ctrl+C sobre
+  una selección copia; sin selección interrumpe); `exit` cierra la ventana. Doble clic en un equipo para abrirla.
 - **Escritorio remoto**: ver y manejar la pantalla del equipo con ratón y teclado, elegir la pantalla o todas, **una
   ventana por cada pantalla remota en tus monitores**, calidades predefinidas, botones de Ctrl+Alt+Supr y tecla Windows, y
   **escribir el portapapeles** en el equipo (Unicode, sea cual sea la distribución de su teclado). Con equipos Windows,
@@ -155,7 +179,8 @@ web oficial y `meshctrl`, así que funciona con **cualquier** instalación de Me
   identidad del servidor comprobada como hace OpenSSH, y la terminal de la propia app.
 - **Ficha del equipo**: datos generales (descripción y etiquetas editables, modelo, número de serie, memoria con sus
   módulos, discos y volúmenes), interfaces de red, todo el inventario de
-  hardware y del agente con filtro, notas e historial; también de equipos desconectados.
+  hardware y del agente con filtro, notas e historial; también de equipos desconectados. A un Linux sin `lshw` ni
+  `dmidecode` se le preguntan directamente la memoria y los discos.
 - **Ficheros**: explorar las unidades y carpetas del equipo, crear carpetas, renombrar, borrar, subir (también
   soltando ficheros desde el Explorador) y bajar, con progreso y botón de cancelar; **Ctrl+C / Ctrl+X / Ctrl+V con el
   portapapeles de Windows**: copiar del equipo y pegar en el Explorador, copiar en el Explorador y pegar en el equipo,
@@ -176,14 +201,20 @@ web oficial y `meshctrl`, así que funciona con **cualquier** instalación de Me
   de la web (sesiones remotas, tráfico, entradas, base de datos) entre dos fechas; el **estado del servidor en vivo** y su
   registro de errores para sus administradores; y **avisos** a todas las personas conectadas o a una cuenta, que la app
   también enseña cuando llegan. Todo se exporta a CSV.
+- **Equipos protegidos**: con el agente instalado como servicio y un usuario sin permisos de administrador (probado en
+  un dominio de Windows de verdad) la terminal, PowerShell, las órdenes y los ficheros funcionan con los permisos del
+  agente, y el escritorio remoto ve y contesta la ventana de UAC. Si un dominio restringe PowerShell a sus usuarios, la
+  app lo dice una vez y sigue compartiendo el texto en los dos sentidos.
 - **Abrir en el navegador** desde el menú del equipo.
 - **Claro, oscuro o como Windows**, y lo recuerda.
 - **Se actualiza sola**: cuando se publica una versión nueva, la ofrece, comprueba su huella SHA-256 y se reabre ya
-  actualizada; un fichero que no coincide no se instala nunca.
+  actualizada; un fichero que no coincide no se instala nunca. Instalada o no, y «Aplicaciones instaladas» enseña la
+  versión que de verdad corre.
 - Interfaz en **inglés y español**, según el idioma de Windows.
 
-La meta es todo lo que hace la web de MeshCentral, más MeshCentral Router. Lo siguiente: versión firmada e instalador,
-y después las grabaciones de sesiones; está en [el plan](docs/PLAN.md).
+La meta es todo lo que hace la web de MeshCentral, más MeshCentral Router. En marcha: la firma de código (pedida a
+SignPath Foundation) y el paquete de winget (enviado a Microsoft, pendiente de revisión); después, las grabaciones de
+sesiones. Está en [el plan](docs/PLAN.md).
 
 ### Instalar
 
@@ -196,6 +227,13 @@ y ábrelo. Instala solo para tu cuenta de Windows (sin administrador) y pone la 
 y ábrelo. Es un único fichero autónomo: no hay que instalar nada más ni ser administrador. Tus servidores y ajustes
 se guardan en `%APPDATA%\MeshCentralClient`, así que al cambiar o actualizar el exe se mantienen. Ten el exe en una
 carpeta tuya (no en Archivos de programa) para que pueda actualizarse sola.
+
+Windows 10 (1809 o más nuevo) o Windows 11, de 64 bits. Las versiones aún no van firmadas, así que SmartScreen de
+Windows puede decir «Windows protegió su PC»: pulsa **Más información → Ejecutar de todas formas**. Cada fichero lleva
+al lado, en la versión publicada, su huella `.sha256` para comprobarlo.
+
+**winget:** se ha enviado a Microsoft un paquete (`Nebur692.MeshCentralClient`) y está pendiente de revisión; aquí
+se dirá cómo usarlo cuando lo acepten.
 
 [Code signing policy](docs/CODE_SIGNING.md) (política de firma de código): qué se firma, quién lo firma y a qué se conecta la app.
 
@@ -216,6 +254,11 @@ todas las formas de entrar (contraseña buena y mala, doble factor, certificado 
 equipos, los avisos en vivo, un corte desde el servidor, la terminal, los ficheros, el escritorio remoto, la redirección
 de puertos, SSH (contra un servidor SSH desechable) y el inicio de sesión único (contra un proveedor OpenID Connect
 desechable), y lo quitan todo al acabar.
+
+Cada compilación en GitHub Actions pasa además las pruebas unitarias de Windows, **pruebas de interfaz de principio a
+fin** que manejan la app de verdad contra un servidor MeshCentral y un agente de Windows reales (entrada, terminal,
+ficheros, escritorio remoto y portapapeles, acciones, grupos, usuarios, servidor, puertos, SSH y autoactualización), e
+**instala, reinstala y desinstala** el instalador en un Windows limpio. Una versión solo se publica si pasa todo eso.
 
 ### Licencia
 
