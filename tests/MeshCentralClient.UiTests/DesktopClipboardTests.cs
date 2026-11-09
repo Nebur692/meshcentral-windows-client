@@ -58,18 +58,7 @@ public sealed class DesktopClipboardTests(ITestOutputHelper output) : IDisposabl
     private AutomationElement Anywhere(string id) => WaitFor(() => _automation.GetDesktop().FindFirstDescendant(cf => cf.ByAutomationId(id)), id);
 
     [System.Runtime.InteropServices.DllImport("user32.dll")] private static extern IntPtr GetForegroundWindow();
-    [System.Runtime.InteropServices.DllImport("user32.dll")] private static extern short GetAsyncKeyState(int vk);
 
-    /// <summary>Ctrl and Alt up for a whole second. / Ctrl y Alt sueltas durante un segundo entero.</summary>
-    private static bool ModifiersQuiet()
-    {
-        for (var i = 0; i < 20; i++)
-        {
-            if ((GetAsyncKeyState(0x11) & 0x8000) != 0 || (GetAsyncKeyState(0x12) & 0x8000) != 0) return false;
-            Thread.Sleep(50);
-        }
-        return true;
-    }
 
     /// <summary>The window is in front and the focused element is in its process. / La ventana está delante y el elemento con el foco es de su proceso.</summary>
     private bool HoldsKeyboard(Window window)
@@ -340,8 +329,9 @@ public sealed class DesktopClipboardTests(ITestOutputHelper output) : IDisposabl
         // este mismo teclado (visto: pulsadas 45 s; y un Alt suelto que deja la ventana en modo menú, con la barra de tareas
         // encima). Un equipo remoto de verdad tiene su propio teclado. Las teclas llaman al mismo ToggleFullScreen que el botón, y
         // que el teclado siga en la ventana, lo que fallaba antes, se comprueba justo encima.
-        ReleaseModifiers();
-        Until(ModifiersQuiet, "Ctrl and Alt quiet after the echo from the agent");
+        // The echo feeds itself while the viewer is open (seen: still held after letting go), so only closing it ends it;
+        // Dispose lets go of them after that. / El eco se alimenta solo mientras el visor está abierto (visto: seguían
+        // pulsadas tras soltarlas), así que solo lo corta cerrarlo; Dispose las suelta después.
         Mouse.MoveTo(screen.Width / 2, screen.Height / 3);
         Mouse.MoveTo(screen.Width / 2, 0);
         Until(() => Shown(desk, "FullScreenButton"), "the bar back after the keys");
