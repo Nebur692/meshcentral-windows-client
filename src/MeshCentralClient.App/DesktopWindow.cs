@@ -232,7 +232,10 @@ public sealed class DesktopWindow : Window
             WindowState = _beforeFull.State;
         }
         _fullButton.Content = L.T(_full ? "FullScreenExit" : "FullScreen");
-        if (IsActive) _surface.Focus();
+        // Changing the frame can leave the window without keyboard focus, and then not even these keys arrive (measured). This asks
+        // for it after the change has settled. / Cambiar el marco puede dejar la ventana sin foco de teclado, y entonces ni estas teclas
+        // llegan (medido). Se pide cuando el cambio ya se ha asentado.
+        Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Input, () => { Activate(); _surface.Focus(); Keyboard.Focus(_surface); });
     }
 
     private void ShowBar()
