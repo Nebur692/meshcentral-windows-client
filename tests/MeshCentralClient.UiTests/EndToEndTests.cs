@@ -123,7 +123,8 @@ public sealed class EndToEndTests(ITestOutputHelper output) : IDisposable
         Find("SessionTitle");
         Assert.Null(_automation.GetDesktop().FindFirstDescendant(cf => cf.ByAutomationId("CertTrust")));
         Assert.Equal("mesh.test", Text("SessionTitle"));
-        Assert.Equal("admin", Text("SessionUser")); // on the theme's line, without the address / en la línea del tema, sin la dirección
+        // As the server spells the account ("Admin"), not as it was typed. / Como escribe la cuenta el servidor («Admin»), no como se tecleó.
+        Assert.Equal("admin", Text("SessionUser"), ignoreCase: true); // on the theme's line, without the address / en la línea del tema, sin la dirección
         var machine = Environment.MachineName;
         var row = Retry.WhileNull(() => Find("DeviceList").FindFirstDescendant(cf => cf.ByName(machine)), TimeSpan.FromSeconds(90), TimeSpan.FromMilliseconds(500)).Result;
         Shot("devices");
