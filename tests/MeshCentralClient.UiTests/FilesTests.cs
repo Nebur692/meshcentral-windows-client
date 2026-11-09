@@ -173,6 +173,9 @@ public sealed class FilesTests : IDisposable
         Assert.DoesNotContain(remote, ClipboardTool.Files()[0]); // a copy of its own, not the device's file / una copia propia, no el del equipo
 
         //   Ctrl+V in the same folder: "name - copy", as Explorer does. / Ctrl+V en la misma carpeta: «nombre - copy», como el Explorador.
+        // The clipboard is filled before the transfer ends: while it lasts the list takes no keys (seen: the Ctrl+V lost). / El portapapeles se llena antes de acabar la transferencia: mientras dura, la lista no atiende teclas (visto: el Ctrl+V perdido).
+        Until(() => list.IsEnabled, "the list free after copying");
+        Row(list, "renamed.txt")!.Click();
         Keyboard.TypeSimultaneously(VirtualKeyShort.CONTROL, VirtualKeyShort.KEY_V);
         Until(() => File.Exists(Path.Combine(remote, "renamed - copy.txt")), "pasting in the same folder did not make a copy");
         Assert.Equal("hola desde el equipo", File.ReadAllText(Path.Combine(remote, "renamed - copy.txt")));
