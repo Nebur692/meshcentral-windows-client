@@ -32,9 +32,11 @@ public sealed class DesktopClipboardTests(ITestOutputHelper output) : IDisposabl
     private readonly DirectoryInfo _dir = Directory.CreateTempSubdirectory("mcc-clip-ui-");
     private readonly string _tag = Guid.NewGuid().ToString("N")[..6];
     private Application? _app;
+    private Window? _explorer;
 
     public void Dispose()
     {
+        try { _explorer?.Close(); } catch (Exception) { }
         try { _automation.GetDesktop().FindFirstDescendant(cf => cf.ByAutomationId("DesktopWindow"))?.AsWindow().Close(); Thread.Sleep(1000); } catch (Exception) { }
         try { _app?.Close(); } catch (Exception) { }
         try { _app?.Kill(); } catch (Exception) { }
@@ -99,6 +101,22 @@ public sealed class DesktopClipboardTests(ITestOutputHelper output) : IDisposabl
         return (win, Anywhere("DesktopWindow"));
     }
 
+    /// <summary>Ctrl+V in a real Explorer window on the folder, the gesture of a person. / Ctrl+V en una ventana de verdad del Explorador sobre la carpeta, el gesto de una persona.</summary>
+    private void PasteInExplorer(string folder)
+    {
+        _explorer ??= OpenExplorer(folder);
+        _explorer.SetForeground();
+        _explorer.Focus();
+        Thread.Sleep(500);
+        Keyboard.TypeSimultaneously(VirtualKeyShort.CONTROL, VirtualKeyShort.KEY_V);
+    }
+
+    private Window OpenExplorer(string folder)
+    {
+        Process.Start("explorer.exe", "\"" + folder + "\"");
+        return WaitFor(() => _automation.GetDesktop().FindFirstChild(cf => cf.ByClassName("CabinetWClass")), "the Explorer window").AsWindow();
+    }
+
     /// <summary>A file bigger than the moment Explorer takes to show its window. / Un fichero mayor que lo que tarda el Explorador en enseñar su ventana.</summary>
     private static string BigFile(string name)
     {
@@ -135,7 +153,7 @@ public sealed class DesktopClipboardTests(ITestOutputHelper output) : IDisposabl
         Assert.Empty(ClipboardTool.Files());
         var target = Directory.CreateDirectory(Path.Combine(_dir.FullName, "pasted")).FullName;
         var pasted = Path.Combine(target, Path.GetFileName(there));
-        ClipboardTool.PasteInExplorer(target);
+        PasteInExplorer(target);
         Until(() => File.Exists(Path.Combine(pasted, "sub", "b.txt")) && new FileInfo(Path.Combine(pasted, "sub", "b.txt")).Length > 0, "the folder pasted by Explorer");
         Assert.Equal("desde el equipo " + _tag, File.ReadAllText(Path.Combine(pasted, "a.txt")));
         Assert.Equal("b desde el equipo " + _tag, File.ReadAllText(Path.Combine(pasted, "sub", "b.txt")));
@@ -148,7 +166,7 @@ public sealed class DesktopClipboardTests(ITestOutputHelper output) : IDisposabl
         win.SetForeground();
         // The notice reads the same as before: what tells is the real file leaving the clipboard. / El aviso dice lo mismo que antes: lo que distingue es que el fichero de verdad deja el portapapeles.
         Until(() => ClipboardTool.Files().Length == 0 && Notice() == offered, "the big file offered from the device", Notice);
-        ClipboardTool.PasteInExplorer(target);
+        PasteInExplorer(target);
         var copying = Retry.WhileNull(() => _automation.GetDesktop().FindFirstChild(cf => cf.ByClassName("OperationStatusWindow")), Timeout, TimeSpan.FromMilliseconds(100)).Result;
         Shot("explorer-copy-window");
         Assert.True(copying is not null, "Explorer never showed its copy window");
@@ -240,15 +258,15 @@ public sealed class DesktopClipboardTests(ITestOutputHelper output) : IDisposabl
         var button = Id(desk, "FullScreenButton");
         Shot("full-screen-bar-back");
         button.AsButton().Invoke();
-        Until(() => window.BoundingRectangle.Width < screen.Width, "the window back to its size", () => window.BoundingRectangle.ToString());
-        Assert.Equal(normal, window.BoundingRectangle);
+        // The usual size can be as wide as a small screen, so it is compared with itself. / El tamaño normal puede ser tan ancho como una pantalla pequeña, así que se compara consigo mismo.
+        Until(() => window.BoundingRectangle == normal, "the window back to its size", () => window.BoundingRectangle.ToString());
 
         // The same keys as Remote Desktop, there and back, with the picture holding the keyboard. / Las mismas teclas que Escritorio remoto, ida y vuelta, con el teclado en la imagen.
         window.SetForeground();
         Id(desk, "DesktopSurface").Focus();
         Keyboard.TypeSimultaneously(VirtualKeyShort.CONTROL, VirtualKeyShort.ALT, VirtualKeyShort.PAUSE);
-        Until(() => window.BoundingRectangle.Width >= screen.Width, "full screen by keys", () => window.BoundingRectangle.ToString());
+        Until(() => window.BoundingRectangle.Height >= screen.Height, "full screen by keys", () => window.BoundingRectangle.ToString());
         Keyboard.TypeSimultaneously(VirtualKeyShort.CONTROL, VirtualKeyShort.ALT, VirtualKeyShort.PAUSE);
-        Until(() => window.BoundingRectangle.Width < screen.Width, "back by keys", () => window.BoundingRectangle.ToString());
+        Until(() => window.BoundingRectangle == normal, "back by keys", () => window.BoundingRectangle.ToString());
     }
 }
