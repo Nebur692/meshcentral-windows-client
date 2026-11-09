@@ -183,9 +183,11 @@ public sealed class DesktopClipboardTests(ITestOutputHelper output) : IDisposabl
         var target = Directory.CreateDirectory(Path.Combine(_dir.FullName, "pasted")).FullName;
         var pasted = Path.Combine(target, Path.GetFileName(there));
         PasteInExplorer(target, win, desk);
-        Until(() => File.Exists(Path.Combine(pasted, "sub", "b.txt")) && new FileInfo(Path.Combine(pasted, "sub", "b.txt")).Length > 0, "the folder pasted by Explorer");
-        Assert.Equal("desde el equipo " + _tag, File.ReadAllText(Path.Combine(pasted, "a.txt")));
-        Assert.Equal("b desde el equipo " + _tag, File.ReadAllText(Path.Combine(pasted, "sub", "b.txt")));
+        // Explorer creates each file before it finishes writing it (seen: still locked), so what is waited for is the whole text.
+        // El Explorador crea cada fichero antes de acabar de escribirlo (visto: aún bloqueado), así que se espera al texto entero.
+        Until(() => ReadIfDone(Path.Combine(pasted, "a.txt")) == "desde el equipo " + _tag
+                 && ReadIfDone(Path.Combine(pasted, "sub", "b.txt")) == "b desde el equipo " + _tag, "the folder pasted by Explorer",
+              () => $"a: {ReadIfDone(Path.Combine(pasted, "a.txt")) ?? "(none)"} | b: {ReadIfDone(Path.Combine(pasted, "sub", "b.txt")) ?? "(none)"}");
         Restore(win, desk);
 
         // 2b. A big one: Explorer's own window with its bar, what Remote Desktop shows. / Uno grande: la ventana del propio Explorador con su barra, lo que enseña Escritorio remoto.
@@ -338,6 +340,13 @@ public sealed class DesktopClipboardTests(ITestOutputHelper output) : IDisposabl
         Id(desk, "FullScreenButton").AsButton().Invoke();
         Until(() => window.BoundingRectangle == normal, "back from the keys' full screen", () => window.BoundingRectangle.ToString());
         ReleaseModifiers();
+    }
+
+    /// <summary>The file's text, or null while it is missing or still being written. / El texto, o null mientras falte o se esté escribiendo.</summary>
+    private static string? ReadIfDone(string path)
+    {
+        try { return File.Exists(path) ? File.ReadAllText(path) : null; }
+        catch (IOException) { return null; }
     }
 
     private static void ReleaseModifiers()
