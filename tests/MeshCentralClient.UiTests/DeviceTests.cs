@@ -67,6 +67,8 @@ public sealed class DeviceTests : IDisposable
         Keyboard.TypeSimultaneously(VirtualKeyShort.CONTROL, VirtualKeyShort.KEY_A);
         Keyboard.Type(VirtualKeyShort.DELETE);
         Keyboard.Type(text);
+        // The keys may still be on their way when the next button is pressed (seen: a note saved cut in half). / Las teclas pueden seguir en camino al pulsar el siguiente botón (visto: una nota guardada a medias).
+        Retry.WhileFalse(() => box.Patterns.Value.Pattern.Value.Value == text, TimeSpan.FromSeconds(10), TimeSpan.FromMilliseconds(100));
     }
 
     private AutomationElement OpenDetails()
