@@ -138,7 +138,7 @@ public sealed class DesktopClipboardTests(ITestOutputHelper output) : IDisposabl
         var block = new byte[1024 * 1024];
         new Random(5).NextBytes(block);
         using var f = File.Create(path);
-        for (var i = 0; i < 400; i++) f.Write(block);
+        for (var i = 0; i < 1500; i++) f.Write(block);
         return path;
     }
 
@@ -188,7 +188,7 @@ public sealed class DesktopClipboardTests(ITestOutputHelper output) : IDisposabl
         var pastedBig = Path.Combine(target, Path.GetFileName(big));
         Until(() => Retry.WhileNotNull(() => _automation.GetDesktop().FindFirstChild(cf => cf.ByClassName("OperationStatusWindow")), Timeout).Result && File.Exists(pastedBig), "the big file pasted");
         Assert.Equal(new FileInfo(big).Length, new FileInfo(pastedBig).Length);
-        Assert.Equal(System.Security.Cryptography.SHA256.HashData(File.ReadAllBytes(big)), System.Security.Cryptography.SHA256.HashData(File.ReadAllBytes(pastedBig)));
+        using (var a = File.OpenRead(big)) using (var b = File.OpenRead(pastedBig)) Assert.Equal(System.Security.Cryptography.SHA256.HashData(a), System.Security.Cryptography.SHA256.HashData(b));
         Restore(win, desk);
 
         // 2c. Taking it to the device shows a bar, and Cancel stops it. / Llevarlo al equipo enseña una barra, y Cancelar lo para.
@@ -277,8 +277,8 @@ public sealed class DesktopClipboardTests(ITestOutputHelper output) : IDisposabl
         Until(() => window.BoundingRectangle == normal, "the window back to its size", () => window.BoundingRectangle.ToString());
 
         // The same keys as Remote Desktop, there and back, with the picture holding the keyboard. / Las mismas teclas que Escritorio remoto, ida y vuelta, con el teclado en la imagen.
+        // Leaving full screen hands the keyboard back to the picture. / Al salir de pantalla completa el teclado vuelve a la imagen.
         window.SetForeground();
-        Id(desk, "DesktopSurface").Focus();
         Keyboard.TypeSimultaneously(VirtualKeyShort.CONTROL, VirtualKeyShort.ALT, VirtualKeyShort.PAUSE);
         Until(() => window.BoundingRectangle.Height >= screen.Height, "full screen by keys", () => window.BoundingRectangle.ToString());
         Keyboard.TypeSimultaneously(VirtualKeyShort.CONTROL, VirtualKeyShort.ALT, VirtualKeyShort.PAUSE);

@@ -62,7 +62,8 @@ public sealed class DeviceTests : IDisposable
 
     private static void TypeInto(AutomationElement box, string text)
     {
-        box.Click();
+        // By focus: the sheet is long, and a click on what is below the visible part lands elsewhere. / Por foco: la ficha es larga, y un clic en lo que queda por debajo de lo visible cae en otro sitio.
+        box.Focus();
         Keyboard.TypeSimultaneously(VirtualKeyShort.CONTROL, VirtualKeyShort.KEY_A);
         Keyboard.Type(VirtualKeyShort.DELETE);
         Keyboard.Type(text);
@@ -108,6 +109,9 @@ public sealed class DeviceTests : IDisposable
         Assert.Contains("GB", memory, StringComparison.Ordinal);
         Assert.Contains("GB", Id(page, "DeviceDisks").Patterns.Value.Pattern.Value.Value, StringComparison.Ordinal);
         Assert.Contains("C:", Id(page, "DeviceVolumes").Patterns.Value.Pattern.Value.Value, StringComparison.Ordinal);
+
+        Id(page, "DeviceVolumes").Focus();
+        Shot("general-hardware");
 
         ShowTab(page, "TabNetwork");
         Until(() => Id(page, "NetworkList").FindAllDescendants(cf => cf.ByControlType(ControlType.DataItem)).Length > 0, "no network interface");
