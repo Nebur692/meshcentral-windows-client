@@ -42,6 +42,7 @@ public sealed class DesktopClipboardTests(ITestOutputHelper output) : IDisposabl
         try { _app?.Kill(); } catch (Exception) { }
         _app?.Dispose();
         _automation.Dispose();
+        ReleaseModifiers(); // nothing held for the next test / nada pulsado para la prueba siguiente
         try { ClipboardTool.SetText(" "); } catch (Exception) { }
         for (var i = 0; i < 20; i++) { try { _dir.Delete(true); break; } catch (Exception) { Thread.Sleep(500); } }
     }
@@ -335,8 +336,18 @@ public sealed class DesktopClipboardTests(ITestOutputHelper output) : IDisposabl
         // landing in the middle of the next press breaks it. A real remote device has its own keyboard.
         // Aquí el equipo ES este PC: el Ctrl y el Alt que mandó el visor vuelven por el agente a este mismo teclado, y uno que caiga en
         // mitad de la siguiente pulsación la rompe. Un equipo remoto de verdad tiene su propio teclado.
+        // That echo goes round again (seen: held for 45 s), so the test lets go of them as a person's fingers would.
+        // Ese eco da otra vuelta (visto: pulsadas 45 s), así que la prueba las suelta como lo harían los dedos de una persona.
+        ReleaseModifiers();
         Until(ModifiersQuiet, "Ctrl and Alt quiet after the echo from the agent");
         Keyboard.TypeSimultaneously(VirtualKeyShort.CONTROL, VirtualKeyShort.ALT, VirtualKeyShort.PAUSE);
         Until(() => window.BoundingRectangle == normal, "back by keys", () => window.BoundingRectangle.ToString());
+        ReleaseModifiers();
+    }
+
+    private static void ReleaseModifiers()
+    {
+        foreach (var k in new[] { VirtualKeyShort.CONTROL, VirtualKeyShort.ALT, VirtualKeyShort.LCONTROL, VirtualKeyShort.RCONTROL, VirtualKeyShort.LMENU, VirtualKeyShort.RMENU })
+            try { Keyboard.Release(k); } catch (Exception) { }
     }
 }
