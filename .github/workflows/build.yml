@@ -52,11 +52,27 @@ jobs:
         run: dotnet test MeshCentralClient.slnx -c Release --filter "Category!=Integration&Category!=UI" --logger "console;verbosity=normal"
       - name: Publish
         run: dotnet publish src/MeshCentralClient.App -c Release -r win-x64 --self-contained -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:DebugType=none -o out
+      # The per-user installer around that same exe (installer/MeshCentralClient.iss), then tried as a person would.
+      # El instalador por usuario con ese mismo exe, y luego probado como lo haría una persona.
+      - name: Installer
+        shell: pwsh
+        run: |
+          $v = (Select-Xml -Path Directory.Build.props -XPath '//Version').Node.InnerText
+          $iscc = (Get-Command ISCC.exe -ErrorAction SilentlyContinue).Source
+          if (-not $iscc) { $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" }
+          & $iscc /Qp "/DAppVersion=$v" "/DFileVersion=$($v -replace '-.*$', '')" "/DSourceExe=$PWD\out\MeshCentralClient.exe" "/O$PWD\out" installer\MeshCentralClient.iss
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          "MCC_VERSION=$v" >> $env:GITHUB_ENV
+      - name: Installer test
+        shell: pwsh
+        run: tests/installer/test-installer.ps1 -Setup "$PWD\out\MeshCentralClient-Setup.exe" -Version $env:MCC_VERSION
       - uses: actions/upload-artifact@v5
         id: upload
         with:
           name: MeshCentralClient-win-x64
-          path: out/MeshCentralClient.exe
+          path: |
+            out/MeshCentralClient.exe
+            out/MeshCentralClient-Setup.exe
           if-no-files-found: error
       # Signed by SignPath (docs/CODE_SIGNING.md) only for a tag, and only once the repository has the variable
       # SIGNPATH_ORGANIZATION_ID and the secret SIGNPATH_API_TOKEN; each request waits for its approval there.
@@ -139,7 +155,11 @@ jobs:
           name: ${{ vars.SIGNPATH_ORGANIZATION_ID != '' && 'MeshCentralClient-win-x64-signed' || 'MeshCentralClient-win-x64' }}
           path: dist
       - name: Fingerprint
-        run: cd dist && sha256sum MeshCentralClient.exe > MeshCentralClient.exe.sha256 && cat MeshCentralClient.exe.sha256
+        run: |
+          cd dist
+          sha256sum MeshCentralClient.exe > MeshCentralClient.exe.sha256
+          sha256sum MeshCentralClient-Setup.exe > MeshCentralClient-Setup.exe.sha256
+          cat ./*.sha256
       - name: Create the release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -149,4 +169,4 @@ jobs:
           case "${GITHUB_REF_NAME}" in *-*) pre=--prerelease ;; *) pre= ;; esac
           # Every release page links the code signing policy, as SignPath asks. / Cada versión enlaza la política de firma, como pide SignPath.
           { cat "docs/releases/${GITHUB_REF_NAME}.md"; printf '\n---\n\n[Code signing policy](https://github.com/%s/blob/main/docs/CODE_SIGNING.md): code signing by SignPath.io, certificate by SignPath Foundation.\n' "${GITHUB_REPOSITORY}"; } > notes.md
-          gh release create "${GITHUB_REF_NAME}" dist/MeshCentralClient.exe dist/MeshCentralClient.exe.sha256 --title "${GITHUB_REF_NAME}" --notes-file notes.md $pre
+          gh release create "${GITHUB_REF_NAME}" dist/MeshCentralClient.exe dist/MeshCentralClient.exe.sha256 dist/MeshCentralClient-Setup.exe dist/MeshCentralClient-Setup.exe.sha256 --title "${GITHUB_REF_NAME}" --notes-file notes.md $pre

@@ -83,7 +83,11 @@ The goal is everything the MeshCentral website does, plus MeshCentral Router. Co
 
 ### Install
 
-Download `MeshCentralClient.exe` from the latest [release](https://github.com/Nebur692/meshcentral-windows-client/releases)
+**With the installer:** download `MeshCentralClient-Setup.exe` from the latest [release](https://github.com/Nebur692/meshcentral-windows-client/releases/latest)
+and run it. It installs for your Windows account only (no administrator), adds the app to the Start menu and to
+"Installed apps", where it can be uninstalled.
+
+**Or the exe alone:** download `MeshCentralClient.exe` from the latest [release](https://github.com/Nebur692/meshcentral-windows-client/releases)
 (or from the latest successful [build](https://github.com/Nebur692/meshcentral-windows-client/actions/workflows/build.yml))
 and run it. It is a single self-contained file: nothing else to install, no administrator rights. Your servers and
 settings live in `%APPDATA%\MeshCentralClient`, so replacing or updating the exe keeps them. Keep the exe in a
@@ -183,7 +187,11 @@ y después las grabaciones de sesiones; está en [el plan](docs/PLAN.md).
 
 ### Instalar
 
-Descarga `MeshCentralClient.exe` de la última [versión publicada](https://github.com/Nebur692/meshcentral-windows-client/releases)
+**Con el instalador:** descarga `MeshCentralClient-Setup.exe` de la última [versión publicada](https://github.com/Nebur692/meshcentral-windows-client/releases/latest)
+y ábrelo. Instala solo para tu cuenta de Windows (sin administrador) y pone la app en el menú Inicio y en
+«Aplicaciones instaladas», desde donde se puede desinstalar.
+
+**O solo el exe:** descarga `MeshCentralClient.exe` de la última [versión publicada](https://github.com/Nebur692/meshcentral-windows-client/releases)
 (o de la última [compilación](https://github.com/Nebur692/meshcentral-windows-client/actions/workflows/build.yml) correcta)
 y ábrelo. Es un único fichero autónomo: no hay que instalar nada más ni ser administrador. Tus servidores y ajustes
 se guardan en `%APPDATA%\MeshCentralClient`, así que al cambiar o actualizar el exe se mantienen. Ten el exe en una

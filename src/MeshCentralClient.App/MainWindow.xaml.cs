@@ -410,6 +410,7 @@ public partial class MainWindow : Window
         var exe = Environment.ProcessPath;
         if (exe is null) return;
         _ = SelfUpdater.CleanUpAsync(exe); // what a previous update left / lo que dejó una actualización anterior
+        InstalledCopy.SyncVersion(exe); // "Installed apps" says the version that runs / «Aplicaciones instaladas» dice la versión que corre
         var feed = UpdateChecker.FeedFromEnvironment(Environment.GetEnvironmentVariable("MESHCLIENT_UPDATE_FEED"));
         if (feed is null) return;
         try
