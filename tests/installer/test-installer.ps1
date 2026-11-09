@@ -28,10 +28,25 @@ function Until([scriptblock] $condition, [int] $seconds, [string] $what) {
   throw "INSTALLER: $what (after $seconds s)"
 }
 
-function Install([string] $name) {
-  $p = Start-Process $Setup -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', "/LOG=$log\$name.log" -PassThru -Wait
+# What runs from the app's folder. / Lo que corre desde la carpeta de la app.
+function Running { @(Get-Process | Where-Object { $_.Path -and $_.Path.StartsWith($dir, [StringComparison]::OrdinalIgnoreCase) }) }
+
+# Never -Wait without a limit (seen: the step hung 20 min and GitHub cancelled it, with no log): on timeout, what it
+# was doing is shown. / Nunca -Wait sin límite (visto: el paso se colgó 20 min y GitHub lo canceló, sin log): si se
+# pasa, se enseña qué estaba haciendo.
+function Run([string] $file, [string] $name, [int] $seconds) {
+  $p = Start-Process $file -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', "/LOG=$log\$name.log" -PassThru
+  if (-not $p.WaitForExit($seconds * 1000)) {
+    Write-Host "--- $name still running after $seconds s; its log:"
+    Get-Content "$log\$name.log" -Tail 40 -ErrorAction SilentlyContinue
+    Write-Host '--- processes from the app folder:'; Running | Format-Table Id, ProcessName, Path -AutoSize | Out-String | Write-Host
+    try { $p.Kill() } catch { }
+    throw "INSTALLER: $name did not finish in $seconds s"
+  }
   if ($p.ExitCode -ne 0) { Get-Content "$log\$name.log" -Tail 40; throw "INSTALLER: $name exited with $($p.ExitCode)" }
 }
+
+function Install([string] $name) { Run $Setup $name 180 }
 
 # MENTIRA: nothing of it before, or the checks below would pass on what was already there.
 # MENTIRA: nada de ella antes, o las comprobaciones de abajo pasarían por lo que ya hubiera.
@@ -57,8 +72,14 @@ $psi.Environment['APPDATA'] = $settings
 $psi.Environment['MESHCLIENT_UPDATE_FEED'] = 'off'
 $app = [System.Diagnostics.Process]::Start($psi)
 try { Until { (Get-ItemProperty $key).DisplayVersion -eq $Version } 60 'the app did not put its version back in Installed apps' }
-finally { if (-not $app.HasExited) { $app.Kill(); $app.WaitForExit(10000) | Out-Null } }
+finally {
+  if (-not $app.HasExited) { $app.Kill($true); $app.WaitForExit(10000) | Out-Null }
+  foreach ($p in Running) { try { $p.Kill($true) } catch { } }
+}
 Check $true 'the app keeps Installed apps on its own version'
+# Installing over a running app makes the installer ask to close it; here nothing of it may be left running.
+# Instalar encima de la app abierta hace que el instalador pida cerrarla; aquí no puede quedar nada suyo corriendo.
+Until { (Running).Count -eq 0 } 30 'something from the app folder still running'
 
 # 3. Again over itself, as an upgrade does. / Otra vez encima, como hace una actualización.
 Install 'reinstall'
@@ -67,7 +88,7 @@ Check (Test-Path $exe) 'the app still there after installing again'
 # 4. Uninstall: Inno's uninstaller copies itself to %TEMP% and returns at once, so the result is waited for.
 #    Desinstalar: el desinstalador de Inno se copia a %TEMP% y vuelve enseguida, así que se espera al resultado.
 $uninstaller = ((Get-ItemProperty $key).UninstallString).Trim('"')
-Start-Process $uninstaller -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', "/LOG=$log\uninstall.log" -Wait
+Run $uninstaller 'uninstall' 120
 Until { -not (Test-Path $key) -and -not (Test-Path $dir) } 120 'the uninstall left the app, its folder or its entry'
 Check (-not (Test-Path $link)) 'the Start menu entry gone'
 Write-Host "INSTALLER OK: $Version installs, keeps its version, installs again and uninstalls cleanly"
