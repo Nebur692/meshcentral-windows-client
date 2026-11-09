@@ -14,9 +14,28 @@ public sealed record UserError(string Message, bool MustAct, string Footer, stri
 
     public string CopyText => $"{Message}\n{ActLine}\n{Footer}\n\n{Technical}";
 
+    /// <summary>What a failure means when its kind alone would say something false: not every "refused" is a login.
+    /// Lo que significa un fallo cuando su tipo diría algo falso: no todo «rechazado» es una entrada.</summary>
+    private static (string En, string Es, bool Act)? ForThisAction(string key) => key switch
+    {
+        "tunel/ver-pantalla/dispositivo-mudo" => ("The device is not sending its screen. Close this window and open it again; if it goes on, restart the device's agent.",
+            "El equipo no manda la imagen de su pantalla. Cierra esta ventana y vuelve a abrirla; si sigue, reinicia el agente del equipo.", true),
+        "acciones/ejecutar-ordenes/no-autorizado" => ("You do not have the rights to run these commands on this device. As the signed-in user they also need terminal and files rights.",
+            "No tienes permiso para ejecutar estas órdenes en este equipo. Como usuario con sesión piden además los de terminal y ficheros.", true),
+        "acciones/ejecutar-ordenes/sin-conexion" => ("The device's agent is not connected.", "El agente del equipo no está conectado.", false),
+        "acciones/ejecutar-ordenes/tiempo-agotado" => ("The commands did not finish in time. They must end by themselves and not ask for anything.",
+            "Las órdenes no han acabado a tiempo. Tienen que acabar solas y no pedir nada.", true),
+        "acciones/ejecutar-ordenes/conexion-cortada" => ("The connection to the device was cut while running them. If they ran as the signed-in user, check that someone is signed in there.",
+            "Se ha cortado la conexión con el equipo al ejecutarlas. Si iban como usuario con sesión, comprueba que hay alguien con sesión allí.", true),
+        "acciones/ejecutar-ordenes/respuesta-ilegible" => ("The device's PowerShell did not answer: nobody may be signed in there, or a policy may block it.",
+            "El PowerShell del equipo no ha contestado: puede que no haya nadie con sesión, o que una directiva lo bloquee.", true),
+        "acciones/ejecutar-ordenes/rechazo-remoto" => ("The device could not run the commands.", "El equipo no ha podido ejecutar las órdenes.", true),
+        _ => null,
+    };
+
     public static UserError From(MeshClientException e, string? serverVersion = null)
     {
-        var (en, es, act) = e.Failure switch
+        var (en, es, act) = ForThisAction(e.BurburitoKey) ?? e.Failure switch
         {
             MeshFailure.InvalidAddress => ("That is not a valid server address. Write it as in the browser, for example remote.example.com.",
                 "Esa dirección de servidor no vale. Escríbela como en el navegador, por ejemplo remoto.ejemplo.com.", true),

@@ -55,6 +55,8 @@ public sealed class DesktopSession : IAsyncDisposable
     public event EventHandler<IReadOnlyList<DisplayRect>>? LayoutChanged;
     /// <summary>Messages of the agent ("waiting for the user to accept"…). / Mensajes del agente («esperando a que el usuario acepte»…).</summary>
     public event EventHandler<string>? Message;
+    /// <summary>Asked for several times, the image has not come and the agent has not said why. / Pedida varias veces, la imagen no ha llegado y el agente no ha dicho por qué.</summary>
+    public event EventHandler? NoImage;
     public event EventHandler<bool>? InputLockChanged;
     public event EventHandler<int>? CursorChanged;
 
@@ -87,12 +89,8 @@ public sealed class DesktopSession : IAsyncDisposable
     /// </summary>
     private async Task AskAgainUntilTheFirstImage()
     {
-        for (var i = 0; i < NoImageRetries; i++)
-        {
-            try { await Task.Delay(NoImageWait, _closing.Token).ConfigureAwait(false); } catch (OperationCanceledException) { return; }
-            if (Interlocked.Read(ref _tiles) > 0 || _agentSpoke) return;
-            await RefreshAsync().ConfigureAwait(false);
-        }
+        if (await NoImageWatch.GaveUpAsync(() => Interlocked.Read(ref _tiles) > 0 || _agentSpoke, RefreshAsync, NoImageRetries, NoImageWait, _closing.Token).ConfigureAwait(false))
+            NoImage?.Invoke(this, EventArgs.Empty);
     }
 
     private static readonly TimeSpan NoImageWait = TimeSpan.FromSeconds(3);
@@ -259,6 +257,22 @@ public sealed class DesktopSession : IAsyncDisposable
     {
         _closing.Cancel();
         return _tunnel.DisposeAsync();
+    }
+}
+
+/// <summary>Waits, asks again, a few times; true if it all came to nothing. / Espera y vuelve a pedir unas veces; true si no sirvió de nada.</summary>
+internal static class NoImageWatch
+{
+    internal static async Task<bool> GaveUpAsync(Func<bool> settled, Func<Task> askAgain, int retries, TimeSpan wait, CancellationToken ct)
+    {
+        // One more wait than asks: what the last ask brings also counts. / Una espera más que peticiones: también cuenta lo que traiga la última.
+        for (var i = 0; ; i++)
+        {
+            try { await Task.Delay(wait, ct).ConfigureAwait(false); } catch (OperationCanceledException) { return false; }
+            if (settled()) return false;
+            if (i == retries) return true;
+            await askAgain().ConfigureAwait(false);
+        }
     }
 }
 

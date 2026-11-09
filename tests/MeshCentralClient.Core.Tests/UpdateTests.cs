@@ -149,7 +149,7 @@ public sealed class SelfUpdaterTests : IDisposable, IClassFixture<LocalHttpServe
     {
         var u = Serve(Sha(NewExe) + "  MeshCentralClient.exe\n"); // sha256sum format / formato de sha256sum
         var progress = new List<double>();
-        var path = await SelfUpdater.DownloadAsync(_http, u, _exe, new Progress<double>(progress.Add));
+        var path = await SelfUpdater.DownloadAsync(_http, u, _exe, new InlineProgress<double>(progress.Add));
         Assert.Equal(SelfUpdater.NewPath(_exe), path);
         Assert.Equal(OldExe, File.ReadAllBytes(_exe)); // nothing touched yet / aún no se ha tocado nada
 

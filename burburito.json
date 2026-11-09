@@ -450,6 +450,16 @@
       "que_hacer": "Volver a abrir la sesión cuando el equipo esté conectado."
     },
     {
+      "modulo": "tunel",
+      "accion": "ver-pantalla",
+      "causa": "dispositivo-mudo",
+      "severidad": "aviso",
+      "actuar": true,
+      "titulo": "El equipo no manda la imagen de su pantalla",
+      "explicacion": "La sesión se abrió y se pidió la pantalla varias veces, pero el agente no mandó imagen ni dijo por qué.",
+      "que_hacer": "Cerrar esta ventana y volver a abrirla; si sigue, reiniciar el agente del equipo."
+    },
+    {
       "modulo": "app",
       "accion": "abrir-detalle",
       "causa": "dependencia-caida",

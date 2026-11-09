@@ -69,7 +69,7 @@ public class FilesIntegrationTests
         try
         {
             var up = new List<long>();
-            await f.UploadAsync(dir, name, new MemoryStream(data), new Progress<long>(up.Add));
+            await f.UploadAsync(dir, name, new MemoryStream(data), new InlineProgress<long>(up.Add));
             var listed = Assert.Single((await f.ListAsync(dir)).Entries, e => e.Name == name);
             Assert.Equal(size, listed.Size);
 

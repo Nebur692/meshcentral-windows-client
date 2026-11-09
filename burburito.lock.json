@@ -1,5 +1,5 @@
 {
-  "generado": "2026-11-08T22:38:56Z",
+  "generado": "2026-11-08T23:49:43Z",
   "aviso": "Generado por bin/burburito. No editar a mano: la fuente de verdad es el burburito.json de al lado.",
   "proyecto": {
     "id": 35,
@@ -780,6 +780,12 @@
       "severidad": "aviso",
       "actuar": false,
       "titulo": "Se cortó la sesión con el equipo"
+    },
+    "tunel/ver-pantalla/dispositivo-mudo": {
+      "codigo": "035-005-020-120",
+      "severidad": "aviso",
+      "actuar": true,
+      "titulo": "El equipo no manda la imagen de su pantalla"
     },
     "tunel/abrir-detalle/conexion-cortada": {
       "codigo": "035-005-022-005",

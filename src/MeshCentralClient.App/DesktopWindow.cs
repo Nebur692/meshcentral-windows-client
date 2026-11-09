@@ -262,15 +262,11 @@ public sealed class DesktopWindow : Window
         if (down) _pressed.Add(vk); else _pressed.Remove(vk);
         var mods = Keyboard.Modifiers;
         var clip = _c.Clipboard;
-        // Pasting there waits until this PC's copy has arrived. / Pegar allí espera a que haya llegado lo copiado aquí.
-        if (down && clip is not null && ((mods.HasFlag(ModifierKeys.Control) && key == System.Windows.Input.Key.V) || (mods.HasFlag(ModifierKeys.Shift) && key == System.Windows.Input.Key.Insert)))
-            Queue(clip.BeforePasteAsync);
         // Left and right Shift/Ctrl/Alt travel as the generic key, as the website sends them. / Como los manda la web.
         var extended = Extended.Contains(key);
-        Queue(() => s.SendKeyAsync(Generic(vk), down, extended));
-        // Copying there brings it here once the device has it. / Copiar allí lo trae aquí cuando el equipo ya lo tiene.
-        if (!down && clip is not null && mods.HasFlag(ModifierKeys.Control) && key is System.Windows.Input.Key.C or System.Windows.Input.Key.X)
-            Queue(async () => { await Task.Delay(500); await Dispatcher.InvokeAsync(clip.Left); });
+        DesktopKeys.Send(Queue, key, mods, down, e.IsRepeat, () => s.SendKeyAsync(Generic(vk), down, extended),
+            clip is null ? null : clip.BeforePasteAsync,
+            clip is null ? null : async () => { await Task.Delay(500); await Dispatcher.InvokeAsync(clip.Left); });
     }
 
     private Task ReleaseAllAsync()

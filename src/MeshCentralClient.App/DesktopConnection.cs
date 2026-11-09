@@ -70,6 +70,12 @@ public sealed class DesktopConnection : IAsyncDisposable
         Session.LayoutChanged += (_, l) => ui.BeginInvoke(() => { Layout = l; DisplaysChanged?.Invoke(); });
         Session.Message += (_, m) => ui.BeginInvoke(() => SetStatus(m));
         Session.Tunnel.Closed += (_, e) => ui.BeginInvoke(() => { if (!_closed) Fail(e); });
+        // Better than a "Connecting…" that never ends; closing and opening again brought the image when it was measured.
+        // Mejor que un «Conectando…» sin fin; cerrar y volver a abrir trajo la imagen cuando se midió.
+        Session.NoImage += (_, _) => ui.BeginInvoke(() =>
+        {
+            if (!_closed && Drawn == 0) Fail(new MeshClientException(MeshFailure.Timeout, "tunel/ver-pantalla/dispositivo-mudo", "The device has not sent its screen."));
+        });
         DisplaysChanged?.Invoke();
         // The agent starts talking as soon as the tunnel opens: what came before these lines is not lost. Seen: a screen
         // size that came meanwhile left the viewer on "Connecting…" for good.

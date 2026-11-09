@@ -33,4 +33,23 @@ public class UserErrorTests
         Assert.Contains("MeshCentral 1.3.1", e.Technical);
         Assert.Contains(e.Footer, e.CopyText);
     }
+
+    /// <summary>Each with the kind it is really thrown with: that kind alone says "login" or "server". / Cada uno con el tipo con el que se lanza de verdad.</summary>
+    [Theory]
+    [InlineData(MeshFailure.Timeout, "tunel/ver-pantalla/dispositivo-mudo")]
+    [InlineData(MeshFailure.Rejected, "acciones/ejecutar-ordenes/no-autorizado")]
+    [InlineData(MeshFailure.Rejected, "acciones/ejecutar-ordenes/sin-conexion")]
+    [InlineData(MeshFailure.Timeout, "acciones/ejecutar-ordenes/tiempo-agotado")]
+    [InlineData(MeshFailure.ConnectionLost, "acciones/ejecutar-ordenes/conexion-cortada")]
+    [InlineData(MeshFailure.UnexpectedResponse, "acciones/ejecutar-ordenes/respuesta-ilegible")]
+    [InlineData(MeshFailure.Rejected, "acciones/ejecutar-ordenes/rechazo-remoto")]
+    public void What_it_says_is_about_this_action_and_not_about_signing_in(MeshFailure failure, string key)
+    {
+        var generic = UserError.From(new MeshClientException(failure, "conexion/iniciar-sesion/sin-conexion", "x")).Message;
+        var e = UserError.From(new MeshClientException(failure, key, "x"));
+        Assert.NotEqual(generic, e.Message);
+        Assert.True(Burburito.IsKnown(key), key);
+        Assert.Contains(Burburito.Code(key), e.Footer);
+    }
+
 }

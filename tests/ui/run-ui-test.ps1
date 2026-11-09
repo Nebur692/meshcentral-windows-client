@@ -155,12 +155,14 @@ try {
   $env:MESHUI_SSH_PASS = $sshPass
 } catch { Write-Host "OpenSSH server not available: $_" }
 
-# Measured 08-11: a real mstsc killed at its credentials prompt can bring the agent down some seconds later (FATAL EXCEPTION
-# in its ILibParsers.c, in a connect-mode agent nothing restarts); simple relay closes do not (RDP, SSH, HTTPS, reset).
+# Measured 09-11: the agent sometimes comes down (FATAL EXCEPTION, always at the same address; ILibParsers.c is only what
+# prints it) during the port tests, the first time they run against a fresh agent: 1 of 17 runs in a row, and never after it
+# restarted. 12 real mstsc killed on their own did not do it, so what sets it off is unknown. Nothing restarts a connect-mode agent.
 # As a service would, it comes back, and every time is counted and printed at the end: not hidden, and the other tests
 # do not fail for it.
-# Medido el 08-11: un mstsc real matado en su pantalla de credenciales puede tumbar al agente segundos después; los cierres
-# simples del relé no. Como un servicio, vuelve, y cada vez se cuenta y se escribe al final: sin esconderlo, y sin que
+# Medido el 09-11: el agente a veces cae (FATAL EXCEPTION, siempre en la misma dirección; ILibParsers.c solo es quien lo
+# escribe) en las pruebas de puertos, la primera vez contra un agente recién puesto: 1 de 17 pasadas seguidas, y nunca tras
+# reiniciarse. 12 mstsc reales matados por sí solos no lo hicieron, así que no se sabe qué lo dispara. Como un servicio, vuelve, y cada vez se cuenta y se escribe al final: sin esconderlo, y sin que
 # fallen por ello las demás pruebas.
 $agentExe = Join-Path $agent 'meshagent.exe'
 $agentDowns = Join-Path $Work 'agent-downs.txt'
