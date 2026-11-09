@@ -10,7 +10,7 @@
       <RowDefinition Height="*" />
     </Grid.RowDefinitions>
     <!-- New version, in both views / Versión nueva, en las dos vistas -->
-    <Border x:Name="UpdateBanner" Visibility="Collapsed" HorizontalAlignment="Left" Margin="16,8,240,0" Padding="10,6" CornerRadius="6"
+    <Border x:Name="UpdateBanner" Visibility="Collapsed" HorizontalAlignment="Left" Margin="16,8,420,0" Padding="10,6" CornerRadius="6"
             BorderThickness="1" BorderBrush="{DynamicResource {x:Static SystemColors.HighlightBrushKey}}">
       <StackPanel Orientation="Horizontal">
         <TextBlock x:Name="UpdateText" VerticalAlignment="Center" TextWrapping="Wrap" MaxWidth="420" />
@@ -20,8 +20,13 @@
       </StackPanel>
     </Border>
 
-    <!-- Theme, in both views / Tema, en las dos vistas -->
+    <!-- Who is signed in, and the theme in both views / Quién ha entrado, y el tema en las dos vistas -->
     <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="16,8,16,0">
+      <StackPanel x:Name="SessionUserPanel" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,24,0" Visibility="Collapsed"
+                  ToolTip="{app:T SignedInAs}">
+        <TextBlock Text="&#xE77B;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" VerticalAlignment="Center" Margin="0,0,6,0" Opacity="0.7" />
+        <TextBlock x:Name="SessionUser" VerticalAlignment="Center" />
+      </StackPanel>
       <TextBlock Text="{app:T Theme}" VerticalAlignment="Center" Margin="0,0,8,0" Opacity="0.7" />
       <ComboBox x:Name="ThemeBox" MinWidth="150" SelectionChanged="ThemeBox_SelectionChanged" AutomationProperties.Name="{app:T Theme}" />
     </StackPanel>
@@ -102,10 +107,7 @@
           <ColumnDefinition Width="*" />
           <ColumnDefinition Width="Auto" />
         </Grid.ColumnDefinitions>
-        <StackPanel VerticalAlignment="Center">
-          <TextBlock x:Name="SessionTitle" FontSize="18" FontWeight="SemiBold" />
-          <TextBlock x:Name="SessionSubtitle" Opacity="0.65" FontSize="12" />
-        </StackPanel>
+        <TextBlock x:Name="SessionTitle" FontSize="18" FontWeight="SemiBold" VerticalAlignment="Center" />
         <Grid Grid.Column="1" Margin="24,0" MaxWidth="420" VerticalAlignment="Center">
           <TextBox x:Name="SearchBox" TextChanged="SearchBox_TextChanged" ToolTip="{app:T Search}"
                    AutomationProperties.Name="{app:T Search}" />

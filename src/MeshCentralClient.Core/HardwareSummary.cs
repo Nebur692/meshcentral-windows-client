@@ -41,7 +41,7 @@ public sealed record HardwareSummary(IReadOnlyList<MemoryModule> Memory, IReadOn
     /// </summary>
     public static readonly string LinuxProbe = """
         echo "MCC-MEM $(awk '/^MemTotal:/{print $2}' /proc/meminfo)"
-        lsblk -b -d -n -P -o TYPE,SIZE,MODEL 2>/dev/null
+        lsblk -b -d -n -P -o NAME,TYPE,SIZE,MODEL 2>/dev/null
         for f in /sys/firmware/dmi/entries/17-*/raw; do [ -r "$f" ] && echo "MCC-DMI $(base64 -w0 "$f")"; done
         """.ReplaceLineEndings("\n"); // a checkout on Windows must not bring a \r to a Linux shell / un checkout en Windows no debe llevar un \r a un shell de Linux
 
@@ -64,7 +64,8 @@ public sealed record HardwareSummary(IReadOnlyList<MemoryModule> Memory, IReadOn
             else
             {
                 var f = Regex.Matches(raw, "([A-Z]+)=\"([^\"]*)\"").ToDictionary(m => m.Groups[1].Value, m => m.Groups[2].Value);
-                if (f.GetValueOrDefault("TYPE") == "disk" && long.TryParse(f.GetValueOrDefault("SIZE"), NumberStyles.Integer, CultureInfo.InvariantCulture, out var bytes) && bytes > 0)
+                // zram is compressed memory, not a disk, though lsblk calls it one. / zram es memoria comprimida, no un disco, aunque lsblk lo llame así.
+                if (f.GetValueOrDefault("TYPE") == "disk" && !NotRealDisk.IsMatch(f.GetValueOrDefault("NAME") ?? "") && long.TryParse(f.GetValueOrDefault("SIZE"), NumberStyles.Integer, CultureInfo.InvariantCulture, out var bytes) && bytes > 0)
                     disks.Add(new DiskInfo(Clean(f.GetValueOrDefault("MODEL")) ?? "?", bytes, null));
             }
         }
@@ -85,7 +86,24 @@ public sealed record HardwareSummary(IReadOnlyList<MemoryModule> Memory, IReadOn
         var speed = length >= 0x17 ? d[0x15] | d[0x16] << 8 : 0;
         var strings = System.Text.Encoding.ASCII.GetString(d, length, d.Length - length).Split('\0');
         string? Text(int at) { if (length <= at || d[at] == 0 || d[at] > strings.Length) return null; return Clean(strings[d[at] - 1]); }
-        return new MemoryModule(bytes, WindowsType(d[0x12]), speed is > 0 and < 0xFFFF ? speed + " MT/s" : null, Text(0x17));
+        return new MemoryModule(bytes, WindowsType(d[0x12]), speed is > 0 and < 0xFFFF ? speed + " MT/s" : null, Maker(Text(0x17)));
+    }
+
+    private static readonly Regex NotRealDisk = new(@"^(zram|ram|loop|nbd)\d", RegexOptions.Compiled);
+
+    // Makers as the firmware cuts or spells them. / Fabricantes tal como el firmware los corta o los escribe.
+    private static readonly (string Start, string Name)[] Makers =
+    {
+        ("micron", "Micron"), ("samsung", "Samsung"), ("sk hynix", "SK hynix"), ("hynix", "SK hynix"), ("kingston", "Kingston"),
+        ("crucial", "Crucial"), ("corsair", "Corsair"), ("g skill", "G.Skill"), ("g.skill", "G.Skill"), ("adata", "ADATA"), ("nanya", "Nanya"),
+    };
+
+    /// <summary>"Micron_Technolog" (16 characters in the firmware) as "Micron". / «Micron_Technolog» (16 caracteres en el firmware) como «Micron».</summary>
+    internal static string? Maker(string? value)
+    {
+        if (Clean(value?.Replace('_', ' ')) is not { } v) return null;
+        foreach (var (start, name) in Makers) if (v.StartsWith(start, StringComparison.OrdinalIgnoreCase)) return name;
+        return v;
     }
 
     // Copies of other volumes, or not disks at all. / Copias de otros volúmenes, o que ni son discos.
@@ -124,10 +142,10 @@ public sealed record HardwareSummary(IReadOnlyList<MemoryModule> Memory, IReadOn
         var list = new List<MemoryModule>();
         foreach (var m in (windows?["memory"] as JsonArray)?.OfType<JsonObject>() ?? Enumerable.Empty<JsonObject>())
             if (Number(m["Capacity"]) is > 0 and var bytes)
-                list.Add(new MemoryModule(bytes, WindowsType(Number(m["SMBIOSMemoryType"]) ?? 0), Number(m["ConfiguredClockSpeed"] ?? m["Speed"]) is > 0 and var mhz ? mhz + " MHz" : null, Clean(m.Str("Manufacturer"))));
+                list.Add(new MemoryModule(bytes, WindowsType(Number(m["SMBIOSMemoryType"]) ?? 0), Number(m["ConfiguredClockSpeed"] ?? m["Speed"]) is > 0 and var mhz ? mhz + " MHz" : null, Maker(m.Str("Manufacturer"))));
         foreach (var m in ((linux?["memory"] as JsonObject)?["Memory_Device"] as JsonArray)?.OfType<JsonObject>() ?? Enumerable.Empty<JsonObject>())
             if (LinuxSize(m.Str("Size")) is { } bytes)
-                list.Add(new MemoryModule(bytes, m.Str("Type") is { } t && t is not ("RAM" or "Unknown" or "Other") ? t : null, Clean(m.Str("Speed")), Clean(m.Str("Manufacturer"))));
+                list.Add(new MemoryModule(bytes, m.Str("Type") is { } t && t is not ("RAM" or "Unknown" or "Other") ? t : null, Clean(m.Str("Speed")), Maker(m.Str("Manufacturer"))));
         return list;
     }
 

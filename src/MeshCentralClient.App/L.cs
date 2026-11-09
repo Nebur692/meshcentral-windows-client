@@ -115,6 +115,7 @@ public static class L
         ["LastBoot"] = ("Last start", "Último arranque"),
         ["Agent"] = ("Agent", "Agente"),
         ["Board"] = ("Motherboard", "Placa base"),
+        ["SignedInAs"] = ("Signed in as", "Has entrado como"),
         ["RememberSessionTitle"] = ("Remember this session", "Recordar esta sesión"),
         ["RememberSessionAsk"] = ("Remember this session on this PC? For {1} days this Windows account will come in without going through {0} or its second factor. Forget removes it, and so does the list of tokens in My account.", "¿Recordar esta sesión en este PC? Durante {1} días esta cuenta de Windows entrará sin pasar por {0} ni por su doble factor. Se quita con Olvidar, o en la lista de tokens de Mi cuenta."),
         ["RememberSessionFailed"] = ("The server does not let this session be remembered: {0}", "El servidor no deja recordar esta sesión: {0}"),

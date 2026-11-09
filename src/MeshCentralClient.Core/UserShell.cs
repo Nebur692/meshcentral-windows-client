@@ -159,9 +159,9 @@ internal sealed class UserShell(MeshServerSession session, Device device, UserSh
         }
         else
         {
-            // PSReadLine repaints the whole line at each key: a long line took 8 s on Pc-Salon, and without PSReadLine it was
+            // PSReadLine repaints the whole line at each key: a long line took 8 s on a real Windows 11 PC, and without PSReadLine it was
             // not even taken. So the script goes as a file and a very short line runs it.
-            // PSReadLine repinta la línea entera a cada tecla: una línea larga tardaba 8 s en Pc-Salon, y sin PSReadLine ni se
+            // PSReadLine repinta la línea entera a cada tecla: una línea larga tardaba 8 s en un PC real con Windows 11, y sin PSReadLine ni se
             // aceptaba. Así que el guion va como fichero y lo ejecuta una línea muy corta.
             var files = await FilesAsync(ct).ConfigureAwait(false);
             uploaded = id + ".ps1";

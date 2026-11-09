@@ -43,14 +43,16 @@ official website and `meshctrl`, so it works with **any** MeshCentral installati
 - **Remote desktop**: see and control the device's screen with mouse and keyboard, choose the display or all of them,
   **one window per remote display on your monitors**, quality presets, Ctrl+Alt+Del and Windows-key buttons, and
   **type the clipboard** on the device (Unicode, whatever its keyboard layout). With Windows devices, **copy and paste
-  of everything — text, images, files and folders — both ways**, as in Remote Desktop.
+  of everything — text, images, files and folders — both ways**, as in Remote Desktop, with Windows' own copy window.
+  **Full screen** with a floating bar, and the device's whole menu and the usual keys (lock the screen, block the input of
+  the person there) without leaving the viewer.
 - **Port mapping** (what MeshCentral Router does, inside the app): a port on this PC (127.0.0.1 only) whose connections
   go, through the device's agent, to a port of the device or of another machine on its network; remembered mappings
   come back at every sign-in. **Windows Remote Desktop** to a device in one click, through a private port that closes
   with it.
 - **SSH inside the app**, to the device or to a machine its network reaches, with a password or an OpenSSH key, the
   server's identity checked like OpenSSH does, and the app's own terminal.
-- **Device page**: general data (description and tags editable), network interfaces, the whole hardware and agent
+- **Device page**: general data (description and tags editable, model, serial number, memory with its modules, disks and volumes), network interfaces, the whole hardware and agent
   inventory with a filter, notes and history — also for devices that are offline.
 - **Files**: browse the device's drives and folders, create folders, rename, delete, upload (also by dropping files
   from Explorer) and download, with progress and cancel; **Ctrl+C / Ctrl+X / Ctrl+V with the Windows clipboard**:
@@ -136,14 +138,17 @@ web oficial y `meshctrl`, así que funciona con **cualquier** instalación de Me
 - **Escritorio remoto**: ver y manejar la pantalla del equipo con ratón y teclado, elegir la pantalla o todas, **una
   ventana por cada pantalla remota en tus monitores**, calidades predefinidas, botones de Ctrl+Alt+Supr y tecla Windows, y
   **escribir el portapapeles** en el equipo (Unicode, sea cual sea la distribución de su teclado). Con equipos Windows,
-  **copiar y pegar de todo —texto, imágenes, ficheros y carpetas— en los dos sentidos**, como en Escritorio remoto.
+  **copiar y pegar de todo —texto, imágenes, ficheros y carpetas— en los dos sentidos**, como en Escritorio remoto, con la
+  ventana de copia de Windows. **Pantalla completa** con barra flotante, y todo el menú del equipo y las teclas habituales
+  (bloquear la pantalla, bloquear la entrada de quien está allí) sin salir del visor.
 - **Redirección de puertos** (lo que hace MeshCentral Router, dentro de la app): un puerto de este PC (solo 127.0.0.1)
   cuyas conexiones van, por el agente del equipo, a un puerto del equipo o de otra máquina de su red; las que se
   recuerdan vuelven en cada entrada. **Escritorio remoto de Windows** a un equipo con un clic, por un puerto privado que
   se cierra con él.
 - **SSH dentro de la app**, al equipo o a una máquina a la que llega su red, con contraseña o clave de OpenSSH, la
   identidad del servidor comprobada como hace OpenSSH, y la terminal de la propia app.
-- **Ficha del equipo**: datos generales (descripción y etiquetas editables), interfaces de red, todo el inventario de
+- **Ficha del equipo**: datos generales (descripción y etiquetas editables, modelo, número de serie, memoria con sus
+  módulos, discos y volúmenes), interfaces de red, todo el inventario de
   hardware y del agente con filtro, notas e historial; también de equipos desconectados.
 - **Ficheros**: explorar las unidades y carpetas del equipo, crear carpetas, renombrar, borrar, subir (también
   soltando ficheros desde el Explorador) y bajar, con progreso y botón de cancelar; **Ctrl+C / Ctrl+X / Ctrl+V con el

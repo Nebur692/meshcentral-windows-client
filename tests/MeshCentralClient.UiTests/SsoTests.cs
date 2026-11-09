@@ -100,7 +100,7 @@ public sealed class SsoTests : IDisposable
         var win = Start();
         SignIn(win, "alice", expectProviderPage: true);
         Assert.Equal("mesh.test", Find(win, "SessionTitle").Name);
-        Assert.StartsWith("alice ·", Find(win, "SessionSubtitle").Name);
+        Assert.Equal("alice", Find(win, "SessionUser").Name);
         Assert.Null(Anywhere("SsoWindow")); // it closed itself / se cerró sola
         Shot("alice-in");
 
@@ -123,7 +123,7 @@ public sealed class SsoTests : IDisposable
         Assert.True(Retry.WhileFalse(() =>
         {
             sawProvider |= Anywhere("SsoWindow") is not null;
-            return win.FindFirstDescendant(cf => cf.ByAutomationId("SessionSubtitle")) is { } sub && !sub.IsOffscreen && sub.Name.StartsWith("alice ·", StringComparison.Ordinal);
+            return win.FindFirstDescendant(cf => cf.ByAutomationId("SessionUser")) is { } sub && !sub.IsOffscreen && sub.Name == "alice";
         }, Timeout, TimeSpan.FromMilliseconds(100)).Result, "the remembered session did not sign in");
         Assert.False(sawProvider, "the provider's window opened although the session was remembered");
         Shot("alice-again");

@@ -5,10 +5,10 @@ using Xunit.Abstractions;
 /// <summary>
 /// Commands as the signed-in user against this Windows' real agent, a connect-mode one: the agent's own runAsUser never
 /// answers here, so getting an answer at all is what this proves. Who it runs as on a service agent is measured elsewhere
-/// (Pc-Salon): here both are the same account.
+/// (on a real Windows 11 PC): here both are the same account.
 /// Órdenes como el usuario con sesión contra el agente real de este Windows, en modo connect: el runAsUser del agente no
 /// contesta nunca aquí, así que contestar ya es lo que se prueba. Como quién corre en un agente de servicio se mide aparte
-/// (Pc-Salon): aquí ambos son la misma cuenta.
+/// (en un PC real con Windows 11): aquí ambos son la misma cuenta.
 /// </summary>
 [Trait("Category", "UI")]
 public sealed class UserCommandsTests(ITestOutputHelper output)

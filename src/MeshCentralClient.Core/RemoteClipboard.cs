@@ -126,7 +126,7 @@ public sealed class RemoteClipboard : IAsyncDisposable
     internal static string Quote(string s) => "'" + s.Replace("'", "''", StringComparison.Ordinal) + "'";
 
     /// <summary>
-    /// Makes folder $d readable by this user for whatever lands in it. Measured on a real service agent (Pc-Salon, 08-11):
+    /// Makes folder $d readable by this user for whatever lands in it. Measured on a real Windows 11 PC with a service agent:
     /// folders there have no inheritable permissions, so what the agent (SYSTEM) uploads gets none for the user, and pasting
     /// it would say access denied. The user owns $d, so can add it, for SYSTEM too: with an inheritable permission only for
     /// the user, what the user writes there stops being readable by the agent (seen). In a connect-mode agent both are the

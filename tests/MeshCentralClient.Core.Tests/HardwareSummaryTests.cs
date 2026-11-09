@@ -89,8 +89,9 @@ public class HardwareSummaryTests
         Assert.True(bare.MissingLinuxParts(JsonNode.Parse("""{"linux":{}}""")!.AsObject()));
         var filled = bare.WithLinuxProbe($"""
             MCC-MEM 8041000
-            TYPE="disk" SIZE="250059350016" MODEL="Samsung SSD 860"
-            TYPE="disk" SIZE="32212254720" MODEL=""
+            NAME="sda" TYPE="disk" SIZE="250059350016" MODEL="Samsung SSD 860"
+            NAME="mmcblk0" TYPE="disk" SIZE="32212254720" MODEL=""
+            NAME="zram0" TYPE="disk" SIZE="3026448384" MODEL=""
             TYPE="rom" SIZE="1073741312" MODEL="DVD"
             TYPE="loop" SIZE="4096" MODEL=""
             MCC-DMI {Convert.ToBase64String(Dmi(4096))}
@@ -103,6 +104,15 @@ public class HardwareSummaryTests
         Assert.Equal(new[] { new DiskInfo("Samsung SSD 860", 250059350016, null), new DiskInfo("?", 32212254720, null) }, filled.Disks);
         Assert.Single(filled.Volumes); // what it had stays / lo que tenía se queda
     }
+
+    [Theory]
+    [InlineData("Micron_Technolog", "Micron")]
+    [InlineData("Samsung         ", "Samsung")]
+    [InlineData("Hynix Semiconductor", "SK hynix")]
+    [InlineData("Acme_Memory", "Acme Memory")]
+    [InlineData("Unknown", null)]
+    [InlineData(null, null)]
+    public void The_maker_is_said_as_people_know_it(string? firmware, string? shown) => Assert.Equal(shown, HardwareSummary.Maker(firmware));
 
     [Fact]
     public void Without_the_firmwares_table_the_kernels_total_is_said()

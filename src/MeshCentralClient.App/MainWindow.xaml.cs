@@ -465,7 +465,10 @@ public partial class MainWindow : Window
         session.NotificationReceived += (_, n) => Dispatcher.BeginInvoke(() => Notifications.Show(this, n));
         session.Closed += (_, e) => Dispatcher.BeginInvoke(() => OnSessionLost(session, e));
         SessionTitle.Text = string.IsNullOrEmpty(session.ServerInfo.Name) ? session.Server.Host : session.ServerInfo.Name;
-        SessionSubtitle.Text = $"{session.User.Name} · {session.Server}";
+        // The address only when the name does not already say it. / La dirección solo si el nombre no la dice ya.
+        SessionTitle.ToolTip = SessionTitle.Text == session.Server.Host ? null : session.Server.ToString();
+        SessionUser.Text = session.User.Name;
+        SessionUserPanel.Visibility = Visibility.Visible;
         Title = $"{SessionTitle.Text} — {L.T("AppTitle")}";
         LostBanner.Visibility = Visibility.Collapsed;
         LoginPanel.Visibility = Visibility.Collapsed;
@@ -597,6 +600,8 @@ public partial class MainWindow : Window
         _groupNames.Clear();
         DevicesPanel.Visibility = Visibility.Collapsed;
         LoginPanel.Visibility = Visibility.Visible;
+        SessionUserPanel.Visibility = Visibility.Collapsed;
+        SessionUser.Text = "";
         Title = L.T("AppTitle");
         if (s is not null) await s.DisposeAsync();
     }
