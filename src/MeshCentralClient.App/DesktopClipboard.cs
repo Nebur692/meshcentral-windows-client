@@ -1,4 +1,3 @@
-using System.Collections.Specialized;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Windows;
@@ -7,15 +6,19 @@ using MeshCentralClient.Core;
 
 namespace MeshCentralClient.App;
 
+/// <summary>A transfer going on: what, how far (null: unknown) and whether it can stop. / Una transferencia en marcha: qué, por dónde va (null: no se sabe) y si se puede parar.</summary>
+public sealed record ClipTransfer(string Text, double? Fraction, bool CanCancel);
+
 /// <summary>
 /// Copy and paste of everything (text, images, files) between this PC and a Windows device while its desktop is open,
 /// the way Remote Desktop does it: entering the viewer takes what this PC copied to the device (and Ctrl+V there waits for
-/// it), leaving the viewer or copying inside it brings back what the device copied. Each side remembers the last thing it
-/// moved, so nothing bounces back and forth; files above <see cref="RemoteClipboard.AutomaticLimit"/> wait for the person.
+/// it), leaving the viewer or copying inside it offers here what the device copied, whose files only travel when pasted.
+/// Each side remembers the last thing it moved, so nothing bounces back and forth; files going to the device above
+/// <see cref="RemoteClipboard.AutomaticLimit"/> wait for the person.
 /// Copiar y pegar de todo (texto, imágenes, ficheros) entre este PC y un equipo Windows con su escritorio abierto, como lo
 /// hace Escritorio remoto: al entrar en el visor se lleva al equipo lo copiado aquí (y Ctrl+V allí lo espera), al salir o
-/// al copiar dentro se trae lo que copió el equipo. Cada lado recuerda lo último que movió, así que nada rebota; los
-/// ficheros por encima del límite esperan a que la persona lo pida.
+/// al copiar dentro se ofrece aquí lo que copió el equipo, cuyos ficheros solo viajan al pegar. Cada lado recuerda lo
+/// último que movió, así que nada rebota; los ficheros que van al equipo por encima del límite esperan a la persona.
 /// </summary>
 public sealed class DesktopClipboard : IAsyncDisposable
 {
@@ -31,6 +34,7 @@ public sealed class DesktopClipboard : IAsyncDisposable
     private string? _remoteSynced;
     private Task _push = Task.CompletedTask;
     private bool _toldTextOnly;
+    private CancellationTokenSource? _pushing;
 
     public DesktopClipboard(MeshServerSession session, Device device)
     {
@@ -39,16 +43,26 @@ public sealed class DesktopClipboard : IAsyncDisposable
         _remote = new RemoteClipboard(session, device);
         // What is already on this PC's clipboard when the desktop opens counts as new. / Lo que ya hay al abrir cuenta como nuevo.
         _localSynced = 0;
+        // Versions before 0.13 downloaded here; nothing reads it any more. / Hasta la 0.13 se bajaba aquí; ya nada lo lee.
+        _ = Task.Run(() => { try { if (Directory.Exists(OldLocalRoot)) Directory.Delete(OldLocalRoot, true); } catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { } });
     }
 
     /// <summary>A short line for the viewer's toolbar, raised on the UI thread. / Una línea corta para la barra del visor, en el hilo de la interfaz.</summary>
     public event Action<string>? Notice;
 
+    /// <summary>A transfer going on, for the viewer's bar, on the UI thread; null when it ends. / Una transferencia en marcha, para la barra del visor, en el hilo de la interfaz; null al acabar.</summary>
+    public event Action<ClipTransfer?>? Transfer;
+
     public bool CanAll => _remote.CanAll;
 
-    private static string LocalRoot => Path.Combine(AppPaths.Local, "clipboard", "desktop");
+    private static string OldLocalRoot => Path.Combine(AppPaths.Local, "clipboard");
 
     private void Say(string text) => Application.Current?.Dispatcher.BeginInvoke(() => Notice?.Invoke(text));
+
+    private void Show(ClipTransfer? t) => Application.Current?.Dispatcher.BeginInvoke(() => Transfer?.Invoke(t));
+
+    /// <summary>The toolbar's Cancel. / El Cancelar de la barra.</summary>
+    public void CancelTransfer() => _pushing?.Cancel();
 
     // ------------------------------------------------------------------ this PC → device / este PC → equipo
 
@@ -85,11 +99,13 @@ public sealed class DesktopClipboard : IAsyncDisposable
         if (text is null && files is null && image is null) { _localSynced = seq; return; }
 
         await _one.WaitAsync(_life.Token);
+        using var cancel = CancellationTokenSource.CreateLinkedTokenSource(_life.Token);
+        _pushing = cancel;
         try
         {
             if (text is not null)
             {
-                _remoteSynced = await _remote.SetTextAsync(text, _life.Token);
+                _remoteSynced = await _remote.SetTextAsync(text, cancel.Token);
                 Say(L.F("ClipTextToDevice", text.Length));
             }
             else if (!_remote.CanAll)
@@ -99,23 +115,40 @@ public sealed class DesktopClipboard : IAsyncDisposable
             }
             else if (image is not null)
             {
-                Say(L.T("ClipImageGoing"));
-                _remoteSynced = await _remote.SetImageAsync(Png(image), _life.Token);
+                Show(new ClipTransfer(L.T("ClipImageGoing"), null, CanCancel: true));
+                _remoteSynced = await _remote.SetImageAsync(Png(image), cancel.Token);
                 Say(L.F("ClipImageToDevice", image.PixelWidth, image.PixelHeight));
             }
             else if (files is { Length: > 0 })
             {
-                var size = LocalSize(files, RemoteClipboard.AutomaticLimit + 1);
+                var size = LocalSize(files, force ? long.MaxValue : RemoteClipboard.AutomaticLimit + 1);
                 if (size > RemoteClipboard.AutomaticLimit && !force) { Say(L.F("ClipTooBigToDevice", ReportFormat.Bytes(size))); return; }
-                var progress = new Progress<TreeProgress>(p => Say(L.F("ClipFilesGoing", p.Name)));
-                _remoteSynced = await _remote.SetFilesAsync(files, progress, _life.Token);
+                var meter = new TransferMeter(size);
+                var lastShown = 0L;
+                var progress = new Reports(p =>
+                {
+                    meter.Report(p);
+                    // A few times a second is all a bar can show. / Unas veces por segundo es lo que una barra puede enseñar.
+                    if (Environment.TickCount64 - lastShown < 150) return;
+                    lastShown = Environment.TickCount64;
+                    Show(new ClipTransfer(L.F("ClipFilesGoing", p.Name), meter.Fraction, CanCancel: true));
+                });
+                Show(new ClipTransfer(L.F("ClipFilesGoing", Path.GetFileName(files[0].TrimEnd('\\', '/'))), 0, CanCancel: true));
+                _remoteSynced = await _remote.SetFilesAsync(files, progress, cancel.Token);
                 Say(L.F("ClipFilesToDevice", files.Length));
             }
             _localSynced = seq;
         }
         catch (MeshClientException ex) { Say(UserError.From(ex, _session.ServerInfo.Version).Message); }
+        // Asked for by the person: it is not offered again until something else is copied. / Lo pidió la persona: no se vuelve a ofrecer hasta que se copie otra cosa.
+        catch (OperationCanceledException) when (!_life.IsCancellationRequested) { _localSynced = seq; Say(L.T("ClipCancelled")); }
         catch (OperationCanceledException) { }
-        finally { _one.Release(); }
+        finally { _pushing = null; Show(null); _one.Release(); }
+    }
+
+    private sealed class Reports(Action<TreeProgress> report) : IProgress<TreeProgress>
+    {
+        public void Report(TreeProgress value) => report(value);
     }
 
     private static byte[] Png(BitmapSource image)
@@ -146,20 +179,17 @@ public sealed class DesktopClipboard : IAsyncDisposable
 
     // ------------------------------------------------------------------ device → this PC / equipo → este PC
 
-    /// <summary>The viewer was left, or something was copied inside it: brings what the device copied.
-    /// Se salió del visor, o se copió algo dentro: trae lo que copió el equipo.</summary>
-    public void Left() { if (_remote.CanAll) _ = PullAsync(force: false); }
+    /// <summary>The viewer was left, or something was copied inside it, or the toolbar's "bring it": offers here what the device copied.
+    /// Se salió del visor, o se copió algo dentro, o el «traer» de la barra: ofrece aquí lo que copió el equipo.</summary>
+    public void Left() { if (_remote.CanAll) _ = PullAsync(); }
 
-    /// <summary>The toolbar's "bring it": files above the limit too. / El «traer» de la barra: también ficheros por encima del límite.</summary>
-    public void PullNow() { if (_remote.CanAll) _ = PullAsync(force: true); }
-
-    private async Task PullAsync(bool force)
+    private async Task PullAsync()
     {
         try { await _push; } catch (Exception) { }
         await _one.WaitAsync(_life.Token);
         try
         {
-            var clip = await _remote.ReadAsync(force ? long.MaxValue : RemoteClipboard.AutomaticLimit, _life.Token);
+            var clip = await _remote.ReadAsync(_life.Token);
             if (clip.Kind == ClipKind.None || clip.Signature == _remoteSynced) return;
             switch (clip.Kind)
             {
@@ -168,7 +198,7 @@ public sealed class DesktopClipboard : IAsyncDisposable
                     Say(L.F("ClipTextFromDevice", (clip.Text ?? "").Length));
                     break;
                 case ClipKind.Image:
-                    Say(L.T("ClipImageComing"));
+                    Show(new ClipTransfer(L.T("ClipImageComing"), null, CanCancel: false));
                     var png = await _remote.DownloadImageAsync(clip, _life.Token);
                     await OnUi(() =>
                     {
@@ -177,23 +207,18 @@ public sealed class DesktopClipboard : IAsyncDisposable
                     });
                     Say(L.T("ClipImageFromDevice"));
                     break;
-                case ClipKind.Files when clip.SizeOverLimit && !force:
-                    Say(L.F("ClipTooBigFromDevice", ReportFormat.Bytes(clip.Size)));
-                    return;
                 case ClipKind.Files:
-                    var folder = Path.Combine(LocalRoot, DateTime.UtcNow.ToString("yyyyMMddHHmmssfff"));
-                    Clean(LocalRoot);
-                    var progress = new Progress<TreeProgress>(p => Say(L.F("ClipFilesComing", p.Name)));
-                    var local = await _remote.DownloadFilesAsync(clip, folder, progress, _life.Token);
-                    await OnUi(() =>
+                    Show(new ClipTransfer(L.T("ClipFilesListing"), null, CanCancel: false));
+                    var source = new RemoteFileSource(_session, _device.Id);
+                    source.Failed += ex => Say(UserError.From(ex, _session.ServerInfo.Version).Message);
+                    try
                     {
-                        var drop = new StringCollection();
-                        drop.AddRange(local.ToArray());
-                        var data = new DataObject();
-                        data.SetFileDropList(drop);
-                        Clipboard.SetDataObject(data, copy: true);
-                    });
-                    Say(L.F("ClipFilesFromDevice", local.Count));
+                        var entries = await source.ListAsync(clip.Files, _life.Token);
+                        if (entries.Any(e => e.RelativePath.Length > VirtualFilesData.MaxPath)) { await source.DisposeAsync(); Say(L.T("ClipPathTooLong")); return; }
+                        await VirtualFileClipboard.SetAsync(entries, source);
+                    }
+                    catch (Exception) { await source.DisposeAsync(); throw; }
+                    Say(L.F("ClipFilesFromDevice", clip.Files.Count));
                     break;
             }
             _remoteSynced = clip.Signature;
@@ -202,15 +227,7 @@ public sealed class DesktopClipboard : IAsyncDisposable
         catch (MeshClientException ex) { Say(UserError.From(ex, _session.ServerInfo.Version).Message); }
         catch (COMException) { Say(L.T("ClipBusy")); }
         catch (OperationCanceledException) { }
-        finally { _one.Release(); }
-    }
-
-    /// <summary>Removes earlier copies from the device: a new copy replaces them on the clipboard.
-    /// Quita las copias anteriores del equipo: una copia nueva las sustituye en el portapapeles.</summary>
-    private static void Clean(string root)
-    {
-        try { if (Directory.Exists(root)) foreach (var d in Directory.GetDirectories(root)) Directory.Delete(d, true); }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
+        finally { Show(null); _one.Release(); }
     }
 
     // The clipboard belongs to the UI thread; it may be busy a moment, so it is tried a few times.

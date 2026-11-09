@@ -38,6 +38,9 @@ internal static class ClipboardTool
     }
 
     /// <summary>Like Ctrl+C on a file or folder in Explorer. / Como Ctrl+C sobre un fichero o carpeta en el Explorador.</summary>
+    /// <summary>What Explorer does on Ctrl+V in a folder, the real paste. / Lo que hace el Explorador con Ctrl+V en una carpeta, el pegado de verdad.</summary>
+    public static void PasteInExplorer(string folder) => Run("(New-Object -ComObject Shell.Application).NameSpace(" + Quote(folder) + ").Self.InvokeVerb('paste')");
+
     public static void SetFiles(string path) => Run("Set-Clipboard -LiteralPath " + Quote(path));
 
     /// <summary>An image of one colour, as a screenshot tool would copy it. / Una imagen de un color, como la copiaría una herramienta de capturas.</summary>

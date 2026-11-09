@@ -493,6 +493,7 @@ public partial class MainWindow : Window
     {
         var s = _session;
         _session = null;
+        await VirtualFileClipboard.ClearAsync();
         // Their tunnels belong to this session. / Sus túneles son de esta sesión.
         foreach (var w in _sessionWindows.ToList()) w.Close();
         if (_relays is not null) { await _relays.DisposeAsync(); _relays = null; }

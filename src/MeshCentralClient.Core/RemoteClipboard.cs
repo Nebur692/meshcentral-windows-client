@@ -13,7 +13,7 @@ public enum ClipKind { None, Text, Image, Files, Error }
 /// The device's clipboard as its PowerShell read it. <see cref="Signature"/> tells two readings apart without moving
 /// anything. / El portapapeles del equipo tal como lo leyó su PowerShell; la firma distingue dos lecturas sin mover nada.
 /// </summary>
-public sealed record RemoteClip(ClipKind Kind, string? Text, IReadOnlyList<string> Files, string? ImagePath, string? ImageHash, long Size, bool SizeOverLimit, string? Temp, string? Error)
+public sealed record RemoteClip(ClipKind Kind, string? Text, IReadOnlyList<string> Files, string? ImagePath, string? ImageHash, string? Temp, string? Error)
 {
     public string Signature => Kind switch
     {
@@ -148,20 +148,18 @@ public sealed class RemoteClipboard : IAsyncDisposable
     /// <summary>The only script ever typed: it makes the folder the others go through. / El único guion que se teclea: crea la carpeta por la que van los demás.</summary>
     internal const string HelloScript = "$o=[ordered]@{kind='hello'}\n" + Answer;
 
-    internal static string ReadScript(long limit) => $$"""
+    internal static string ReadScript() => $$"""
         $ErrorActionPreference='Stop'
         $o=[ordered]@{kind='none';temp=$env:TEMP}
         try {
           Add-Type -AssemblyName System.Windows.Forms,System.Drawing
           if([Windows.Forms.Clipboard]::ContainsFileDropList()){
-            $o.kind='files'; $o.files=@([Windows.Forms.Clipboard]::GetFileDropList()); $s=0
-            foreach($f in $o.files){ if($s -gt {{limit}}){break}; $i=Get-Item -LiteralPath $f -Force; if($i.PSIsContainer){ foreach($x in Get-ChildItem -LiteralPath $f -Recurse -File -Force -ErrorAction SilentlyContinue){ $s+=$x.Length; if($s -gt {{limit}}){break} } } else { $s+=$i.Length } }
-            $o.size=$s
+            $o.kind='files'; $o.files=@([Windows.Forms.Clipboard]::GetFileDropList())
           } elseif([Windows.Forms.Clipboard]::ContainsImage()){
             {{ImageHash}}
             $d=Join-Path $env:TEMP 'MeshCentralClient'; New-Item -ItemType Directory -Force $d | Out-Null
             $p=Join-Path $d ('image-'+$h.Substring(0,16)+'.png'); [IO.File]::WriteAllBytes($p,$b)
-            $o.kind='image'; $o.hash=$h; $o.image=$p; $o.size=$b.Length
+            $o.kind='image'; $o.hash=$h; $o.image=$p
           } elseif([Windows.Forms.Clipboard]::ContainsText()){
             $o.kind='text'; $o.text=[Windows.Forms.Clipboard]::GetText()
           }
@@ -234,7 +232,7 @@ public sealed class RemoteClipboard : IAsyncDisposable
         return null;
     }
 
-    internal static RemoteClip ToClip(JsonObject o, long limit)
+    internal static RemoteClip ToClip(JsonObject o)
     {
         var kind = o.Str("kind") switch { "text" => ClipKind.Text, "image" => ClipKind.Image, "files" => ClipKind.Files, "error" => ClipKind.Error, _ => ClipKind.None };
         var files = o["files"] switch
@@ -243,9 +241,7 @@ public sealed class RemoteClipboard : IAsyncDisposable
             JsonValue v when v.TryGetValue<string>(out var one) => new List<string> { one },
             _ => new List<string>(),
         };
-        long size = 0;
-        if (o["size"] is JsonValue sv) { if (sv.TryGetValue<long>(out var l)) size = l; else if (sv.TryGetValue<double>(out var d)) size = (long)d; }
-        return new RemoteClip(kind, o.Str("text"), files, o.Str("image"), o.Str("hash"), size, size > limit, o.Str("temp"), o.Str("error"));
+        return new RemoteClip(kind, o.Str("text"), files, o.Str("image"), o.Str("hash"), o.Str("temp"), o.Str("error"));
     }
 
     private Task<FilesSession> FilesAsync(CancellationToken ct) => _user.FilesAsync(ct);
@@ -255,29 +251,11 @@ public sealed class RemoteClipboard : IAsyncDisposable
     // ------------------------------------------------------------------ device → this PC / equipo → este PC
 
     /// <summary>What the device's clipboard holds now. / Lo que tiene ahora el portapapeles del equipo.</summary>
-    public async Task<RemoteClip> ReadAsync(long limit = AutomaticLimit, CancellationToken ct = default)
+    public async Task<RemoteClip> ReadAsync(CancellationToken ct = default)
     {
         await _one.WaitAsync(ct).ConfigureAwait(false);
-        try { return ToClip(await RunAsync(ReadScript(limit), "read its clipboard", ct).ConfigureAwait(false), limit); }
+        try { return ToClip(await RunAsync(ReadScript(), "read its clipboard", ct).ConfigureAwait(false)); }
         finally { _one.Release(); }
-    }
-
-    /// <summary>Downloads the files of <paramref name="clip"/> into <paramref name="localFolder"/>; returns the local paths, in order.
-    /// Baja los ficheros a la carpeta local; devuelve las rutas locales, en orden.</summary>
-    public async Task<IReadOnlyList<string>> DownloadFilesAsync(RemoteClip clip, string localFolder, IProgress<TreeProgress>? progress = null, CancellationToken ct = default)
-    {
-        var files = await FilesAsync(ct).ConfigureAwait(false);
-        Directory.CreateDirectory(localFolder);
-        var local = new List<string>();
-        foreach (var group in clip.Files.Select(p => p.Replace('\\', '/').TrimEnd('/')).GroupBy(Parent))
-        {
-            var listing = await files.ListAsync(group.Key, ct).ConfigureAwait(false);
-            var names = group.Select(p => p[(p.LastIndexOf('/') + 1)..]).ToList();
-            var entries = listing.Entries.Where(e => names.Contains(e.Name, StringComparer.OrdinalIgnoreCase)).ToList();
-            await files.DownloadTreeAsync(group.Key, entries, localFolder, progress, ct).ConfigureAwait(false);
-            local.AddRange(entries.Select(e => Path.Combine(localFolder, e.Name)));
-        }
-        return local;
     }
 
     /// <summary>"C:/a/b.txt" → "C:/a"; "C:/b.txt" → "C:/". / La carpeta de una ruta del equipo.</summary>
@@ -330,7 +308,7 @@ public sealed class RemoteClipboard : IAsyncDisposable
             await files.UploadTreeAsync(items, folder.Replace('\\', '/'), progress, ct).ConfigureAwait(false);
             var remote = items.Select(i => folder.TrimEnd('\\') + "\\" + i.Item2).ToList();
             var o = await RunAsync(SetFilesScript(remote), "put the files on its clipboard", ct).ConfigureAwait(false);
-            return ToClip(o, long.MaxValue).Signature;
+            return ToClip(o).Signature;
         }
         finally { _one.Release(); }
     }
@@ -345,7 +323,7 @@ public sealed class RemoteClipboard : IAsyncDisposable
             var folder = await PrepareAsync(ct).ConfigureAwait(false);
             await files.UploadAsync(folder.Replace('\\', '/'), "image.png", new MemoryStream(png), null, ct).ConfigureAwait(false);
             var o = await RunAsync(SetImageScript(folder.TrimEnd('\\') + "\\image.png"), "put the image on its clipboard", ct).ConfigureAwait(false);
-            return ToClip(o, long.MaxValue).Signature;
+            return ToClip(o).Signature;
         }
         finally { _one.Release(); }
     }

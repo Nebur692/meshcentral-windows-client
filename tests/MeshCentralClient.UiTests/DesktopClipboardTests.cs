@@ -14,12 +14,12 @@ using Wait = FlaUI.Core.Input.Wait;
 /// Copy and paste of everything with the remote desktop, on real Windows where the viewer and the device are the same
 /// machine and so share ONE clipboard. What proves each direction is where things end up: files sent to the device are
 /// put on its clipboard from the device's copy folder (the remote user's TEMP\MeshCentralClient\clip), files brought from
-/// it from the app's own folder (LOCALAPPDATA\MeshCentralClient\clipboard); text and images, by the viewer's notice and
+/// it become virtual ones that only Explorer's real paste can turn into files; text and images, by the viewer's notice and
 /// by being intact after the trip.
 /// Copiar y pegar de todo con el escritorio remoto, en Windows de verdad donde visor y equipo son la misma máquina y
 /// comparten UN portapapeles. Lo que prueba cada sentido es dónde acaba cada cosa: los ficheros llevados al equipo quedan
-/// en su portapapeles desde la carpeta de copias del equipo, los traídos desde la carpeta de la app; texto e imágenes,
-/// por el aviso del visor y por llegar intactos.
+/// en su portapapeles desde la carpeta de copias del equipo, los traídos pasan a ser virtuales, que solo el pegado de verdad
+/// del Explorador convierte en ficheros; texto e imágenes, por el aviso del visor y por llegar intactos.
 /// </summary>
 [Trait("Category", "UI")]
 public sealed class DesktopClipboardTests(ITestOutputHelper output) : IDisposable
@@ -78,13 +78,8 @@ public sealed class DesktopClipboardTests(ITestOutputHelper output) : IDisposabl
         return d;
     }
 
-    [Fact]
-    public void Text_images_and_files_go_both_ways_with_the_remote_desktop()
+    private (AutomationElement Main, AutomationElement Desktop) OpenDesktop()
     {
-        // Already on the clipboard when the desktop opens: it goes to the device. / Ya en el portapapeles al abrir: va al equipo.
-        var t0 = "inicio ñ€ " + _tag;
-        ClipboardTool.SetText(t0);
-
         var psi = new ProcessStartInfo(Env("MESHUI_EXE")) { UseShellExecute = false };
         psi.Environment["APPDATA"] = Path.Combine(_dir.FullName, "appdata");
         psi.Environment["LOCALAPPDATA"] = Path.Combine(_dir.FullName, "localappdata");
@@ -101,7 +96,27 @@ public sealed class DesktopClipboardTests(ITestOutputHelper output) : IDisposabl
         device.Patterns.SelectionItem.Pattern.Select();
         device.RightClick();
         Anywhere("DesktopItem").AsMenuItem().Invoke();
-        var desk = Anywhere("DesktopWindow");
+        return (win, Anywhere("DesktopWindow"));
+    }
+
+    /// <summary>A file bigger than the moment Explorer takes to show its window. / Un fichero mayor que lo que tarda el Explorador en enseñar su ventana.</summary>
+    private static string BigFile(string name)
+    {
+        var path = Path.Combine(Path.GetTempPath(), name);
+        var block = new byte[1024 * 1024];
+        new Random(5).NextBytes(block);
+        using var f = File.Create(path);
+        for (var i = 0; i < 400; i++) f.Write(block);
+        return path;
+    }
+
+    [Fact]
+    public void Text_images_and_files_go_both_ways_with_the_remote_desktop()
+    {
+        // Already on the clipboard when the desktop opens: it goes to the device. / Ya en el portapapeles al abrir: va al equipo.
+        var t0 = "inicio ñ€ " + _tag;
+        ClipboardTool.SetText(t0);
+        var (win, desk) = OpenDesktop();
         var notice = Id(desk, "ClipboardNotice");
         // Visible only when images and files can go too (Windows, run commands and files rights). / Solo visible si también pueden ir imágenes y ficheros.
         Id(desk, "ClipToDeviceButton");
@@ -111,16 +126,53 @@ public sealed class DesktopClipboardTests(ITestOutputHelper output) : IDisposabl
         Until(() => Notice() == $"Copied text ({t0.Length} characters) is on the device.", "the text taken to the device", Notice);
         Shot("text-to-device");
 
-        // 2. Files copied on the device come here, from the app's folder. / Ficheros copiados en el equipo vienen aquí, desde la carpeta de la app.
+        // 2. Files copied on the device: a promise on the clipboard, and the bytes when Explorer pastes. / Ficheros copiados en el equipo: una promesa en el portapapeles, y los bytes cuando pega el Explorador.
         var there = Folder("mcc-from-device-" + _tag, "desde el equipo " + _tag);
         ClipboardTool.SetFiles(there);
         win.SetForeground();
-        Until(() => Notice() == "1 item(s) from the device ready to paste here.", "the files brought from the device", Notice);
-        var local = Assert.Single(ClipboardTool.Files());
-        output.WriteLine("brought: " + local);
-        Assert.StartsWith(Path.Combine(_dir.FullName, "localappdata", "MeshCentralClient", "clipboard"), local, StringComparison.OrdinalIgnoreCase);
-        Assert.Equal("desde el equipo " + _tag, File.ReadAllText(Path.Combine(local, "a.txt")));
-        Assert.Equal("b desde el equipo " + _tag, File.ReadAllText(Path.Combine(local, "sub", "b.txt")));
+        const string offered = "1 item(s) from the device: paste them here and they will come, with Windows' own bar.";
+        Until(() => Notice() == offered, "the files offered from the device", Notice);
+        Assert.Empty(ClipboardTool.Files());
+        var target = Directory.CreateDirectory(Path.Combine(_dir.FullName, "pasted")).FullName;
+        var pasted = Path.Combine(target, Path.GetFileName(there));
+        ClipboardTool.PasteInExplorer(target);
+        Until(() => File.Exists(Path.Combine(pasted, "sub", "b.txt")) && new FileInfo(Path.Combine(pasted, "sub", "b.txt")).Length > 0, "the folder pasted by Explorer");
+        Assert.Equal("desde el equipo " + _tag, File.ReadAllText(Path.Combine(pasted, "a.txt")));
+        Assert.Equal("b desde el equipo " + _tag, File.ReadAllText(Path.Combine(pasted, "sub", "b.txt")));
+
+        // 2b. A big one: Explorer's own window with its bar, what Remote Desktop shows. / Uno grande: la ventana del propio Explorador con su barra, lo que enseña Escritorio remoto.
+        desk.AsWindow().SetForeground();
+        Thread.Sleep(1500);
+        var big = BigFile("mcc-big-" + _tag + ".bin");
+        ClipboardTool.SetFiles(big);
+        win.SetForeground();
+        // The notice reads the same as before: what tells is the real file leaving the clipboard. / El aviso dice lo mismo que antes: lo que distingue es que el fichero de verdad deja el portapapeles.
+        Until(() => ClipboardTool.Files().Length == 0 && Notice() == offered, "the big file offered from the device", Notice);
+        ClipboardTool.PasteInExplorer(target);
+        var copying = Retry.WhileNull(() => _automation.GetDesktop().FindFirstChild(cf => cf.ByClassName("OperationStatusWindow")), Timeout, TimeSpan.FromMilliseconds(100)).Result;
+        Shot("explorer-copy-window");
+        Assert.True(copying is not null, "Explorer never showed its copy window");
+        var pastedBig = Path.Combine(target, Path.GetFileName(big));
+        Until(() => Retry.WhileNotNull(() => _automation.GetDesktop().FindFirstChild(cf => cf.ByClassName("OperationStatusWindow")), Timeout).Result && File.Exists(pastedBig), "the big file pasted");
+        Assert.Equal(new FileInfo(big).Length, new FileInfo(pastedBig).Length);
+        Assert.Equal(System.Security.Cryptography.SHA256.HashData(File.ReadAllBytes(big)), System.Security.Cryptography.SHA256.HashData(File.ReadAllBytes(pastedBig)));
+
+        // 2c. Taking it to the device shows a bar, and Cancel stops it. / Llevarlo al equipo enseña una barra, y Cancelar lo para.
+        ClipboardTool.SetText("nada " + _tag);
+        Thread.Sleep(500);
+        ClipboardTool.SetFiles(big);
+        desk.AsWindow().SetForeground();
+        var cancel = Id(desk, "ClipCancelButton");
+        Id(desk, "ClipProgress");
+        Shot("taking-with-bar");
+        cancel.AsButton().Invoke();
+        Until(() => Notice() == "Cancelled: nothing was left on the device's clipboard.", "the transfer cancelled", Notice);
+        Assert.Null(desk.FindFirstDescendant(cf => cf.ByAutomationId("ClipCancelButton")));
+        // Leaving reads the device's clipboard (the same file, nothing new); let it end before copying something else.
+        // Al salir se lee el portapapeles del equipo (el mismo fichero, nada nuevo); que acabe antes de copiar otra cosa.
+        win.SetForeground();
+        Thread.Sleep(3000);
+        File.Delete(big);
 
         // 3. Files copied here go to the device, into its copy folder. / Ficheros copiados aquí van al equipo, a su carpeta de copias.
         var here = Folder("mcc-to-device-" + _tag, "desde este PC " + _tag);
@@ -167,5 +219,36 @@ public sealed class DesktopClipboardTests(ITestOutputHelper output) : IDisposabl
         Assert.Equal(longText.TrimEnd(), ClipboardTool.Text().TrimEnd());
 
         foreach (var d in new[] { there, here }) { try { Directory.Delete(d, true); } catch (Exception) { } }
+    }
+
+    [Fact]
+    public void Full_screen_covers_the_screen_and_the_bar_floats_and_hides()
+    {
+        var (_, desk) = OpenDesktop();
+        var window = desk.AsWindow();
+        var normal = window.BoundingRectangle;
+        var screen = _automation.GetDesktop().BoundingRectangle;
+        Id(desk, "FullScreenButton").AsButton().Invoke();
+        Until(() => window.BoundingRectangle.Width >= screen.Width && window.BoundingRectangle.Height >= screen.Height, "the window covering the screen", () => window.BoundingRectangle.ToString());
+        Shot("full-screen-bar-floating");
+        // It hides by itself with the mouse away; the top edge brings it back. / Se esconde sola con el ratón lejos; el borde de arriba la devuelve.
+        Mouse.MoveTo(screen.Width / 2, screen.Height / 2);
+        Until(() => desk.FindFirstDescendant(cf => cf.ByAutomationId("FullScreenButton")) is null, "the bar hiding");
+        Shot("full-screen-bar-hidden");
+        Mouse.MoveTo(screen.Width / 2, screen.Height / 3);
+        Mouse.MoveTo(screen.Width / 2, 0);
+        var button = Id(desk, "FullScreenButton");
+        Shot("full-screen-bar-back");
+        button.AsButton().Invoke();
+        Until(() => window.BoundingRectangle.Width < screen.Width, "the window back to its size", () => window.BoundingRectangle.ToString());
+        Assert.Equal(normal, window.BoundingRectangle);
+
+        // The same keys as Remote Desktop, there and back, with the picture holding the keyboard. / Las mismas teclas que Escritorio remoto, ida y vuelta, con el teclado en la imagen.
+        window.SetForeground();
+        Id(desk, "DesktopSurface").Focus();
+        Keyboard.TypeSimultaneously(VirtualKeyShort.CONTROL, VirtualKeyShort.ALT, VirtualKeyShort.PAUSE);
+        Until(() => window.BoundingRectangle.Width >= screen.Width, "full screen by keys", () => window.BoundingRectangle.ToString());
+        Keyboard.TypeSimultaneously(VirtualKeyShort.CONTROL, VirtualKeyShort.ALT, VirtualKeyShort.PAUSE);
+        Until(() => window.BoundingRectangle.Width < screen.Width, "back by keys", () => window.BoundingRectangle.ToString());
     }
 }

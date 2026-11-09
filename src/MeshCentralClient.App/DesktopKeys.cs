@@ -25,6 +25,10 @@ internal static class DesktopKeys
         down && !repeat && mods.HasFlag(ModifierKeys.Control) && key is Key.C or Key.X or Key.Insert;
 
     /// <summary>Queues the key and whatever goes with it. / Pone en la cola la tecla y lo que la acompaña.</summary>
+    /// <summary>Ctrl+Alt+Pause, which Windows reports as Pause or as Cancel. / Ctrl+Alt+Pausa, que Windows da como Pause o como Cancel.</summary>
+    internal static bool IsFullScreen(Key key, ModifierKeys mods) =>
+        mods.HasFlag(ModifierKeys.Control) && mods.HasFlag(ModifierKeys.Alt) && key is Key.Pause or Key.Cancel;
+
     internal static void Send(Action<Func<Task>> queue, Key key, ModifierKeys mods, bool down, bool repeat, Func<Task> send, Func<Task>? beforePaste, Func<Task>? afterCopy)
     {
         if (beforePaste is not null && IsPaste(key, mods, down)) queue(beforePaste);

@@ -148,9 +148,16 @@ public sealed partial class FilesSession
             await using (src)
             {
                 var total = src.Length;
-                await UploadAsync(remoteFolder, name, src, progress is null ? null : new Progress<long>(n => progress.Report(new(name, n, total))), ct).ConfigureAwait(false);
+                await UploadAsync(remoteFolder, name, src, progress is null ? null : new InOrderProgress(n => progress.Report(new(name, n, total))), ct).ConfigureAwait(false);
             }
         }
+    }
+
+    /// <summary>Told right there and in order: Progress&lt;T&gt; posts each report to the thread pool, and they can arrive shuffled.
+    /// Se cuenta en el momento y en orden: Progress&lt;T&gt; manda cada aviso al grupo de hilos, y pueden llegar desordenados.</summary>
+    private sealed class InOrderProgress(Action<long> report) : IProgress<long>
+    {
+        public void Report(long value) => report(value);
     }
 
     private static void TryDelete(string path) { try { File.Delete(path); } catch (Exception) { } }

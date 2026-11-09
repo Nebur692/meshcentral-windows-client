@@ -41,6 +41,17 @@ public sealed class DesktopWindow : Window
     private readonly ComboBox _displays = new() { MinWidth = 130, Visibility = Visibility.Collapsed, Margin = new Thickness(0, 0, 6, 0) };
     private readonly ComboBox _quality = new() { MinWidth = 110, Margin = new Thickness(0, 0, 6, 0) };
     private readonly Button _split = new() { Margin = new Thickness(0, 0, 6, 0), Visibility = Visibility.Collapsed };
+    private readonly Button _fullButton = new() { Margin = new Thickness(0, 0, 6, 0) };
+    private readonly ProgressBar _transfer = new() { Width = 140, Height = 12, Margin = new Thickness(0, 0, 8, 0), VerticalAlignment = VerticalAlignment.Center, Maximum = 1, Visibility = Visibility.Collapsed };
+    private readonly Button _transferCancel = new() { Margin = new Thickness(0, 0, 8, 0), Visibility = Visibility.Collapsed };
+    private readonly DockPanel _dock = new();
+    private readonly Border _floating = new() { HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Top, CornerRadius = new CornerRadius(0, 0, 8, 8), MaxWidth = 1000, Visibility = Visibility.Collapsed,
+        Effect = new System.Windows.Media.Effects.DropShadowEffect { BlurRadius = 12, ShadowDepth = 2, Opacity = 0.5 } };
+    private readonly Border _handle = new() { HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Top, Width = 96, Height = 6, CornerRadius = new CornerRadius(0, 0, 4, 4), Background = Brushes.Gray, Opacity = 0.8, Visibility = Visibility.Collapsed };
+    private readonly System.Windows.Threading.DispatcherTimer _hideBar = new() { Interval = TimeSpan.FromSeconds(3) };
+    private StackPanel _bar = null!;
+    private bool _full, _transferring;
+    private (WindowState State, WindowStyle Style, ResizeMode Resize) _beforeFull;
     private readonly HashSet<int> _pressed = new();
     private DisplayRect? _viewport;
     private DateTime _lastMove;
@@ -61,10 +72,9 @@ public sealed class DesktopWindow : Window
         _box.Child = _canvas;
         _surface.Child = _box;
 
-        var root = new DockPanel();
         // The buttons wrap when the window is narrow, and the status and notices have their own line: nothing is cut off.
         // Los botones saltan de fila si la ventana es estrecha, y estado y avisos tienen su línea: no se corta nada.
-        var bar = new StackPanel { Margin = new Thickness(12, 8, 12, 8) };
+        var bar = _bar = new StackPanel { Margin = new Thickness(12, 8, 12, 8) };
         var tools = new WrapPanel { HorizontalAlignment = HorizontalAlignment.Right };
         if (_primary)
         {
@@ -78,17 +88,35 @@ public sealed class DesktopWindow : Window
         tools.Children.Add(_clipTo);
         tools.Children.Add(_clipFrom);
         if (_primary) tools.Children.Add(Action("RefreshDesktop", L.T("Refresh"), async s => await s.RefreshAsync()));
+        Id(_fullButton, "FullScreenButton");
+        _fullButton.Content = L.T("FullScreen");
+        _fullButton.ToolTip = L.T("FullScreenHelp");
+        _fullButton.Click += (_, _) => ToggleFullScreen();
+        tools.Children.Add(_fullButton);
         bar.Children.Add(tools);
         var info = new DockPanel { Margin = new Thickness(0, 6, 0, 0) };
-        DockPanel.SetDock(_notice, Dock.Right); DockPanel.SetDock(_clipNotice, Dock.Right);
+        DockPanel.SetDock(_notice, Dock.Right); DockPanel.SetDock(_clipNotice, Dock.Right); DockPanel.SetDock(_transfer, Dock.Right); DockPanel.SetDock(_transferCancel, Dock.Right);
         info.Children.Add(_notice);
+        info.Children.Add(_transferCancel);
+        info.Children.Add(_transfer);
         info.Children.Add(_clipNotice);
         info.Children.Add(_status);
         bar.Children.Add(info);
         DockPanel.SetDock(bar, Dock.Top);
-        root.Children.Add(bar);
-        root.Children.Add(_surface);
-        Content = root;
+        _dock.Children.Add(bar);
+        _dock.Children.Add(_surface);
+        var layers = new Grid();
+        layers.Children.Add(_dock);
+        layers.Children.Add(_handle);
+        layers.Children.Add(_floating);
+        Content = layers;
+        // In full screen the bar floats over the picture and hides; the top edge brings it back, as in Remote Desktop.
+        // En pantalla completa la barra flota sobre la imagen y se esconde; el borde de arriba la devuelve, como en Escritorio remoto.
+        PreviewMouseMove += (_, e) => { if (_full && e.GetPosition(this).Y <= _handle.Height) ShowBar(); };
+        _hideBar.Tick += (_, _) => HideBarIfIdle();
+        Id(_transfer, "ClipProgress"); Id(_transferCancel, "ClipCancelButton");
+        _transferCancel.Content = L.T("ClipCancel");
+        _transferCancel.Click += (_, _) => { _c.Clipboard?.CancelTransfer(); if (IsActive) _surface.Focus(); };
 
         _quality.ItemsSource = new[] { L.T("QualityHigh"), L.T("QualityMedium"), L.T("QualityLow") };
         _quality.SelectedIndex = 1;
@@ -117,11 +145,12 @@ public sealed class DesktopWindow : Window
         Activated += (_, _) => _c.Clipboard?.Entered();
         Id(_clipNotice, "ClipboardNotice"); Id(_clipTo, "ClipToDeviceButton"); Id(_clipFrom, "ClipFromDeviceButton");
         _clipTo.Click += (_, _) => { _c.Clipboard?.PushNow(); if (IsActive) _surface.Focus(); };
-        _clipFrom.Click += (_, _) => { _c.Clipboard?.PullNow(); if (IsActive) _surface.Focus(); };
+        _clipFrom.Click += (_, _) => { _c.Clipboard?.Left(); if (IsActive) _surface.Focus(); };
         void ClipboardReady()
         {
             if (_c.Clipboard is not { } clip) return;
-            clip.Notice += t => { _clipNotice.Text = t; _clipNotice.ToolTip = t; };
+            clip.Notice += t => { _clipNotice.Text = t; _clipNotice.ToolTip = t; if (_full) ShowBar(); };
+            clip.Transfer += ShowTransfer;
             _clipTo.Visibility = _clipFrom.Visibility = clip.CanAll ? Visibility.Visible : Visibility.Collapsed;
             if (IsActive) clip.Entered();
         }
@@ -135,9 +164,73 @@ public sealed class DesktopWindow : Window
         Closed += async (_, _) =>
         {
             _c.BitmapReplaced -= Refresh; _c.StatusChanged -= ShowStatus; _c.DisplaysChanged -= Refresh;
+            _hideBar.Stop();
             await ReleaseAllAsync();
             if (_primary) _c.PrimaryClosed(this);
         };
+    }
+
+    private void ShowTransfer(ClipTransfer? t)
+    {
+        _transferring = t is not null;
+        _transfer.Visibility = t is null ? Visibility.Collapsed : Visibility.Visible;
+        _transferCancel.Visibility = t is { CanCancel: true } ? Visibility.Visible : Visibility.Collapsed;
+        if (t is null) { if (_full) ShowBar(); return; }
+        _transfer.IsIndeterminate = t.Fraction is null;
+        _transfer.Value = t.Fraction ?? 0;
+        _clipNotice.Text = t.Fraction is { } f ? $"{t.Text} — {f:P0}" : t.Text;
+        _clipNotice.ToolTip = _clipNotice.Text;
+        if (_full) ShowBar();
+    }
+
+    /// <summary>The whole screen and back; on the screen this window is on. / Toda la pantalla y vuelta; en la pantalla donde esté esta ventana.</summary>
+    private void ToggleFullScreen()
+    {
+        _full = !_full;
+        if (_full)
+        {
+            _beforeFull = (WindowState, WindowStyle, ResizeMode);
+            _dock.Children.Remove(_bar);
+            _floating.Background = TryFindResource("SolidBackgroundFillColorBaseBrush") as Brush ?? SystemColors.WindowBrush;
+            _floating.Child = _bar;
+            // A window already maximized would keep the taskbar: Windows only covers it when it maximizes without a frame.
+            // Una ventana ya maximizada conservaría la barra de tareas: Windows solo la tapa al maximizar sin marco.
+            if (WindowState == WindowState.Maximized) WindowState = WindowState.Normal;
+            WindowStyle = WindowStyle.None;
+            ResizeMode = ResizeMode.NoResize;
+            WindowState = WindowState.Maximized;
+            _handle.Visibility = Visibility.Visible;
+            ShowBar();
+        }
+        else
+        {
+            _hideBar.Stop();
+            _floating.Child = null;
+            _floating.Visibility = _handle.Visibility = Visibility.Collapsed;
+            _dock.Children.Insert(0, _bar);
+            WindowState = WindowState.Normal;
+            WindowStyle = _beforeFull.Style;
+            ResizeMode = _beforeFull.Resize;
+            WindowState = _beforeFull.State;
+        }
+        _fullButton.Content = L.T(_full ? "FullScreenExit" : "FullScreen");
+        if (IsActive) _surface.Focus();
+    }
+
+    private void ShowBar()
+    {
+        _floating.Visibility = Visibility.Visible;
+        _hideBar.Stop();
+        _hideBar.Start();
+    }
+
+    private void HideBarIfIdle()
+    {
+        // Never from under the mouse, an open list or a transfer going on. / Nunca bajo el ratón, con una lista abierta o con una transferencia en marcha.
+        if (_floating.IsMouseOver || _quality.IsDropDownOpen || _displays.IsDropDownOpen || _transferring) return;
+        _hideBar.Stop();
+        _floating.Visibility = Visibility.Collapsed;
+        if (IsActive) _surface.Focus();
     }
 
     private sealed record DisplayItem(int Number, string Text) { public override string ToString() => Text; }
@@ -256,6 +349,13 @@ public sealed class DesktopWindow : Window
         var key = e.Key == System.Windows.Input.Key.System ? e.SystemKey : e.Key == System.Windows.Input.Key.ImeProcessed ? e.ImeProcessedKey : e.Key;
         // Alt+F4 stays local: it closes this window, as everywhere in Windows. / Alt+F4 se queda en local: cierra esta ventana.
         if (key == System.Windows.Input.Key.F4 && Keyboard.Modifiers.HasFlag(ModifierKeys.Alt)) return;
+        // Ctrl+Alt+Pause stays local too: full screen, the same keys as Remote Desktop. / También en local: pantalla completa, las mismas teclas que Escritorio remoto.
+        if (DesktopKeys.IsFullScreen(key, Keyboard.Modifiers))
+        {
+            e.Handled = true;
+            if (down && !e.IsRepeat) { _ = ReleaseAllAsync(); ToggleFullScreen(); }
+            return;
+        }
         var vk = KeyInterop.VirtualKeyFromKey(key);
         if (vk <= 0 || vk > 255) return;
         e.Handled = true;

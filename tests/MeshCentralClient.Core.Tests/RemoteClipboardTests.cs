@@ -15,7 +15,7 @@ public class RemoteClipboardTests
     {
         var o = new JsonObject { ["kind"] = "text", ["text"] = "ñandú € «hola»\r\nsegunda" };
         var output = "Windows PowerShell\r\nCopyright (C) Microsoft\r\n\r\nPS C:\\> " + Answer(o) + "\r\nPS C:\\> exit\r\n";
-        var clip = RemoteClipboard.ToClip(RemoteClipboard.ParseAnswer(output)!, RemoteClipboard.AutomaticLimit);
+        var clip = RemoteClipboard.ToClip(RemoteClipboard.ParseAnswer(output)!);
         Assert.Equal(ClipKind.Text, clip.Kind);
         Assert.Equal("ñandú € «hola»\r\nsegunda", clip.Text);
     }
@@ -29,7 +29,7 @@ public class RemoteClipboardTests
         var split = new StringBuilder("\u001b[?25l\u001b[2J\u001b[mPS C:\\> iex (...)\r\n");
         for (var i = 0; i < answer.Length; i += 80) split.Append(answer.AsSpan(i, Math.Min(80, answer.Length - i))).Append(i % 160 == 0 ? "\r\n" : "\u001b[K\r\n\u001b[?25h");
         split.Append("\u001b]0;Windows PowerShell\u0007PS C:\\> exit\r\n");
-        var clip = RemoteClipboard.ToClip(RemoteClipboard.ParseAnswer(split.ToString())!, long.MaxValue);
+        var clip = RemoteClipboard.ToClip(RemoteClipboard.ParseAnswer(split.ToString())!);
         Assert.Equal(30, clip.Files.Count);
         Assert.Equal("C:\\Users\\ana\\Documents\\informe número 29.docx", clip.Files[29]);
     }
@@ -73,18 +73,9 @@ public class RemoteClipboardTests
     [Fact]
     public void One_file_many_files_and_no_files_read_alike()
     {
-        Assert.Equal(new[] { "C:\\a.txt" }, RemoteClipboard.ToClip(new JsonObject { ["kind"] = "files", ["files"] = "C:\\a.txt" }, 10).Files);
-        Assert.Equal(new[] { "C:\\a", "D:\\b" }, RemoteClipboard.ToClip(new JsonObject { ["kind"] = "files", ["files"] = new JsonArray("C:\\a", "D:\\b") }, 10).Files);
-        Assert.Empty(RemoteClipboard.ToClip(new JsonObject { ["kind"] = "none" }, 10).Files);
-    }
-
-    [Fact]
-    public void A_size_over_the_limit_is_marked_whether_it_comes_as_a_whole_or_a_decimal_number()
-    {
-        Assert.True(RemoteClipboard.ToClip(new JsonObject { ["kind"] = "files", ["size"] = 11L }, 10).SizeOverLimit);
-        Assert.True(RemoteClipboard.ToClip(new JsonObject { ["kind"] = "files", ["size"] = 11.0 }, 10).SizeOverLimit);
-        Assert.False(RemoteClipboard.ToClip(new JsonObject { ["kind"] = "files", ["size"] = 10L }, 10).SizeOverLimit);
-        Assert.False(RemoteClipboard.ToClip(new JsonObject { ["kind"] = "files" }, 10).SizeOverLimit);
+        Assert.Equal(new[] { "C:\\a.txt" }, RemoteClipboard.ToClip(new JsonObject { ["kind"] = "files", ["files"] = "C:\\a.txt" }).Files);
+        Assert.Equal(new[] { "C:\\a", "D:\\b" }, RemoteClipboard.ToClip(new JsonObject { ["kind"] = "files", ["files"] = new JsonArray("C:\\a", "D:\\b") }).Files);
+        Assert.Empty(RemoteClipboard.ToClip(new JsonObject { ["kind"] = "none" }).Files);
     }
 
     [Fact]
@@ -94,7 +85,7 @@ public class RemoteClipboardTests
         Assert.NotEqual(RemoteClipboard.TextSignature("a"), RemoteClipboard.TextSignature("b"));
         Assert.Equal(RemoteClipboard.FilesSignature(new[] { "C:\\Users\\x\\A.txt" }), RemoteClipboard.FilesSignature(new[] { "c:/users/x/a.txt" }));
         Assert.NotEqual(RemoteClipboard.FilesSignature(new[] { "C:\\a" }), RemoteClipboard.FilesSignature(new[] { "C:\\a", "C:\\b" }));
-        Assert.Equal("none", RemoteClipboard.ToClip(new JsonObject { ["kind"] = "none" }, 10).Signature);
+        Assert.Equal("none", RemoteClipboard.ToClip(new JsonObject { ["kind"] = "none" }).Signature);
     }
 
     [Theory]
@@ -132,12 +123,12 @@ public class RemoteClipboardTests
         var scripts = new Dictionary<string, string>
         {
             ["hello"] = RemoteClipboard.Unpack(RemoteClipboard.OneLine(RemoteClipboard.HelloScript)),
-            ["read"] = RemoteClipboard.Unpack(RemoteClipboard.OneLine(RemoteClipboard.ReadScript(RemoteClipboard.AutomaticLimit))),
+            ["read"] = RemoteClipboard.Unpack(RemoteClipboard.OneLine(RemoteClipboard.ReadScript())),
             ["prepare"] = RemoteClipboard.Unpack(RemoteClipboard.OneLine(RemoteClipboard.PrepareScript("20261108"))),
             ["files"] = RemoteClipboard.Unpack(RemoteClipboard.OneLine(RemoteClipboard.SetFilesScript(new[] { "C:\\Users\\o'brien\\a.txt", "C:\\b" }))),
             ["image"] = RemoteClipboard.Unpack(RemoteClipboard.OneLine(RemoteClipboard.SetImageScript("C:\\Users\\x\\image.png"))),
             // and the bodies alone, which the here-string hides from the outer parse / y los cuerpos solos, que el here-string esconde al análisis de fuera
-            ["read-body"] = RemoteClipboard.ReadScript(RemoteClipboard.AutomaticLimit),
+            ["read-body"] = RemoteClipboard.ReadScript(),
             ["files-body"] = RemoteClipboard.SetFilesScript(new[] { "C:\\Users\\o'brien\\a.txt", "C:\\b" }),
             ["image-body"] = RemoteClipboard.SetImageScript("C:\\Users\\x\\image.png"),
             ["prepare-body"] = RemoteClipboard.PrepareScript("20261108"),
@@ -192,11 +183,10 @@ public class RemoteClipboardTests
         Assert.Equal(big, bigAnswer.Str("text"));
         var folder = AsTheAgent(RemoteClipboard.PrepareScript("t" + Guid.NewGuid().ToString("N")[..8])).Str("folder")!;
         File.WriteAllText(Path.Combine(folder, "a.txt"), "hola");
-        var set = RemoteClipboard.ToClip(AsTheAgent(RemoteClipboard.SetFilesScript(new[] { Path.Combine(folder, "a.txt") })), long.MaxValue);
-        var read = RemoteClipboard.ToClip(AsTheAgent(RemoteClipboard.ReadScript(RemoteClipboard.AutomaticLimit)), RemoteClipboard.AutomaticLimit);
+        var set = RemoteClipboard.ToClip(AsTheAgent(RemoteClipboard.SetFilesScript(new[] { Path.Combine(folder, "a.txt") })));
+        var read = RemoteClipboard.ToClip(AsTheAgent(RemoteClipboard.ReadScript()));
         Assert.Equal(ClipKind.Files, read.Kind);
         Assert.Equal(set.Signature, read.Signature);
-        Assert.Equal(4, read.Size);
         Directory.Delete(folder, true);
     }
 
