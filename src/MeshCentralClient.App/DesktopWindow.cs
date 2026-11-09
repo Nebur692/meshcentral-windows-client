@@ -138,6 +138,21 @@ public sealed class DesktopWindow : Window
         _canvas.MouseDown += (_, e) => { _surface.Focus(); Keyboard.Focus(_surface); _canvas.CaptureMouse(); Mouse(e, Button(e.ChangedButton), true); e.Handled = true; };
         _canvas.MouseUp += (_, e) => { Mouse(e, Button(e.ChangedButton), false); _canvas.ReleaseMouseCapture(); e.Handled = true; };
         _canvas.MouseWheel += async (_, e) => { if (_c.Session is { } s && ToRemote(e.GetPosition(_canvas)) is { } p) await s.SendWheelAsync(p.X, p.Y, e.Delta); e.Handled = true; };
+        // Ctrl+Alt+Pause stays local: full screen, the same keys as Remote Desktop. For the whole window, wherever the focus is, as
+        // the floating bar can hold it. / Ctrl+Alt+Pausa se queda en local: pantalla completa, las mismas teclas que Escritorio remoto.
+        // Para toda la ventana, esté donde esté el foco, porque la barra flotante puede tenerlo.
+        PreviewKeyDown += (_, e) =>
+        {
+            var key = e.Key == System.Windows.Input.Key.System ? e.SystemKey : e.Key;
+            if (!DesktopKeys.IsFullScreen(key, Keyboard.Modifiers)) return;
+            e.Handled = true;
+            if (!e.IsRepeat) { _ = ReleaseAllAsync(); ToggleFullScreen(); }
+        };
+        PreviewKeyUp += (_, e) =>
+        {
+            var key = e.Key == System.Windows.Input.Key.System ? e.SystemKey : e.Key;
+            if (key is System.Windows.Input.Key.Pause or System.Windows.Input.Key.Cancel && Keyboard.Modifiers.HasFlag(ModifierKeys.Control)) e.Handled = true;
+        };
         _surface.PreviewKeyDown += (_, e) => OnKey(e, true);
         _surface.PreviewKeyUp += (_, e) => OnKey(e, false);
         // Leaving the window releases whatever was held, or the remote would keep a key down; and brings what the device copied.
@@ -352,13 +367,6 @@ public sealed class DesktopWindow : Window
         var key = e.Key == System.Windows.Input.Key.System ? e.SystemKey : e.Key == System.Windows.Input.Key.ImeProcessed ? e.ImeProcessedKey : e.Key;
         // Alt+F4 stays local: it closes this window, as everywhere in Windows. / Alt+F4 se queda en local: cierra esta ventana.
         if (key == System.Windows.Input.Key.F4 && Keyboard.Modifiers.HasFlag(ModifierKeys.Alt)) return;
-        // Ctrl+Alt+Pause stays local too: full screen, the same keys as Remote Desktop. / También en local: pantalla completa, las mismas teclas que Escritorio remoto.
-        if (DesktopKeys.IsFullScreen(key, Keyboard.Modifiers))
-        {
-            e.Handled = true;
-            if (down && !e.IsRepeat) { _ = ReleaseAllAsync(); ToggleFullScreen(); }
-            return;
-        }
         var vk = KeyInterop.VirtualKeyFromKey(key);
         if (vk <= 0 || vk > 255) return;
         e.Handled = true;

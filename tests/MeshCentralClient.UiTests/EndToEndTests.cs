@@ -197,7 +197,9 @@ public sealed class EndToEndTests(ITestOutputHelper output) : IDisposable
         var ps = FindAnywhere("TerminalWindow");
         Assert.True(Retry.WhileFalse(() => ps.FindFirstDescendant(cf => cf.ByAutomationId("TerminalStatus"))?.Name.StartsWith("Select to copy") == true, TimeSpan.FromSeconds(45), TimeSpan.FromMilliseconds(300)).Result, "PowerShell did not open");
         Find("TerminalView", ps).Click();
-        Thread.Sleep(2000); // its first prompt / su primer aviso
+        // Typed before its first prompt, the keys are lost (seen in a capture). / Tecleadas antes de su primer aviso, las teclas se pierden (visto en una captura).
+        Assert.NotNull(Retry.WhileNull(() => ps.FindAllDescendants().FirstOrDefault(e => SafeName(e).Replace("\u00a0", " ").TrimStart().StartsWith("PS ", StringComparison.Ordinal)), TimeSpan.FromSeconds(30), TimeSpan.FromMilliseconds(300)).Result);
+        Thread.Sleep(1000);
         Keyboard.Type("6*7");
         Keyboard.Type(VirtualKeyShort.ENTER);
         var psAnswer = Retry.WhileNull(() => ps.FindAllDescendants().FirstOrDefault(e => SafeName(e).Replace("\u00a0", " ").Trim() == "42"), TimeSpan.FromSeconds(30), TimeSpan.FromMilliseconds(500)).Result;
