@@ -194,8 +194,9 @@ public sealed class DesktopClipboardTests(ITestOutputHelper output) : IDisposabl
         Restore(win, desk);
 
         // 2c. Taking it to the device shows a bar, and Cancel stops it. / Llevarlo al equipo enseña una barra, y Cancelar lo para.
-        ClipboardTool.SetText("nada " + _tag);
-        Thread.Sleep(500);
+        // Only coming into the viewer takes it: first somewhere else. / Solo entrar en el visor lo lleva: primero a otro sitio.
+        win.SetForeground();
+        Thread.Sleep(3000);
         ClipboardTool.SetFiles(big);
         desk.AsWindow().SetForeground();
         Until(() => Shown(desk, "ClipCancelButton") && Shown(desk, "ClipProgress"), "the bar and Cancel while taking it", Notice);

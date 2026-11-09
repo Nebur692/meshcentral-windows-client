@@ -48,7 +48,9 @@ public sealed class DesktopWindow : Window
     private readonly Border _floating = new() { HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Top, CornerRadius = new CornerRadius(0, 0, 8, 8), MaxWidth = 1000, Visibility = Visibility.Collapsed,
         Effect = new System.Windows.Media.Effects.DropShadowEffect { BlurRadius = 12, ShadowDepth = 2, Opacity = 0.5 } };
     private readonly Border _handle = new() { HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Top, Width = 96, Height = 6, CornerRadius = new CornerRadius(0, 0, 4, 4), Background = Brushes.Gray, Opacity = 0.8, Visibility = Visibility.Collapsed };
-    private readonly System.Windows.Threading.DispatcherTimer _hideBar = new() { Interval = TimeSpan.FromSeconds(3) };
+    // At normal priority: at its default one a picture that keeps changing never lets it run (measured: the bar never hid).
+    // A prioridad normal: con la suya una imagen que no para de cambiar no lo deja correr nunca (medido: la barra no se escondía).
+    private readonly System.Windows.Threading.DispatcherTimer _hideBar = new(System.Windows.Threading.DispatcherPriority.Normal) { Interval = TimeSpan.FromSeconds(3) };
     private StackPanel _bar = null!;
     private bool _full, _transferring;
     private (WindowState State, WindowStyle Style, ResizeMode Resize) _beforeFull;
