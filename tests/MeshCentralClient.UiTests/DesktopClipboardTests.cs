@@ -273,8 +273,12 @@ public sealed class DesktopClipboardTests(ITestOutputHelper output) : IDisposabl
         var term = Anywhere("TerminalWindow");
         term.AsWindow().Close();
         window.SetForeground();
-        Id(desk, "KeysMenuButton").AsButton().Invoke();
-        Anywhere("LockInputItem");
+        // A menu closes if its window is still coming to the front, so it is opened again until it stays. / Un menú se cierra si su ventana aún está llegando al frente, así que se abre otra vez hasta que se quede.
+        Until(() =>
+        {
+            Id(desk, "KeysMenuButton").AsButton().Invoke();
+            return Retry.WhileNull(() => _automation.GetDesktop().FindFirstDescendant(cf => cf.ByAutomationId("LockInputItem")), TimeSpan.FromSeconds(3)).Result is not null;
+        }, "the keys menu");
         Shot("viewer-keys-menu");
         Keyboard.Type(VirtualKeyShort.ESCAPE);
 

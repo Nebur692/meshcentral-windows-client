@@ -206,6 +206,7 @@ public sealed class EndToEndTests(ITestOutputHelper output) : IDisposable
         AutomationElement? psAnswer = null;
         for (var attempt = 0; attempt < 8 && psAnswer is null; attempt++)
         {
+            Find("TerminalView", ps).Click(); // the keyboard, each time / el teclado, cada vez
             Keyboard.Type("6*7");
             Keyboard.Type(VirtualKeyShort.ENTER);
             psAnswer = Retry.WhileNull(() => ps.FindAllDescendants().FirstOrDefault(e => SafeName(e).Replace("\u00a0", " ").Trim() == "42"), TimeSpan.FromSeconds(5), TimeSpan.FromMilliseconds(300)).Result;

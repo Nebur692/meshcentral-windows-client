@@ -109,7 +109,7 @@ public sealed class SsoTests : IDisposable
         Shot("alice-remember");
         WaitFor(() => ask.FindFirstDescendant(cf => cf.ByAutomationId("6")), "its Yes").AsButton().Invoke();
         var saved = Path.Combine(_dir.FullName, "appdata", "MeshCentralClient", "servers.json");
-        Assert.True(Retry.WhileFalse(() => File.Exists(saved) && File.ReadAllText(saved).Contains("ProtectedToken\":\"", StringComparison.Ordinal), Timeout, TimeSpan.FromMilliseconds(300)).Result, "the remembered session was not kept");
+        Assert.True(Retry.WhileFalse(() => File.Exists(saved) && System.Text.RegularExpressions.Regex.IsMatch(File.ReadAllText(saved), "\"ProtectedToken\":\\s*\""), Timeout, TimeSpan.FromMilliseconds(300)).Result, "the remembered session was not kept");
         Assert.DoesNotContain("~t:", File.ReadAllText(saved), StringComparison.Ordinal); // never in the clear / nunca en claro
 
         // Second time: the provider remembers the person, no page to fill. / La segunda vez el proveedor la recuerda: nada que rellenar.

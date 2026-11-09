@@ -44,6 +44,17 @@ public class ActionsIntegrationTests(ITestOutputHelper output)
         throw new Exception($"the agent never logged \"{text}\"");
     }
 
+    /// <summary>The probe run by the real agent, quoting and all; here because the agent takes one batch at a time. / La sonda ejecutada por el agente real, con sus comillas y todo; aquí porque el agente atiende una tanda a la vez.</summary>
+    [Fact]
+    public async Task The_linux_probe_answers_on_a_real_agent()
+    {
+        await using var s = await As("admin", "Admin-Pass-1234");
+        var d = await OnlineDevice(s);
+        var empty = HardwareSummary.From(new System.Text.Json.Nodes.JsonObject());
+        var probed = empty.WithLinuxProbe(await s.RunCommandsAsync(d, HardwareSummary.LinuxProbe, MeshServerSession.ShellFor(d, false)));
+        Assert.True(probed.TotalMemory > 0, "the probe did not bring the memory");
+    }
+
     [Fact]
     public async Task The_owner_of_the_group_can_do_everything_on_an_online_device()
     {

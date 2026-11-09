@@ -221,7 +221,7 @@ public sealed class DeviceWindow : Window
     {
         try
         {
-            var answer = await _session.RunCommandsAsync(_device, HardwareSummary.LinuxProbe, MeshServerSession.ShellFor(_device, false));
+            var answer = await _session.RunCommandsAsync(_device, HardwareSummary.LinuxProbe, MeshServerSession.ShellFor(_device, false), timeout: TimeSpan.FromSeconds(30));
             var full = hw.WithLinuxProbe(answer);
             if (HardwareText.Memory(full) is { Length: > 0 } m) memory.Text = m;
             if (HardwareText.Disks(full) is { Length: > 0 } d) disks.Text = d;

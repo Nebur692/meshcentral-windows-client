@@ -84,7 +84,7 @@ public sealed class DesktopWindow : Window
         tools.Children.Add(MenuButton("DeviceMenuButton", Glyphs.Device, L.T("DeviceMenuButton"), () => (Application.Current.MainWindow as MainWindow)?.DeviceMenuFor(_c.Device.Device) ?? Array.Empty<object>()));
         tools.Children.Add(MenuButton("KeysMenuButton", Glyphs.Keyboard, L.T("KeysMenuButton"), KeysMenu));
         tools.Children.Add(Action("CtrlAltDelButton", null, "Ctrl+Alt+Del", "Ctrl+Alt+Del", async s => await s.SendCtrlAltDelAsync()));
-        tools.Children.Add(Action("WinKeyButton", Glyphs.Windows, null, "Win", async s => { await s.SendKeyAsync(0x5B, true, true); await s.SendKeyAsync(0x5B, false, true); }));
+        tools.Children.Add(Action("WinKeyButton", null, "⊞ Win", "Win", async s => { await s.SendKeyAsync(0x5B, true, true); await s.SendKeyAsync(0x5B, false, true); }));
         tools.Children.Add(Gap());
         tools.Children.Add(Action("TypeClipboardButton", Glyphs.Type, null, L.T("TypeClipboard"), TypeClipboardAsync));
         Flat(_clipTo, Glyphs.Up, null, L.T("ClipToDevice") + ". " + L.T("ClipToDeviceHelp"));
@@ -277,7 +277,7 @@ public sealed class DesktopWindow : Window
     /// <summary>The icons of the bar, from the font Windows brings. / Los iconos de la barra, de la fuente que trae Windows.</summary>
     private static class Glyphs
     {
-        public const string Device = "\uE7F4", Keyboard = "\uE765", Windows = "\uE782", Type = "\uE8D2", Up = "\uE74A", Down = "\uE74B", Monitors = "\uE7F4",
+        public const string Device = "\uE7F4", Keyboard = "\uE765", Type = "\uE8D2", Up = "\uE74A", Down = "\uE74B", Monitors = "\uE7F4",
             Refresh = "\uE72C", FullScreen = "\uE740", BackToWindow = "\uE73F", Close = "\uE711", ChevronDown = "\uE70D";
     }
 
