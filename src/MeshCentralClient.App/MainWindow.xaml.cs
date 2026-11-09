@@ -495,8 +495,12 @@ public partial class MainWindow : Window
             if (!ReferenceEquals(s, _session)) return;
             _groupNames.Clear();
             foreach (var g in groups) _groupNames[g.Id] = g.Name;
+            // A reload (a device in a group just made, say) keeps what was selected: a menu opened on it acts on it.
+            // Una recarga (un equipo en un grupo recién hecho, por ejemplo) conserva lo seleccionado: un menú abierto sobre él actúa sobre él.
+            var selected = DeviceList.SelectedItems.OfType<DeviceRow>().Select(r => r.Id).ToHashSet();
             _rows.Clear();
             foreach (var d in devices) _rows.Add(new DeviceRow(d, GroupName(d.GroupId)));
+            foreach (var row in _rows.Where(r => selected.Contains(r.Id))) DeviceList.SelectedItems.Add(row);
             UpdateCount();
         }
         catch (MeshClientException ex)
