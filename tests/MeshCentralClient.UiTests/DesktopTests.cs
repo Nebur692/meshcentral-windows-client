@@ -144,11 +144,18 @@ public sealed class DesktopTests(ITestOutputHelper output) : IDisposable
         const string typed = "hola Mesh 123";
         // clip.exe is the standard way to fill the clipboard from a script; read back to know it is really there.
         // clip.exe es la forma estándar de llenar el portapapeles desde un guion; se relee para saber que está de verdad.
-        using (var clip = Process.Start(new ProcessStartInfo("clip.exe") { UseShellExecute = false, CreateNoWindow = true, RedirectStandardInput = true })!)
-        { clip.StandardInput.Write(typed); clip.StandardInput.Close(); clip.WaitForExit(); }
-        string back;
-        using (var ps = Process.Start(new ProcessStartInfo("powershell", "-NoProfile -Command Get-Clipboard") { UseShellExecute = false, CreateNoWindow = true, RedirectStandardOutput = true })!)
-        { back = ps.StandardOutput.ReadToEnd().Trim(); ps.WaitForExit(); }
+        // Viewer and device share one clipboard here, and leaving the viewer has just read it: a read in that moment comes back empty
+        // (seen in a run). So until it reads back. / Aquí visor y equipo comparten un portapapeles, y salir del visor acaba de leerlo: una
+        // lectura en ese momento vuelve vacía (visto en una pasada). Así que hasta que se relea.
+        var back = "";
+        for (var attempt = 0; attempt < 15 && back != typed; attempt++)
+        {
+            if (attempt > 0) Thread.Sleep(1000);
+            using (var clip = Process.Start(new ProcessStartInfo("clip.exe") { UseShellExecute = false, CreateNoWindow = true, RedirectStandardInput = true })!)
+            { clip.StandardInput.Write(typed); clip.StandardInput.Close(); clip.WaitForExit(); }
+            using (var ps = Process.Start(new ProcessStartInfo("powershell", "-NoProfile -Command Get-Clipboard") { UseShellExecute = false, CreateNoWindow = true, RedirectStandardOutput = true })!)
+            { back = ps.StandardOutput.ReadToEnd().Trim(); ps.WaitForExit(); }
+        }
         output.WriteLine("clipboard: " + back);
         Assert.Equal(typed, back);
         Assert.Equal(notepad.Properties.NativeWindowHandle.Value, GetForegroundWindow());

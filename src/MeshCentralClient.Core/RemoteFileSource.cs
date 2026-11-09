@@ -107,6 +107,7 @@ public sealed class RemoteFileStream : Stream
     private readonly CancellationTokenSource _stop = new();
     private Timer? _watch;
     private long _lastRead;
+    private int _reading;
     private long _read;
     private bool _started, _done;
 
@@ -130,7 +131,8 @@ public sealed class RemoteFileStream : Stream
         _started = true;
         Volatile.Write(ref _lastRead, Environment.TickCount64);
         var every = TimeSpan.FromTicks(Math.Max(Abandoned.Ticks / 4, TimeSpan.FromMilliseconds(50).Ticks));
-        _watch = new Timer(_ => { if (Environment.TickCount64 - Volatile.Read(ref _lastRead) > Abandoned.TotalMilliseconds) _stop.Cancel(); }, null, every, every);
+        // Whoever is waiting inside Read has not gone anywhere, however slow the device is. / Quien espera dentro de Read no se ha ido, por lento que vaya el equipo.
+        _watch = new Timer(_ => { if (Volatile.Read(ref _reading) == 0 && Environment.TickCount64 - Volatile.Read(ref _lastRead) > Abandoned.TotalMilliseconds) _stop.Cancel(); }, null, every, every);
         _ = Task.Run(async () =>
         {
             Exception? failure = null;
@@ -150,9 +152,14 @@ public sealed class RemoteFileStream : Stream
     {
         if (_done || count == 0) return 0;
         if (!_started) Start();
-        Volatile.Write(ref _lastRead, Environment.TickCount64);
-        var r = _pipe.Reader.ReadAsync().AsTask().GetAwaiter().GetResult();
-        Volatile.Write(ref _lastRead, Environment.TickCount64);
+        Volatile.Write(ref _reading, 1);
+        ReadResult r;
+        try { r = _pipe.Reader.ReadAsync().AsTask().GetAwaiter().GetResult(); }
+        finally
+        {
+            Volatile.Write(ref _lastRead, Environment.TickCount64);
+            Volatile.Write(ref _reading, 0);
+        }
         var n = (int)Math.Min(r.Buffer.Length, count);
         var taken = r.Buffer.Slice(0, n);
         System.Buffers.BuffersExtensions.CopyTo(taken, buffer.AsSpan(offset, n));

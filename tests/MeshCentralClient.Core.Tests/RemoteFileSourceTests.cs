@@ -100,6 +100,7 @@ public class RemoteFileSourceTests
 
         var abandoned = new RemoteFileStream(source, big.RemotePath, big.Size) { Abandoned = TimeSpan.FromMilliseconds(300) };
         var buffer = new byte[1000];
+        // Far longer than the limit may pass before the first byte: a reader waiting is not one that left. / Antes del primer byte puede pasar mucho más que el límite: quien espera no se ha ido.
         Assert.Equal(1000, abandoned.Read(buffer, 0, buffer.Length));
         await Task.Delay(2000); // nobody reads: it stops by itself / nadie lee: se para solo
         // What it had waiting can still be read, then it says it was cut, not that the file ended. / Lo que tenía esperando aún se lee; luego dice que se cortó, no que acabó.
