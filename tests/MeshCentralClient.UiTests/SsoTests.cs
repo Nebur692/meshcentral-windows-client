@@ -66,6 +66,23 @@ public sealed class SsoTests : IDisposable
         Capture.Screen().ToFile(Path.Combine(dir, $"sso-{name}.png"));
     }
 
+    /// <summary>What the sign-on window showed when it went wrong: a screenshot and every element's type and name.
+    /// Lo que enseñaba la ventana de inicio de sesión al fallar: una captura y el tipo y nombre de cada elemento.</summary>
+    private static Exception Failed(AutomationElement sso, string user, string what)
+    {
+        try { Shot($"{user}-FAILED"); } catch (Exception) { }
+        string seen;
+        try
+        {
+            seen = string.Join("\n", sso.FindAllDescendants().Take(80).Select(e =>
+            {
+                try { return $"  {e.ControlType} '{e.Name}'"; } catch (Exception) { return "  (gone / desaparecido)"; }
+            }));
+        }
+        catch (Exception ex) { seen = "  (could not read it / no se pudo leer: " + ex.Message + ")"; }
+        return new Exception($"{what}; the window showed / la ventana enseñaba:\n{seen}");
+    }
+
     /// <summary>Connect with no password: accepts the certificate and signs in at the provider as <paramref name="user"/>.
     /// Conectar sin contraseña: acepta el certificado y entra en el proveedor como <paramref name="user"/>.</summary>
     private void SignIn(Window win, string user, bool expectProviderPage)
@@ -81,7 +98,7 @@ public sealed class SsoTests : IDisposable
         // Both fields are required by the page, as a person would find. / La página exige los dos campos, como se lo encontraría una persona.
         var fields = Retry.WhileFalse(() => sso.FindAllDescendants(cf => cf.ByControlType(ControlType.Edit)).Length >= 2, Timeout, TimeSpan.FromMilliseconds(300)).Result
             ? sso.FindAllDescendants(cf => cf.ByControlType(ControlType.Edit))
-            : throw new Exception("the provider's login and password fields did not appear");
+            : throw Failed(sso, user, "the provider's login and password fields did not appear");
         Shot($"{user}-provider-page");
         // A click, as a person does: UI Automation focus does not activate a field inside a web page.
         // Un clic, como una persona: el foco de UI Automation no activa un campo dentro de una página web.

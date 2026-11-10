@@ -26,7 +26,9 @@ public sealed class SavedServersTests : IDisposable
         e.CertificateSha256 = new string('A', 64);
         Assert.Null(s.Save());
 
-        Assert.DoesNotContain("p4ss", System.IO.File.ReadAllText(File("servers.json")));
+        // With the dash, which base64 never has, so the ciphertext cannot contain it by chance (it did: "...Tp4ss...").
+        // Con el guion, que el base64 nunca lleva, para que el cifrado no lo contenga por azar (pasó: «...Tp4ss...»).
+        Assert.DoesNotContain("p4ss-w", System.IO.File.ReadAllText(File("servers.json")));
         var again = new SavedServers(_dir.FullName);
         Assert.Null(again.Load());
         var only = Assert.Single(again.Items);
