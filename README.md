@@ -11,7 +11,7 @@
 [![Ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/nebur69265723)
 [![PayPal](https://img.shields.io/badge/PayPal-donate-00457C?logo=paypal&logoColor=white)](https://paypal.me/0SkillS)
 
-🇬🇧 [English](#english) · 🇪🇸 [Español](#español) · [Code signing policy](docs/CODE_SIGNING.md)
+🇬🇧 [English](#english) · 🇪🇸 [Español](#español) · [Privacy policy](docs/PRIVACY.md)
 
 </div>
 
@@ -87,9 +87,8 @@ official website and `meshctrl`, so it works with **any** MeshCentral installati
   version that actually runs.
 - **English and Spanish** interface, following the Windows language.
 
-The goal is everything the MeshCentral website does, plus MeshCentral Router. Under way: code signing (requested from
-SignPath Foundation) and a winget package (submitted to Microsoft, awaiting review); then session recordings — see
-[the plan](docs/PLAN.md).
+The goal is everything the MeshCentral website does, plus MeshCentral Router. Under way: a winget package (submitted to
+Microsoft, awaiting review); then session recordings — see [the plan](docs/PLAN.md).
 
 ### Install
 
@@ -110,7 +109,7 @@ release to check it.
 **winget:** a package (`Nebur692.MeshCentralClient`) has been submitted to Microsoft and is awaiting review; this
 section will say how to use it once it is accepted.
 
-[Code signing policy](docs/CODE_SIGNING.md): what is signed, by whom, and what the app connects to.
+[Privacy policy](docs/PRIVACY.md): what the app connects to, and nothing else; no telemetry.
 
 ### Requirements on the server
 
@@ -212,9 +211,8 @@ web oficial y `meshctrl`, así que funciona con **cualquier** instalación de Me
   versión que de verdad corre.
 - Interfaz en **inglés y español**, según el idioma de Windows.
 
-La meta es todo lo que hace la web de MeshCentral, más MeshCentral Router. En marcha: la firma de código (pedida a
-SignPath Foundation) y el paquete de winget (enviado a Microsoft, pendiente de revisión); después, las grabaciones de
-sesiones. Está en [el plan](docs/PLAN.md).
+La meta es todo lo que hace la web de MeshCentral, más MeshCentral Router. En marcha: el paquete de winget (enviado a
+Microsoft, pendiente de revisión); después, las grabaciones de sesiones. Está en [el plan](docs/PLAN.md).
 
 ### Instalar
 
@@ -235,7 +233,7 @@ al lado, en la versión publicada, su huella `.sha256` para comprobarlo.
 **winget:** se ha enviado a Microsoft un paquete (`Nebur692.MeshCentralClient`) y está pendiente de revisión; aquí
 se dirá cómo usarlo cuando lo acepten.
 
-[Code signing policy](docs/CODE_SIGNING.md) (política de firma de código): qué se firma, quién lo firma y a qué se conecta la app.
+[Política de privacidad](docs/PRIVACY.md): a qué se conecta la app, y a nada más; sin telemetría.
 
 ### Qué necesita el servidor
 
