@@ -443,7 +443,7 @@ public partial class MainWindow : Window
                 // at the end (runasoriginaluser) runs as the person again.
                 // Se abre como la persona, sin elevar: el instalador pide administrador él mismo, así que la app que
                 // abre al final (runasoriginaluser) vuelve a correr como la persona.
-                try { Process.Start(new ProcessStartInfo(setup, "/SILENT /SUPPRESSMSGBOXES /NORESTART /CLOSEAPPLICATIONS /ALLUSERS /RELAUNCH=1") { UseShellExecute = true }); }
+                try { Process.Start(new ProcessStartInfo(setup, "/SILENT /SUPPRESSMSGBOXES /NORESTART /ALLUSERS /RELAUNCH=1") { UseShellExecute = true }); }
                 catch (Win32Exception ex) // blocked by Windows or an antivirus / lo bloqueó Windows o un antivirus
                 {
                     throw new MeshClientException(MeshFailure.Rejected, "actualizar/desplegar/permisos-fichero", "Windows did not let the new installer open.", ex);

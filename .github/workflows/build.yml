@@ -41,7 +41,7 @@ jobs:
 
   windows:
     name: Windows tests + single-file app
-    runs-on: windows-2022
+    runs-on: windows-latest
     timeout-minutes: 20
     # checks: write only for the installer test's progress report. / Solo para el parte de avance de la prueba del instalador.
     permissions:
@@ -67,10 +67,11 @@ jobs:
           & $iscc /Qp "/DAppVersion=$v" "/DFileVersion=$($v -replace '-.*$', '')" "/DSourceExe=$PWD\out\MeshCentralClient.exe" "/O$PWD\out" installer\MeshCentralClient.iss
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           "MCC_VERSION=$v" >> $env:GITHUB_ENV
-      # Under a watchdog that also reports outside the machine: a hang took the whole runner with it twice (11-11), job
-      # cancelled at 20 min and no log kept, not even the step's own time-out. So every 10 s what it did, the installer
+      # Under a watchdog that also reports outside the machine: a hang took the whole runner with it (11-11; it was Windows'
+      # Restart Manager, see the installer), job cancelled at 20 min and no log kept, not even the step's own time-out. So every 10 s what it did, the installer
       # logs and what is running go to a check run ("installer-test progress"), which GitHub keeps whatever happens here.
-      # Con un vigilante que además informa fuera de la máquina: un cuelgue se llevó la máquina entera dos veces (11-11),
+      # Con un vigilante que además informa fuera de la máquina: un cuelgue se llevó la máquina entera (11-11; era el gestor
+      # de reinicio de Windows, ver el instalador),
       # trabajo cancelado a los 20 min y sin registro, ni siquiera el límite del paso. Así que cada 10 s lo hecho, los
       # registros del instalador y lo que corre van a una comprobación («installer-test progress»), que GitHub guarda pase
       # lo que pase aquí.

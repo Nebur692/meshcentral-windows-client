@@ -111,13 +111,14 @@ Check (-not (Test-Path $userKey)) 'no entry for the account only'
 Check ((Get-ItemProperty $key).DisplayVersion -eq $Version) "Installed apps (all users) says $Version"
 Check ((Get-ItemProperty $key).InstallLocation.TrimEnd('\') -eq $dir) 'the entry points to Program Files (the app reads it to update itself with the installer)'
 
-# 6. The update the app starts (MainWindow.UpdateNow_Click): silent, over the running app, and the app opens again.
+# 6. The update the app starts (MainWindow.UpdateNow_Click): silent, over the running app (the installer closes it by its
+#    path, no Restart Manager), and the app opens again.
 #    La actualización que lanza la app: silenciosa, encima de la app abierta, y la app vuelve a abrirse.
 $env:MESHCLIENT_UPDATE_FEED = 'off'
 $app = Start-Process $exe -PassThru
 Until { (Running).Count -gt 0 } 30 'the installed app did not start'
-$app.Kill($true); $app.WaitForExit(10000) | Out-Null # EXPERIMENT: without Restart Manager / EXPERIMENTO: sin el gestor de reinicio
 Run $Setup 'update-all' 180 @('/ALLUSERS', '/RELAUNCH=1')
+Check ($app.HasExited) 'the installer closed the running app'
 Until { (Running).Count -gt 0 } 60 'the app did not open again after the update'
 Check $true 'the app opened again after the update'
 foreach ($p in Running) { try { $p.Kill($true) } catch { } }

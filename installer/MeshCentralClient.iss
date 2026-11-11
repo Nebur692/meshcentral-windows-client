@@ -55,6 +55,10 @@ LicenseFile=..\LICENSE
 Compression=lzma2/max
 SolidCompression=yes
 WizardStyle=modern
+; Never Windows' Restart Manager: in CI it froze the whole machine in about one install of three (11-11, 5 of 15 runs; 0 of
+; 9 without it). The app is closed by its exact path in PrepareToInstall instead.
+; Nunca el gestor de reinicio de Windows: en la CI congelaba la máquina entera en una de cada tres instalaciones (11-11,
+; 5 de 15 pasadas; 0 de 9 sin él). La app se cierra por su ruta exacta en PrepareToInstall.
 CloseApplications=no
 RestartApplications=no
 VersionInfoVersion={#FileVersion}
@@ -90,6 +94,8 @@ Type: files; Name: "{app}\MeshCentralClient.exe.new"
 Type: dirifempty; Name: "{app}"
 
 [CustomMessages]
+en.AppStillOpen=MeshCentral Windows Client is still open and could not be closed. Close it and run the installer again.
+es.AppStillOpen=MeshCentral Windows Client sigue abierta y no se ha podido cerrar. Ciérrala y vuelve a abrir el instalador.
 en.NoWriteAccess=You cannot write in this folder without administrator rights:%n%n%1%n%nChoose a folder of yours, or go back to the first page and choose to install for all users.
 es.NoWriteAccess=Sin permisos de administrador no se puede escribir en esta carpeta:%n%n%1%n%nElige una carpeta tuya, o vuelve a la primera página y elige instalar para todos los usuarios.
 
@@ -118,6 +124,59 @@ begin
     MsgBox(FmtMessage(CustomMessage('NoWriteAccess'), [WizardDirValue]), mbError, MB_OK);
     Result := False;
   end;
+end;
+
+// Whether the exe is running: Windows does not let a running exe be opened for writing.
+// Si el exe está en marcha: Windows no deja abrir para escribir un exe que corre.
+function InUse(const F: String): Boolean;
+var
+  S: TFileStream;
+begin
+  Result := False;
+  if not FileExists(F) then
+    Exit;
+  try
+    S := TFileStream.Create(F, fmOpenReadWrite or fmShareExclusive);
+    S.Free;
+  except
+    Result := True;
+  end;
+end;
+
+// Only the copy at this exact path: asked to close its window, 10 s to do it, then ended. A portable copy elsewhere is left
+// alone. True when the exe is free. / Solo la copia de esta ruta exacta: se le pide cerrar su ventana, 10 s, y después se
+// termina. Una copia portable en otro sitio no se toca. Verdadero si el exe queda libre.
+function CloseApp(const Exe: String): Boolean;
+var
+  I, Code: Integer;
+begin
+  Result := not InUse(Exe);
+  if Result then
+    Exit;
+  Exec(ExpandConstant('{sys}\WindowsPowerShell\v1.0\powershell.exe'),
+    '-NoProfile -NonInteractive -Command "$p = @(Get-Process MeshCentralClient -ErrorAction SilentlyContinue | Where-Object { $_.Path -eq ''' + Exe + ''' }); ' +
+    '$p | ForEach-Object { [void]$_.CloseMainWindow() }; $p | Wait-Process -Timeout 10 -ErrorAction SilentlyContinue; $p | Stop-Process -Force -ErrorAction SilentlyContinue"',
+    '', SW_HIDE, ewWaitUntilTerminated, Code);
+  for I := 1 to 20 do
+  begin
+    Result := not InUse(Exe);
+    if Result then
+      Exit;
+    Sleep(500);
+  end;
+end;
+
+function PrepareToInstall(var NeedsRestart: Boolean): String;
+begin
+  Result := '';
+  if not CloseApp(ExpandConstant('{app}\MeshCentralClient.exe')) then
+    Result := CustomMessage('AppStillOpen');
+end;
+
+procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
+begin
+  if CurUninstallStep = usUninstall then
+    CloseApp(ExpandConstant('{app}\MeshCentralClient.exe'));
 end;
 
 function Relaunch: Boolean;
