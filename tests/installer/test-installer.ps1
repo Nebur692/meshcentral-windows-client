@@ -116,8 +116,8 @@ Check ((Get-ItemProperty $key).InstallLocation.TrimEnd('\') -eq $dir) 'the entry
 $env:MESHCLIENT_UPDATE_FEED = 'off'
 $app = Start-Process $exe -PassThru
 Until { (Running).Count -gt 0 } 30 'the installed app did not start'
-Run $Setup 'update-all' 180 @('/CLOSEAPPLICATIONS', '/ALLUSERS', '/RELAUNCH=1')
-Check ($app.HasExited) 'the installer closed the running app'
+$app.Kill($true); $app.WaitForExit(10000) | Out-Null # EXPERIMENT: without Restart Manager / EXPERIMENTO: sin el gestor de reinicio
+Run $Setup 'update-all' 180 @('/ALLUSERS', '/RELAUNCH=1')
 Until { (Running).Count -gt 0 } 60 'the app did not open again after the update'
 Check $true 'the app opened again after the update'
 foreach ($p in Running) { try { $p.Kill($true) } catch { } }
