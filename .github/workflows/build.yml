@@ -41,7 +41,7 @@ jobs:
 
   windows:
     name: Windows tests + single-file app
-    runs-on: windows-latest
+    runs-on: windows-2022
     timeout-minutes: 20
     # checks: write only for the installer test's progress report. / Solo para el parte de avance de la prueba del instalador.
     permissions:
@@ -89,6 +89,8 @@ jobs:
           function Report([string] $conclusion) {
             $t = ((Get-Content $out, "$out.err" -ErrorAction SilentlyContinue) -join "`n")
             Get-ChildItem $logs -Filter *.log -ErrorAction SilentlyContinue | Sort-Object LastWriteTime | Select-Object -Last 2 | ForEach-Object { $t += "`n--- $($_.Name)`n" + ((Get-Content $_.FullName -Tail 25) -join "`n") }
+            $os = Get-CimInstance Win32_OperatingSystem
+            $t += "`n--- free memory $([int]($os.FreePhysicalMemory / 1024)) MB of $([int]($os.TotalVisibleMemorySize / 1024)), cpu $((Get-CimInstance Win32_Processor | Measure-Object LoadPercentage -Average).Average)%"
             $t += "`n--- running`n" + (Get-CimInstance Win32_Process | Where-Object { $_.ExecutablePath -match 'MeshCentral|Setup|\.tmp|unins' } | Format-Table ProcessId, ParentProcessId, Name, ExecutablePath -AutoSize | Out-String -Width 300)
             if (-not $cr) { return $t }
             $b = @{ output = @{ title = 'installer test'; summary = (Get-Date).ToString('HH:mm:ss'); text = $t.Substring(0, [Math]::Min($t.Length, 60000)) } }
