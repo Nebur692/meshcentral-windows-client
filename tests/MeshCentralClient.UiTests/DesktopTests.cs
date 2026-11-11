@@ -63,6 +63,20 @@ public sealed class DesktopTests(ITestOutputHelper output) : IDisposable
         throw new Exception(what + (seen is null ? "" : " — seen: " + seen()));
     }
 
+    /// <summary>The clipboard text as it is, line breaks included. / El texto del portapapeles tal cual, saltos de línea incluidos.</summary>
+    private static string ClipboardExact()
+    {
+        using var ps = Process.Start(new ProcessStartInfo("powershell", "-NoProfile -Command \"[Console]::OutputEncoding=[Text.Encoding]::UTF8; [Console]::Out.Write((Get-Clipboard -Raw))\"")
+        { UseShellExecute = false, CreateNoWindow = true, RedirectStandardOutput = true, StandardOutputEncoding = System.Text.Encoding.UTF8 })!;
+        var text = ps.StandardOutput.ReadToEnd();
+        ps.WaitForExit();
+        return text;
+    }
+
+    /// <summary>Control characters written out, so a log shows them. / Los caracteres de control escritos, para que se vean en un registro.</summary>
+    private static string Visible(string s) =>
+        "\"" + string.Concat(s.Select(c => c switch { '\r' => "\\r", '\n' => "\\n", '\t' => "\\t", _ when char.IsControl(c) || c == '﻿' => $"\\u{(int)c:X4}", _ => c.ToString() })) + "\" (" + s.Length + ")";
+
     private static void Place(AutomationElement window, int x, int y, int w, int h)
     {
         var t = window.Patterns.Transform.Pattern;
@@ -147,23 +161,31 @@ public sealed class DesktopTests(ITestOutputHelper output) : IDisposable
         // Viewer and device share one clipboard here, and leaving the viewer has just read it: a read in that moment comes back empty
         // (seen in a run). So until it reads back. / Aquí visor y equipo comparten un portapapeles, y salir del visor acaba de leerlo: una
         // lectura en ese momento vuelve vacía (visto en una pasada). Así que hasta que se relea.
+        // Read back EXACTLY (-Raw, no Trim): a run once typed 15 characters for these 13, and a trimmed read had called the
+        // clipboard right. / Se relee EXACTO (-Raw, sin Trim): una pasada escribió 15 caracteres por estos 13, y una lectura
+        // recortada había dado el portapapeles por bueno.
         var back = "";
         for (var attempt = 0; attempt < 15 && back != typed; attempt++)
         {
             if (attempt > 0) Thread.Sleep(1000);
             using (var clip = Process.Start(new ProcessStartInfo("clip.exe") { UseShellExecute = false, CreateNoWindow = true, RedirectStandardInput = true })!)
             { clip.StandardInput.Write(typed); clip.StandardInput.Close(); clip.WaitForExit(); }
-            using (var ps = Process.Start(new ProcessStartInfo("powershell", "-NoProfile -Command Get-Clipboard") { UseShellExecute = false, CreateNoWindow = true, RedirectStandardOutput = true })!)
-            { back = ps.StandardOutput.ReadToEnd().Trim(); ps.WaitForExit(); }
+            back = ClipboardExact();
         }
-        output.WriteLine("clipboard: " + back);
+        output.WriteLine("clipboard: " + Visible(back) + " · " + ClipboardWriter());
         Assert.Equal(typed, back);
         Assert.Equal(notepad.Properties.NativeWindowHandle.Value, GetForegroundWindow());
+        var clipNotice = Anywhere("ClipboardNotice");
+        output.WriteLine("clipboard notice before the button: " + clipNotice.Name);
         Anywhere("TypeClipboardButton").AsButton().Invoke();
         output.WriteLine("foreground right after the button: " + ForegroundTitle());
-        // The app says it sent them: if they do not arrive, the cause is past the app. / La app dice que los mandó: si no llegan, la causa está más allá de la app.
+        output.WriteLine("clipboard right after the button: " + Visible(ClipboardExact()) + " · " + ClipboardWriter());
+        // The app says it sent them: if they do not arrive, the cause is past the app. If the count is wrong, what the clipboard
+        // holds NOW says who changed it. / La app dice que los mandó: si no llegan, la causa está más allá de la app. Si la cuenta
+        // no cuadra, lo que tiene AHORA el portapapeles dice quién lo cambió.
         var notice = Anywhere("DesktopNotice");
-        Until(() => notice.Name.StartsWith("Typed 13 characters"), "the app did not send the text", () => notice.Name);
+        Until(() => notice.Name.StartsWith("Typed 13 characters"), "the app did not send the text",
+            () => notice.Name + " | sync: " + clipNotice.Name + " | clipboard now: " + Visible(ClipboardExact()) + " · " + ClipboardWriter());
         Shot("after-type-clipboard");
         // Where the keys land is checked in KeysTests, without any local window: here, pressing the button through UI
         // Automation activates the viewer (measured: foreground "Remote desktop — …"), so the keys go to it.
@@ -182,6 +204,33 @@ public sealed class DesktopTests(ITestOutputHelper output) : IDisposable
 
     [System.Runtime.InteropServices.DllImport("user32.dll")]
     private static extern IntPtr GetForegroundWindow();
+
+    [System.Runtime.InteropServices.DllImport("user32.dll")]
+    private static extern IntPtr GetClipboardOwner();
+
+    [System.Runtime.InteropServices.DllImport("user32.dll")]
+    private static extern uint GetClipboardSequenceNumber();
+
+    [System.Runtime.InteropServices.DllImport("user32.dll")]
+    private static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint processId);
+
+    /// <summary>
+    /// Who wrote the clipboard last, as Windows keeps it: the process owning it and the change counter. Two programs write
+    /// it here (the app bringing the device's, the agent putting the app's), so a wrong text says which one it was.
+    /// Quién escribió el portapapeles por última vez, tal como lo guarda Windows: el proceso dueño y el contador de cambios.
+    /// Aquí lo escriben dos programas (la app al traer el del equipo, el agente al poner el de la app), así que un texto
+    /// equivocado dice cuál fue.
+    /// </summary>
+    private static string ClipboardWriter()
+    {
+        var seq = GetClipboardSequenceNumber();
+        var owner = GetClipboardOwner();
+        if (owner == IntPtr.Zero) return $"seq {seq}, no owner";
+        GetWindowThreadProcessId(owner, out var pid);
+        string name;
+        try { using var p = Process.GetProcessById((int)pid); name = p.ProcessName; } catch (ArgumentException) { name = "gone"; }
+        return $"seq {seq}, owner {name} ({pid})";
+    }
 
     [System.Runtime.InteropServices.DllImport("user32.dll", CharSet = System.Runtime.InteropServices.CharSet.Unicode)]
     private static extern int GetWindowText(IntPtr hwnd, System.Text.StringBuilder text, int max);
