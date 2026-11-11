@@ -22,7 +22,7 @@ New-Item -ItemType Directory -Force $log | Out-Null
 
 function Check([bool] $ok, [string] $what) {
   if (-not $ok) { throw "INSTALLER: $what" }
-  Write-Host "ok: $what"
+  Write-Host "$((Get-Date).ToString('HH:mm:ss')) ok: $what"
 }
 
 function Until([scriptblock] $condition, [int] $seconds, [string] $what) {
@@ -38,6 +38,7 @@ function Running { @(Get-Process | Where-Object { $_.Path -and $_.Path.StartsWit
 # was doing is shown. / Nunca -Wait sin límite (visto: el paso se colgó 20 min y GitHub lo canceló, sin log): si se
 # pasa, se enseña qué estaba haciendo.
 function Run([string] $file, [string] $name, [int] $seconds, [string[]] $extra = @()) {
+  Write-Host "$((Get-Date).ToString('HH:mm:ss')) run: $name $extra"
   $p = Start-Process $file -ArgumentList (@('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', "/LOG=$log\$name.log") + $extra) -PassThru
   if (-not $p.WaitForExit($seconds * 1000)) {
     Write-Host "--- $name still running after $seconds s; its log:"
