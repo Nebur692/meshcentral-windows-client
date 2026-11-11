@@ -43,6 +43,10 @@ jobs:
     name: Windows tests + single-file app
     runs-on: windows-latest
     timeout-minutes: 20
+    # checks: write only for the installer test's progress report. / Solo para el parte de avance de la prueba del instalador.
+    permissions:
+      contents: read
+      checks: write
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-dotnet@v5
@@ -63,21 +67,45 @@ jobs:
           & $iscc /Qp "/DAppVersion=$v" "/DFileVersion=$($v -replace '-.*$', '')" "/DSourceExe=$PWD\out\MeshCentralClient.exe" "/O$PWD\out" installer\MeshCentralClient.iss
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           "MCC_VERSION=$v" >> $env:GITHUB_ENV
-      # Run under a watchdog: a hang ended the job with no log at all (11-11), so on time-out it prints what it did, the
-      # installer logs and what is left running, kills it and fails. / Con un vigilante: un cuelgue acabó el trabajo sin
-      # registro (11-11), así que si se pasa enseña lo hecho, los registros del instalador y lo que queda, lo mata y falla.
+      # Under a watchdog that also reports outside the machine: a hang took the whole runner with it twice (11-11), job
+      # cancelled at 20 min and no log kept, not even the step's own time-out. So every 10 s what it did, the installer
+      # logs and what is running go to a check run ("installer-test progress"), which GitHub keeps whatever happens here.
+      # Con un vigilante que además informa fuera de la máquina: un cuelgue se llevó la máquina entera dos veces (11-11),
+      # trabajo cancelado a los 20 min y sin registro, ni siquiera el límite del paso. Así que cada 10 s lo hecho, los
+      # registros del instalador y lo que corre van a una comprobación («installer-test progress»), que GitHub guarda pase
+      # lo que pase aquí.
       - name: Installer test
         shell: pwsh
         timeout-minutes: 12
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           $out = Join-Path $env:RUNNER_TEMP 'installer-test.txt'
+          $logs = Join-Path $env:RUNNER_TEMP 'mcc-setup'
+          $api = "https://api.github.com/repos/$env:GITHUB_REPOSITORY/check-runs"
+          $h = @{ Authorization = "Bearer $env:GH_TOKEN"; Accept = 'application/vnd.github+json' }
+          $cr = $null
+          try { $cr = Invoke-RestMethod $api -Method Post -Headers $h -Body (@{ name = 'installer-test progress'; head_sha = $env:GITHUB_SHA; status = 'in_progress' } | ConvertTo-Json) } catch { Write-Host "no progress report: $_" }
+          function Report([string] $conclusion) {
+            $t = ((Get-Content $out, "$out.err" -ErrorAction SilentlyContinue) -join "`n")
+            Get-ChildItem $logs -Filter *.log -ErrorAction SilentlyContinue | Sort-Object LastWriteTime | Select-Object -Last 2 | ForEach-Object { $t += "`n--- $($_.Name)`n" + ((Get-Content $_.FullName -Tail 25) -join "`n") }
+            $t += "`n--- running`n" + (Get-CimInstance Win32_Process | Where-Object { $_.ExecutablePath -match 'MeshCentral|Setup|\.tmp|unins' } | Format-Table ProcessId, ParentProcessId, Name, ExecutablePath -AutoSize | Out-String -Width 300)
+            if (-not $cr) { return $t }
+            $b = @{ output = @{ title = 'installer test'; summary = (Get-Date).ToString('HH:mm:ss'); text = $t.Substring(0, [Math]::Min($t.Length, 60000)) } }
+            if ($conclusion) { $b.status = 'completed'; $b.conclusion = $conclusion }
+            try { Invoke-RestMethod "$api/$($cr.id)" -Method Patch -Headers $h -Body ($b | ConvertTo-Json -Depth 5) | Out-Null } catch { Write-Host "report: $_" }
+            return $t
+          }
           $p = Start-Process pwsh -ArgumentList '-NoProfile', '-File', 'tests/installer/test-installer.ps1', '-Setup', "$PWD\out\MeshCentralClient-Setup.exe", '-Version', $env:MCC_VERSION -RedirectStandardOutput $out -RedirectStandardError "$out.err" -NoNewWindow -PassThru
-          $done = $p.WaitForExit(8 * 60 * 1000)
-          Get-Content $out, "$out.err" -ErrorAction SilentlyContinue
-          if ($done) { exit $p.ExitCode }
+          $end = (Get-Date).AddMinutes(8)
+          while (-not $p.HasExited -and (Get-Date) -lt $end) { Report '' | Out-Null; Start-Sleep 10 }
+          if ($p.HasExited) {
+            $text = Report ($(if ($p.ExitCode -eq 0) { 'success' } else { 'failure' }))
+            Write-Host $text
+            exit $p.ExitCode
+          }
           Write-Host '--- WATCHDOG: the installer test did not finish in 8 min'
-          Get-ChildItem (Join-Path $env:RUNNER_TEMP 'mcc-setup') -Filter *.log -ErrorAction SilentlyContinue | ForEach-Object { Write-Host "--- $($_.Name)"; Get-Content $_.FullName -Tail 40 }
-          Get-CimInstance Win32_Process | Where-Object { $_.ExecutablePath -match 'MeshCentral|Setup|\.tmp' } | Format-Table ProcessId, ParentProcessId, Name, ExecutablePath -AutoSize | Out-String -Width 300 | Write-Host
+          Write-Host (Report 'failure')
           taskkill /T /F /PID $p.Id | Out-Null
           exit 1
       - uses: actions/upload-artifact@v5
