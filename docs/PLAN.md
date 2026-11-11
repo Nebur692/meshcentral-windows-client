@@ -31,7 +31,7 @@ The target is feature parity with the official website, plus what MeshCentral Ro
 | 9 | **Users and accounts**: users, user groups, rights, my account (two-factor, keys, login tokens) | **done (0.10)**; adding a security key (needs the browser's WebAuthn), email/SMS two-factor and active sessions later |
 | 10 | **Server**: events, statistics, session recordings, reports, notifications | **done (0.11)**; session recordings (list, download and playback) later |
 | 11 | **Port mapping** (to replace MeshCentral Router), Windows Remote Desktop and SSH inside the app | **done (0.12)**; UDP mapping, and RDP/SSH through the server alone (devices without an agent) later |
-| 12 | Signed release, installer (winget) and automatic updates (updates already done in 0.3) | **in progress**: per-user installer **done (0.14)**; winget submitted, awaiting review; code signing not yet |
+| 12 | Signed release, installer (winget) and automatic updates (updates already done in 0.3) | **in progress**: per-user installer **done (0.14)**, also for all users **(0.15)**; winget submitted, awaiting review; code signing not yet |
 
 ---
 
@@ -66,4 +66,4 @@ La meta es hacer lo mismo que la web oficial, más lo que añade MeshCentral Rou
 | 9 | **Usuarios y cuentas**: usuarios, grupos de usuarios, permisos, mi cuenta (doble factor, llaves, tokens de acceso) | **hecha (0.10)**; añadir una llave de seguridad (necesita el WebAuthn del navegador), doble factor por correo o SMS y sesiones abiertas, más adelante |
 | 10 | **Servidor**: sucesos, estadísticas, grabaciones de sesiones, informes, avisos | **hecha (0.11)**; grabaciones de sesiones (lista, descarga y reproducción), más adelante |
 | 11 | **Redirección de puertos** (para sustituir a MeshCentral Router), Escritorio remoto de Windows y SSH dentro de la app | **hecha (0.12)**; redirección UDP, y RDP/SSH solo por el servidor (equipos sin agente), más adelante |
-| 12 | Versión firmada, instalador (winget) y actualizaciones automáticas (las actualizaciones ya están desde la 0.3) | **en marcha**: instalador por usuario **hecho (0.14)**; winget enviado, pendiente de revisión; firma de código, aún no |
+| 12 | Versión firmada, instalador (winget) y actualizaciones automáticas (las actualizaciones ya están desde la 0.3) | **en marcha**: instalador por usuario **hecho (0.14)**, también para todos los usuarios **(0.15)**; winget enviado, pendiente de revisión; firma de código, aún no |

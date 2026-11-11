@@ -11,12 +11,14 @@ public class UpdateFeedTests
     private static readonly Version Current = new(0, 2, 0, 0);
 
     // Field names checked against the real GitHub API (releases/latest). / Campos comprobados contra la API real de GitHub.
-    private static string Release(string tag, bool draft = false, bool pre = false, bool exe = true, bool sha = true) => $$"""
+    private static string Release(string tag, bool draft = false, bool pre = false, bool exe = true, bool sha = true, bool setup = false, bool setupSha = false) => $$"""
         { "tag_name": "{{tag}}", "draft": {{(draft ? "true" : "false")}}, "prerelease": {{(pre ? "true" : "false")}},
           "html_url": "https://github.com/o/r/releases/tag/{{tag}}",
           "assets": [
             {{(exe ? "{ \"name\": \"MeshCentralClient.exe\", \"browser_download_url\": \"https://github.com/o/r/releases/download/" + tag + "/MeshCentralClient.exe\" }," : "")}}
             {{(sha ? "{ \"name\": \"MeshCentralClient.exe.sha256\", \"browser_download_url\": \"https://github.com/o/r/releases/download/" + tag + "/MeshCentralClient.exe.sha256\" }," : "")}}
+            {{(setup ? "{ \"name\": \"MeshCentralClient-Setup.exe\", \"browser_download_url\": \"https://github.com/o/r/releases/download/" + tag + "/MeshCentralClient-Setup.exe\" }," : "")}}
+            {{(setupSha ? "{ \"name\": \"MeshCentralClient-Setup.exe.sha256\", \"browser_download_url\": \"https://github.com/o/r/releases/download/" + tag + "/MeshCentralClient-Setup.exe.sha256\" }," : "")}}
             { "name": "other.zip", "browser_download_url": "https://github.com/o/r/releases/download/x/other.zip" }
           ] }
         """;
@@ -32,6 +34,21 @@ public class UpdateFeedTests
         var u = UpdateChecker.Parse(Release(tag), Current);
         Assert.Equal(offered, u is not null);
         if (u is not null) Assert.EndsWith("/MeshCentralClient.exe", u.ExeUrl.ToString());
+    }
+
+    /// <summary>The installer is offered only with its fingerprint (the copy for all users runs it as administrator).
+    /// El instalador solo se ofrece con su huella (la copia para todos lo ejecuta como administrador).</summary>
+    [Theory]
+    [InlineData(true, true, true)]
+    [InlineData(true, false, false)]
+    [InlineData(false, true, false)]
+    [InlineData(false, false, false)]
+    public void The_installer_only_with_its_fingerprint(bool setup, bool setupSha, bool offered)
+    {
+        var u = UpdateChecker.Parse(Release("v9.0.0", setup: setup, setupSha: setupSha), Current)!;
+        Assert.Equal(offered, u.HasSetup);
+        Assert.EndsWith("/MeshCentralClient.exe", u.ExeUrl.ToString()); // the exe stays the exe / el exe sigue siendo el exe
+        if (offered) Assert.EndsWith("/MeshCentralClient-Setup.exe", u.SetupUrl!.ToString());
     }
 
     [Fact]
@@ -201,6 +218,50 @@ public sealed class SelfUpdaterTests : IDisposable, IClassFixture<LocalHttpServe
         File.Move(_exe, SelfUpdater.OldPath(_exe)); // as if a swap failed half-way / como si un cambio fallara a medias
         await SelfUpdater.CleanUpAsync(_exe, attempts: 1);
         Assert.True(File.Exists(SelfUpdater.OldPath(_exe)));
+    }
+
+    private AvailableUpdate ServeSetup(string shaText)
+    {
+        lock (_server.Routes)
+        {
+            _server.Routes["/MeshCentralClient-Setup.exe"] = (200, NewExe);
+            _server.Routes["/MeshCentralClient-Setup.exe.sha256"] = (200, Encoding.ASCII.GetBytes(shaText));
+        }
+        return Serve(Sha(NewExe)) with { SetupUrl = new Uri(_server.Base + "MeshCentralClient-Setup.exe"), SetupSha256Url = new Uri(_server.Base + "MeshCentralClient-Setup.exe.sha256") };
+    }
+
+    private string SetupFolder => Path.Combine(_dir.FullName, "setup");
+
+    [Fact]
+    public async Task The_installer_is_downloaded_checked_and_the_app_left_alone()
+    {
+        Directory.CreateDirectory(SetupFolder);
+        File.WriteAllText(Path.Combine(SetupFolder, "left-by-a-previous-update.exe"), "x");
+        var path = await SelfUpdater.DownloadSetupAsync(_http, ServeSetup(Sha(NewExe) + "  MeshCentralClient-Setup.exe\n"), SetupFolder);
+        Assert.Equal(Path.Combine(SetupFolder, "MeshCentralClient-Setup.exe"), path);
+        Assert.Equal(NewExe, File.ReadAllBytes(path));
+        Assert.Equal(["MeshCentralClient-Setup.exe"], Directory.GetFiles(SetupFolder).Select(Path.GetFileName)); // emptied first / vaciada antes
+        Assert.Equal(OldExe, File.ReadAllBytes(_exe));
+        SelfUpdater.CleanUpSetup(SetupFolder);
+        Assert.False(Directory.Exists(SetupFolder));
+    }
+
+    /// <summary>MENTIRA: an installer that does not match its fingerprint is never left to run.
+    /// Un instalador que no coincide con su huella nunca queda para ejecutarse.</summary>
+    [Fact]
+    public async Task Lie_an_installer_with_a_wrong_fingerprint_is_not_left()
+    {
+        var e = await Assert.ThrowsAsync<MeshClientException>(() => SelfUpdater.DownloadSetupAsync(_http, ServeSetup(Sha(OldExe)), SetupFolder));
+        Assert.Equal("actualizar/desplegar/dato-corrupto", e.BurburitoKey);
+        Assert.False(File.Exists(Path.Combine(SetupFolder, "MeshCentralClient-Setup.exe")));
+    }
+
+    [Fact]
+    public async Task A_release_without_installer_is_not_run()
+    {
+        var e = await Assert.ThrowsAsync<MeshClientException>(() => SelfUpdater.DownloadSetupAsync(_http, Serve(Sha(NewExe)), SetupFolder));
+        Assert.Equal("actualizar/desplegar/respuesta-ilegible", e.BurburitoKey);
+        Assert.False(Directory.Exists(SetupFolder));
     }
 
     [Fact]

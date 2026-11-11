@@ -410,6 +410,7 @@ public partial class MainWindow : Window
         var exe = Environment.ProcessPath;
         if (exe is null) return;
         _ = SelfUpdater.CleanUpAsync(exe); // what a previous update left / lo que dejó una actualización anterior
+        _ = Task.Run(() => SelfUpdater.CleanUpSetup(InstalledCopy.SetupFolder));
         InstalledCopy.SyncVersion(exe); // "Installed apps" says the version that runs / «Aplicaciones instaladas» dice la versión que corre
         var feed = UpdateChecker.FeedFromEnvironment(Environment.GetEnvironmentVariable("MESHCLIENT_UPDATE_FEED"));
         if (feed is null) return;
@@ -433,6 +434,26 @@ public partial class MainWindow : Window
         UpdateProgress.Visibility = Visibility.Visible;
         try
         {
+            // Installed for all users: the new installer replaces it (it asks for administrator) and opens it again.
+            // Instalada para todos: la reemplaza el instalador nuevo (pide administrador) y la vuelve a abrir.
+            if (!SelfUpdater.CanReplace(exe) && u.HasSetup && InstalledCopy.IsForAllUsers(exe))
+            {
+                var setup = await SelfUpdater.DownloadSetupAsync(UpdateHttp, u, InstalledCopy.SetupFolder, new Progress<double>(p => UpdateProgress.Value = p));
+                // Started as the person, not elevated: the installer asks for administrator itself, so the app it opens
+                // at the end (runasoriginaluser) runs as the person again.
+                // Se abre como la persona, sin elevar: el instalador pide administrador él mismo, así que la app que
+                // abre al final (runasoriginaluser) vuelve a correr como la persona.
+                try { Process.Start(new ProcessStartInfo(setup, "/SILENT /SUPPRESSMSGBOXES /NORESTART /CLOSEAPPLICATIONS /ALLUSERS /RELAUNCH=1") { UseShellExecute = true }); }
+                catch (Win32Exception ex) // blocked by Windows or an antivirus / lo bloqueó Windows o un antivirus
+                {
+                    throw new MeshClientException(MeshFailure.Rejected, "actualizar/desplegar/permisos-fichero", "Windows did not let the new installer open.", ex);
+                }
+                // Only now, with the installer open: if it could not open, the app goes on as it was.
+                // Solo ahora, con el instalador abierto: si no se pudo abrir, la app sigue como estaba.
+                await CloseSessionAsync();
+                Application.Current.Shutdown();
+                return;
+            }
             var downloaded = await SelfUpdater.DownloadAsync(UpdateHttp, u, exe, new Progress<double>(p => UpdateProgress.Value = p));
             await CloseSessionAsync();
             SelfUpdater.Swap(exe, downloaded);

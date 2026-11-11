@@ -5,8 +5,17 @@ using System.Text.Json;
 
 namespace MeshCentralClient.Core.Updates;
 
-/// <summary>A newer version published in the repository's releases. / Una versión más nueva publicada en las releases del repositorio.</summary>
-public sealed record AvailableUpdate(Version Version, string Tag, Uri ExeUrl, Uri Sha256Url, Uri? PageUrl);
+/// <summary>
+/// A newer version published in the repository's releases. The installer and its fingerprint are there for a copy
+/// installed for all users, which cannot replace itself (Program Files needs administrator).
+/// Una versión más nueva publicada en las releases del repositorio. El instalador y su huella sirven a la copia
+/// instalada para todos los usuarios, que no puede reemplazarse sola (Archivos de programa pide administrador).
+/// </summary>
+public sealed record AvailableUpdate(Version Version, string Tag, Uri ExeUrl, Uri Sha256Url, Uri? PageUrl, Uri? SetupUrl = null, Uri? SetupSha256Url = null)
+{
+    /// <summary>Both the installer and its fingerprint: one without the other is never run. / Los dos, o no se ejecuta nunca.</summary>
+    public bool HasSetup => SetupUrl is not null && SetupSha256Url is not null;
+}
 
 /// <summary>
 /// Asks the release feed (GitHub's "latest release" API) whether there is a newer version than the running one.
@@ -16,6 +25,8 @@ public sealed class UpdateChecker(HttpClient http, Uri feed)
 {
     public const string ExeName = "MeshCentralClient.exe";
     public const string Sha256Name = "MeshCentralClient.exe.sha256";
+    public const string SetupName = "MeshCentralClient-Setup.exe";
+    public const string SetupSha256Name = "MeshCentralClient-Setup.exe.sha256";
     public static readonly Uri DefaultFeed = new("https://api.github.com/repos/Nebur692/meshcentral-windows-client/releases/latest");
 
     /// <summary>
@@ -66,7 +77,7 @@ public sealed class UpdateChecker(HttpClient http, Uri feed)
             if (!Version.TryParse(tag.TrimStart('v', 'V'), out var v)) throw Bad($"tag \"{tag}\"");
             v = new Version(v.Major, v.Minor, Math.Max(v.Build, 0));
             if (v <= new Version(current.Major, current.Minor, Math.Max(current.Build, 0))) return null;
-            Uri? exe = null, sha = null;
+            Uri? exe = null, sha = null, setup = null, setupSha = null;
             foreach (var a in r.GetProperty("assets").EnumerateArray())
             {
                 var name = a.GetProperty("name").GetString();
@@ -74,11 +85,13 @@ public sealed class UpdateChecker(HttpClient http, Uri feed)
                 if (url is null || !Uri.TryCreate(url, UriKind.Absolute, out var u)) continue;
                 if (name == ExeName) exe = u;
                 else if (name == Sha256Name) sha = u;
+                else if (name == SetupName) setup = u;
+                else if (name == SetupSha256Name) setupSha = u;
             }
             // A release without its fingerprint is never installed. / Una release sin su huella no se instala nunca.
             if (exe is null || sha is null) throw Bad("assets");
             Uri? page = r.TryGetProperty("html_url", out var h) && Uri.TryCreate(h.GetString(), UriKind.Absolute, out var p) ? p : null;
-            return new AvailableUpdate(v, tag, exe, sha, page);
+            return new AvailableUpdate(v, tag, exe, sha, page, setup, setupSha);
         }
         catch (Exception ex) when (ex is JsonException or KeyNotFoundException or InvalidOperationException)
         {

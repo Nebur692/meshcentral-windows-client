@@ -27,7 +27,7 @@ official website and `meshctrl`, so it works with **any** MeshCentral installati
 
 > Unofficial project, not affiliated with the MeshCentral authors. The device side still uses the official MeshCentral agent.
 
-### Features (version 0.14)
+### Features (version 0.15)
 
 - **Sign in** with username and password, with **two-factor** codes (authenticator app, or email code when the server offers it).
 - **Single sign-on**: if the server offers it (OpenID Connect, SAML, Microsoft, Google, GitHub…), a button signs in on
@@ -93,8 +93,10 @@ Microsoft, awaiting review); then session recordings — see [the plan](docs/PLA
 ### Install
 
 **With the installer:** download `MeshCentralClient-Setup.exe` from the latest [release](https://github.com/Nebur692/meshcentral-windows-client/releases/latest)
-and run it. It installs for your Windows account only (no administrator), adds the app to the Start menu and to
-"Installed apps", where it can be uninstalled.
+and run it. By default it installs for your Windows account only (no administrator); on its first page you can choose
+to install for all users instead, in Program Files or any folder (administrator). It adds the app to the Start menu
+and to "Installed apps", where it can be uninstalled. Installed for all users, the app updates by opening the new
+installer, which asks for administrator.
 
 **Or the exe alone:** download `MeshCentralClient.exe` from the latest [release](https://github.com/Nebur692/meshcentral-windows-client/releases)
 (or from the latest successful [build](https://github.com/Nebur692/meshcentral-windows-client/actions/workflows/build.yml))
@@ -149,7 +151,7 @@ web oficial y `meshctrl`, así que funciona con **cualquier** instalación de Me
 
 > Proyecto no oficial, sin relación con los autores de MeshCentral. En los equipos se sigue usando el agente oficial de MeshCentral.
 
-### Qué hace (versión 0.14)
+### Qué hace (versión 0.15)
 
 - **Entrar** con usuario y contraseña, con código de **doble factor** (app de autenticación, o código por correo si el servidor lo ofrece).
 - **Inicio de sesión único**: si el servidor lo ofrece (OpenID Connect, SAML, Microsoft, Google, GitHub…), un botón
@@ -217,8 +219,10 @@ Microsoft, pendiente de revisión); después, las grabaciones de sesiones. Está
 ### Instalar
 
 **Con el instalador:** descarga `MeshCentralClient-Setup.exe` de la última [versión publicada](https://github.com/Nebur692/meshcentral-windows-client/releases/latest)
-y ábrelo. Instala solo para tu cuenta de Windows (sin administrador) y pone la app en el menú Inicio y en
-«Aplicaciones instaladas», desde donde se puede desinstalar.
+y ábrelo. Por defecto instala solo para tu cuenta de Windows (sin administrador); en su primera página puedes elegir
+instalar para todos los usuarios, en Archivos de programa o en cualquier carpeta (administrador). Pone la app en el
+menú Inicio y en «Aplicaciones instaladas», desde donde se puede desinstalar. Instalada para todos, la app se
+actualiza abriendo el instalador nuevo, que pide administrador.
 
 **O solo el exe:** descarga `MeshCentralClient.exe` de la última [versión publicada](https://github.com/Nebur692/meshcentral-windows-client/releases)
 (o de la última [compilación](https://github.com/Nebur692/meshcentral-windows-client/actions/workflows/build.yml) correcta)

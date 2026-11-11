@@ -35,21 +35,52 @@ public static class SelfUpdater
     {
         if (!CanReplace(exePath))
             throw new MeshClientException(MeshFailure.Rejected, "actualizar/desplegar/permisos-fichero", "The app's folder cannot be written, so it cannot replace itself.");
+        return await DownloadCheckedAsync(http, update.ExeUrl, update.Sha256Url, NewPath(exePath), progress, ct).ConfigureAwait(false);
+    }
 
+    /// <summary>
+    /// The installer of the new version, checked against its fingerprint, into [folder] (emptied first). For a copy
+    /// installed for all users: the installer asks for administrator and replaces it.
+    /// El instalador de la versión nueva, comprobado con su huella, en [folder] (vaciada antes). Para la copia instalada
+    /// para todos los usuarios: el instalador pide administrador y la reemplaza.
+    /// </summary>
+    public static async Task<string> DownloadSetupAsync(HttpClient http, AvailableUpdate update, string folder,
+        IProgress<double>? progress = null, CancellationToken ct = default)
+    {
+        if (!update.HasSetup)
+            throw new MeshClientException(MeshFailure.UnexpectedResponse, "actualizar/desplegar/respuesta-ilegible", "The release has no installer with its fingerprint.");
+        CleanUpSetup(folder);
+        try { Directory.CreateDirectory(folder); }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            throw new MeshClientException(MeshFailure.Rejected, "actualizar/desplegar/permisos-fichero", "The installer could not be written to the temporary folder.", ex);
+        }
+        return await DownloadCheckedAsync(http, update.SetupUrl!, update.SetupSha256Url!, Path.Combine(folder, UpdateChecker.SetupName), progress, ct).ConfigureAwait(false);
+    }
+
+    /// <summary>What a previous installer download left; never in the way. / Lo que dejó una descarga del instalador; nunca estorba.</summary>
+    public static void CleanUpSetup(string folder)
+    {
+        try { if (Directory.Exists(folder)) Directory.Delete(folder, recursive: true); }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
+    }
+
+    private static async Task<string> DownloadCheckedAsync(HttpClient http, Uri fileUrl, Uri shaUrl, string target,
+        IProgress<double>? progress, CancellationToken ct)
+    {
         string expected;
         try
         {
-            var text = await http.GetStringAsync(update.Sha256Url, ct).ConfigureAwait(false);
+            var text = await http.GetStringAsync(shaUrl, ct).ConfigureAwait(false);
             expected = text.Trim().Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries).FirstOrDefault()?.ToUpperInvariant() ?? "";
         }
         catch (HttpRequestException ex) { throw Download(ex); }
         if (expected.Length != 64 || !expected.All(Uri.IsHexDigit))
             throw new MeshClientException(MeshFailure.UnexpectedResponse, "actualizar/desplegar/respuesta-ilegible", "The release's fingerprint file is not a SHA-256.");
 
-        var target = NewPath(exePath);
         try
         {
-            using var resp = await http.GetAsync(update.ExeUrl, HttpCompletionOption.ResponseHeadersRead, ct).ConfigureAwait(false);
+            using var resp = await http.GetAsync(fileUrl, HttpCompletionOption.ResponseHeadersRead, ct).ConfigureAwait(false);
             resp.EnsureSuccessStatusCode();
             var total = resp.Content.Headers.ContentLength;
             using var sha = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
@@ -79,7 +110,7 @@ public static class SelfUpdater
             if (ex is MeshClientException) throw;
             if (ex is HttpRequestException hre) throw Download(hre);
             if (ex is IOException or UnauthorizedAccessException)
-                throw new MeshClientException(MeshFailure.Rejected, "actualizar/desplegar/permisos-fichero", "The new version could not be written next to the app.", ex);
+                throw new MeshClientException(MeshFailure.Rejected, "actualizar/desplegar/permisos-fichero", "The new version could not be written to disk.", ex);
             throw;
         }
     }

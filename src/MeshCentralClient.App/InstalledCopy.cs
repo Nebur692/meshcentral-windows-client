@@ -27,6 +27,32 @@ internal static class InstalledCopy
         }
     }
 
+    /// <summary>
+    /// Where the installer of a new version is downloaded, for a copy installed for all users; emptied at each start.
+    /// Donde se baja el instalador de una versión nueva, para la copia instalada para todos; se vacía en cada arranque.
+    /// </summary>
+    internal static string SetupFolder => Path.Combine(Path.GetTempPath(), "MeshCentralClient-update");
+
+    /// <summary>
+    /// Whether this exe is the copy installed for all users (Program Files, entry in HKLM): it cannot replace itself, so
+    /// it updates by running the new installer, which asks for administrator.
+    /// Si este exe es la copia instalada para todos (Archivos de programa, entrada en HKLM): no puede reemplazarse, así
+    /// que se actualiza con el instalador nuevo, que pide administrador.
+    /// </summary>
+    public static bool IsForAllUsers(string exePath)
+    {
+        try
+        {
+            using var hklm = RegistryKey.OpenBaseKey(RegistryHive.LocalMachine, RegistryView.Registry64);
+            using var key = hklm.OpenSubKey(UninstallKey);
+            return key?.GetValue("InstallLocation") is string location && SameFolder(location, exePath);
+        }
+        catch (Exception) { return false; } // then it updates as before / entonces se actualiza como antes
+    }
+
+    private static bool SameFolder(string location, string exePath) =>
+        string.Equals(Path.GetFullPath(location).TrimEnd('\\'), Path.GetFullPath(Path.GetDirectoryName(exePath)!).TrimEnd('\\'), StringComparison.OrdinalIgnoreCase);
+
     /// <summary>Only when this exe is the installed one: a copy run from elsewhere leaves the entry alone.
     /// Solo si este exe es el instalado: una copia que se abre desde otro sitio no toca la entrada.</summary>
     public static void SyncVersion(string exePath)
@@ -35,8 +61,7 @@ internal static class InstalledCopy
         {
             using var key = Registry.CurrentUser.OpenSubKey(UninstallKey, writable: true);
             if (key?.GetValue("InstallLocation") is not string location) return;
-            var here = Path.GetFullPath(Path.GetDirectoryName(exePath)!).TrimEnd('\\');
-            if (!string.Equals(Path.GetFullPath(location).TrimEnd('\\'), here, StringComparison.OrdinalIgnoreCase)) return;
+            if (!SameFolder(location, exePath)) return;
             if (key.GetValue("DisplayVersion") as string != Version) key.SetValue("DisplayVersion", Version);
         }
         catch (Exception) { } // never in the way of starting / nunca estorba al arrancar

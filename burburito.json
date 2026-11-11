@@ -506,7 +506,7 @@
       "severidad": "error",
       "actuar": true,
       "titulo": "La versión publicada está incompleta o mal formada",
-      "explicacion": "La release no trae MeshCentralClient.exe y MeshCentralClient.exe.sha256, su etiqueta no es una versión, o el fichero de huella no es un SHA-256. Sin huella no se instala nunca.",
+      "explicacion": "La release no trae MeshCentralClient.exe y MeshCentralClient.exe.sha256 (o, para la copia instalada para todos, MeshCentralClient-Setup.exe y su .sha256), su etiqueta no es una versión, o el fichero de huella no es un SHA-256. Sin huella no se instala nunca.",
       "que_hacer": "Revisar la release en GitHub (la publica la tarea release de build.yml) y volver a publicarla."
     },
     {
@@ -526,7 +526,7 @@
       "severidad": "aviso",
       "actuar": true,
       "titulo": "La app no puede reemplazarse en su carpeta",
-      "explicacion": "No se puede escribir junto al exe (p. ej. está en Program Files sin ser administrador) o Windows no dejó renombrarlo. Si el segundo paso falla, se vuelve a dejar el exe de antes.",
+      "explicacion": "No se puede escribir junto al exe (p. ej. está en Program Files sin ser administrador) o Windows no dejó renombrarlo. Si el segundo paso falla, se vuelve a dejar el exe de antes. La copia instalada para todos los usuarios no pasa por aquí: baja el instalador nuevo y lo abre; este código sale si no se pudo escribir en la carpeta temporal o Windows no dejó abrir el instalador.",
       "que_hacer": "Mover el exe a una carpeta propia (Escritorio, Documentos) o bajar la versión nueva a mano desde Releases."
     },
     {
