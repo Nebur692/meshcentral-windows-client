@@ -43,8 +43,14 @@ public sealed class DesktopTests(ITestOutputHelper output) : IDisposable
         for (var i = 0; i < 20; i++) { try { _dir.Delete(true); break; } catch (Exception) { Thread.Sleep(500); } }
     }
 
-    private static AutomationElement WaitFor(Func<AutomationElement?> find, string what) =>
-        Retry.WhileNull(find, Timeout, TimeSpan.FromMilliseconds(250)).Result ?? throw new Exception(what + " did not appear");
+    // A window that never came left no picture (CI 43102817865, "DesktopWindow did not appear"): now it does, as Until.
+    // Una ventana que no llegó no dejaba foto (CI 43102817865, «DesktopWindow did not appear»): ahora sí, como Until.
+    private static AutomationElement WaitFor(Func<AutomationElement?> find, string what)
+    {
+        if (Retry.WhileNull(find, Timeout, TimeSpan.FromMilliseconds(250)).Result is { } found) return found;
+        Shot("FAILED-" + string.Concat(what.Where(char.IsLetterOrDigit)));
+        throw new Exception(what + " did not appear");
+    }
 
     private AutomationElement Anywhere(string id) => WaitFor(() => _automation.GetDesktop().FindFirstDescendant(cf => cf.ByAutomationId(id)), id);
 
