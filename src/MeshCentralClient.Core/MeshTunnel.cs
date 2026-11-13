@@ -12,8 +12,9 @@ public enum TunnelProtocol
     Desktop = 2,
     Files = 5,
     PowerShell = 6,
-    /// <summary>Shell of the logged-in user (not Windows). / Shell del usuario con sesión (no Windows).</summary>
-    UserShell = 7,
+    /// <summary>Shell of the logged-in user (not Windows). 8, as the agent's meshcore.js reads it (uid = consoleUid); 7 is
+    /// plugin data. / Shell del usuario con sesión (no Windows). 8, como lo lee meshcore.js del agente; el 7 es de los plugins.</summary>
+    UserShell = 8,
     UserPowerShell = 9,
 }
 
