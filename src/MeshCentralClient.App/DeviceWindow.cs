@@ -21,6 +21,8 @@ public sealed class DeviceWindow : Window
     private readonly Grid _general = new() { Margin = new Thickness(16) };
     private readonly TextBox _desc = new() { AcceptsReturn = false };
     private readonly TextBox _tags = new();
+    /// <summary>A device without an agent: the address the server reaches it at, which can change. / Su dirección, editable.</summary>
+    private readonly TextBox _host = new();
     private readonly TextBlock _generalNotice = new() { Margin = new Thickness(0, 8, 0, 0), TextWrapping = TextWrapping.Wrap };
     private readonly ListView _network = new();
     private readonly TreeView _inventory = new();
@@ -38,7 +40,7 @@ public sealed class DeviceWindow : Window
         Title = $"{L.T("DeviceDetails")} — {row.Name}";
         Width = 860; Height = 640; MinWidth = 520; MinHeight = 380;
         WindowStartupLocation = WindowStartupLocation.CenterScreen;
-        Id(this, "DeviceWindow"); Id(_desc, "DescBox"); Id(_tags, "TagsBox"); Id(_generalNotice, "GeneralNotice"); Id(_network, "NetworkList");
+        Id(this, "DeviceWindow"); Id(_desc, "DescBox"); Id(_tags, "TagsBox"); Id(_host, "HostBox"); Id(_generalNotice, "GeneralNotice"); Id(_network, "NetworkList");
         Id(_inventory, "InventoryTree"); Id(_inventoryFilter, "InventoryFilter"); Id(_notes, "NotesBox"); Id(_notesNotice, "NotesNotice"); Id(_events, "EventsList");
 
         var tabs = new TabControl { Margin = new Thickness(8) };
@@ -172,9 +174,9 @@ public sealed class DeviceWindow : Window
         {
             (L.T("ColName"), Text(_device.Name)),
             (L.T("Group"), Text(_groupName)),
-            (L.T("ColOs"), Text(_device.OsDescription ?? "—")),
-            (L.T("State"), Text(L.T(_device.IsOnline ? "Online" : "Offline"))),
-            (L.T("ColAddress"), Text(_device.Address ?? "—")),
+            (L.T("ColOs"), Text(_device.OsDescription ?? (_device.IsLocal ? _device.IsWindows ? "Windows" : _device.IsMac ? "macOS" : "Linux" : "—"))),
+            (L.T("State"), Text(_device.IsLocal ? L.F("NoAgentLine", _device.Address ?? "—") : L.T(_device.IsOnline ? "Online" : "Offline"))),
+            (L.T("ColAddress"), _device.IsLocal ? _host : Text(_device.Address ?? "—")),
             (L.T("LastConnection"), Text(last.Time is null ? "—" : $"{Date(last.Time)}  ·  {last.Address}")),
             (L.T("LastBoot"), Text(Date(_device.LastBoot))),
             (L.T("Agent"), Text(_device.AgentCore ?? "—")),
@@ -191,6 +193,7 @@ public sealed class DeviceWindow : Window
             (L.T("ColTags"), _tags),
         };
         _desc.Text = _device.Description ?? "";
+        _host.Text = _device.Address ?? "";
         _tags.Text = string.Join(", ", _device.Tags);
         for (var i = 0; i < rows.Count; i++)
         {
@@ -301,7 +304,8 @@ public sealed class DeviceWindow : Window
         var tags = _tags.Text.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).Distinct().ToList();
         try
         {
-            await _session.ChangeDeviceAsync(_device.Id, description: _desc.Text.Trim(), tags: tags);
+            var host = _device.IsLocal && _host.Text.Trim() is { Length: > 0 } h && h != _device.Address ? h : null;
+            await _session.ChangeDeviceAsync(_device.Id, description: _desc.Text.Trim(), tags: tags, host: host);
             await LoadAsync();
             _generalNotice.Text = L.T("Saved");
         }

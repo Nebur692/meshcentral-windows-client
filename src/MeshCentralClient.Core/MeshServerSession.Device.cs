@@ -117,14 +117,19 @@ public sealed partial class MeshServerSession
             e.Str("msg") ?? "")).ToList() ?? new List<DeviceEvent>();
     }
 
-    /// <summary>Changes the name, description and/or tags (null = unchanged). / Cambia nombre, descripción o etiquetas (null = igual).</summary>
-    public async Task ChangeDeviceAsync(string nodeId, string? name = null, string? description = null, IReadOnlyList<string>? tags = null, CancellationToken ct = default)
+    /// <summary>Changes the name, description, tags and/or (a device without an agent) its address (null = unchanged).
+    /// Cambia nombre, descripción, etiquetas o (un equipo sin agente) su dirección (null = igual).</summary>
+    public async Task ChangeDeviceAsync(string nodeId, string? name = null, string? description = null, IReadOnlyList<string>? tags = null,
+        CancellationToken ct = default, string? host = null)
     {
+        if (host is not null && !ValidLocalHost(host))
+            throw new MeshClientException(MeshFailure.Rejected, "ficha/cambiar-ajustes/dato-invalido", $"\"{host}\" is not a name or address.");
         var id = NewId();
         var cmd = new JsonObject { ["action"] = "changedevice", ["nodeid"] = nodeId, ["responseid"] = id };
         if (name is not null) cmd["name"] = name;
         if (description is not null) cmd["desc"] = description;
         if (tags is not null) cmd["tags"] = new JsonArray(tags.Select(t => (JsonNode)t).ToArray());
+        if (host is not null) cmd["host"] = host.Trim();
         var r = await RequestAsync(cmd, o => o.Str("action") == "changedevice" && o.Str("responseid") == id,
             "ficha/cambiar-ajustes/tiempo-agotado", "ficha/cambiar-ajustes/conexion-cortada", ct).ConfigureAwait(false);
         if (r.Str("result") is { } res && res != "ok")

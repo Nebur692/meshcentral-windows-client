@@ -207,7 +207,7 @@ public sealed class PortsWindow : Window
     {
         var devices = _devices().Where(_session.CanRelayThrough).ToList();
         if (devices.Count == 0) { _status.Text = L.T("NoRelayDevices"); return; }
-        if (PortForm.Ask(this, devices, null) is not { } asked) return;
+        if (PortForm.Ask(this, devices, null, _session.IsLocal) is not { } asked) return;
         try
         {
             var row = _relays.Start(asked.Target, asked.Remember);
@@ -249,7 +249,9 @@ public static class PortForm
         public override string ToString() => Device.Name;
     }
 
-    public static Answer? Ask(Window owner, IReadOnlyList<Device> devices, Device? preselected)
+    /// <param name="isLocal">Whether a device has no agent: then the machine is its own address, fixed.
+    /// Si un equipo no tiene agente: entonces la máquina es su propia dirección, fija.</param>
+    public static Answer? Ask(Window owner, IReadOnlyList<Device> devices, Device? preselected, Func<Device, bool>? isLocal = null)
     {
         var deviceBox = new ComboBox { MinWidth = 300 };
         foreach (var d in devices) deviceBox.Items.Add(new DeviceItem(d));
@@ -271,6 +273,20 @@ public static class PortForm
             text.Trim().Length == 0 ? (emptyIsZero ? 0 : null) : int.TryParse(text.Trim(), out var p) && p is >= 1 and <= 65535 ? p : null;
         void Validate() => ok.IsEnabled = deviceBox.SelectedItem is DeviceItem && Port(remote.Text, false) is not null && Port(local.Text, true) is not null;
         remote.TextChanged += (_, _) => Validate(); local.TextChanged += (_, _) => Validate(); deviceBox.SelectionChanged += (_, _) => Validate();
+        var hostHelp = new TextBlock { Text = L.T("MappingHostHelp"), Opacity = 0.7, TextWrapping = TextWrapping.Wrap, FontSize = 11 };
+        // A device without an agent is reached at its own address only. / Un equipo sin agente, solo en su dirección.
+        void Fix()
+        {
+            var d = (deviceBox.SelectedItem as DeviceItem)?.Device;
+            var fixedHost = d is not null && isLocal?.Invoke(d) == true;
+            host.IsEnabled = !fixedHost;
+            if (fixedHost) host.Text = d!.Address ?? "";
+            else if (host.Tag is true) host.Text = "";
+            host.Tag = fixedHost;
+            hostHelp.Text = L.T(fixedHost ? "MappingHostHelpLocal" : "MappingHostHelp");
+        }
+        deviceBox.SelectionChanged += (_, _) => Fix();
+        Fix();
 
         static TextBlock Label(string key) => new() { Text = L.T(key), Margin = new Thickness(0, 10, 0, 2) };
         var w = new Window
@@ -283,8 +299,7 @@ public static class PortForm
                 {
                     Label("ColDevice"), deviceBox,
                     Label("MappingService"), service,
-                    Label("MappingHost"), host,
-                    new TextBlock { Text = L.T("MappingHostHelp"), Opacity = 0.7, TextWrapping = TextWrapping.Wrap, FontSize = 11 },
+                    Label("MappingHost"), host, hostHelp,
                     Label("MappingRemotePort"), remote,
                     Label("MappingLocalPort"), local,
                     new TextBlock { Text = L.T("MappingLocalHelp"), Opacity = 0.7, TextWrapping = TextWrapping.Wrap, FontSize = 11 },
@@ -298,7 +313,7 @@ public static class PortForm
         ok.Click += (_, _) =>
         {
             var d = ((DeviceItem)deviceBox.SelectedItem).Device;
-            result = new Answer(new PortTarget(d.Id, d.Name, Port(remote.Text, false)!.Value, host.Text.Trim() is { Length: > 0 } h ? h : null, Port(local.Text, true)!.Value), remember.IsChecked == true);
+            result = new Answer(new PortTarget(d.Id, d.Name, Port(remote.Text, false)!.Value, host.IsEnabled && host.Text.Trim() is { Length: > 0 } h ? h : null, Port(local.Text, true)!.Value), remember.IsChecked == true);
             w.Close();
         };
         w.Loaded += (_, _) => remote.Focus();
@@ -312,9 +327,10 @@ public static class SshForm
 {
     public sealed record Answer(string? Host, int Port, SshLogin Login);
 
-    public static Answer? Ask(Window owner, string deviceName, SshProfile? last)
+    /// <param name="fixedHost">A device without an agent: its address, which cannot be changed here. / Sin agente: su dirección, fija.</param>
+    public static Answer? Ask(Window owner, string deviceName, SshProfile? last, string? fixedHost = null)
     {
-        var host = new TextBox { MinWidth = 300, Text = last?.Host ?? "" };
+        var host = new TextBox { MinWidth = 300, Text = fixedHost ?? last?.Host ?? "", IsEnabled = fixedHost is null };
         var port = new TextBox { MinWidth = 120, Text = (last?.Port ?? 22).ToString() };
         var user = new TextBox { MinWidth = 300, Text = last?.User ?? "" };
         var password = new PasswordBox { MinWidth = 300 };
@@ -343,7 +359,7 @@ public static class SshForm
                 Children =
                 {
                     Label("MappingHost"), host,
-                    new TextBlock { Text = L.T("SshHostHelp"), Opacity = 0.7, TextWrapping = TextWrapping.Wrap, FontSize = 11 },
+                    new TextBlock { Text = L.T(fixedHost is null ? "SshHostHelp" : "SshHostHelpLocal"), Opacity = 0.7, TextWrapping = TextWrapping.Wrap, FontSize = 11 },
                     Label("MappingRemotePort"), port,
                     Label("SshUser"), user,
                     Label("Password"), password,
@@ -359,7 +375,7 @@ public static class SshForm
         Answer? result = null;
         ok.Click += (_, _) =>
         {
-            result = new Answer(host.Text.Trim() is { Length: > 0 } h ? h : null, Port()!.Value,
+            result = new Answer(fixedHost is null && host.Text.Trim() is { Length: > 0 } h ? h : null, Port()!.Value,
                 new SshLogin(user.Text.Trim(), password.Password.Length > 0 ? password.Password : null, key.Text.Trim() is { Length: > 0 } k ? k : null, phrase.Password.Length > 0 ? phrase.Password : null));
             w.Close();
         };

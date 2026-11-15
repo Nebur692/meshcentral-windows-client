@@ -725,7 +725,7 @@ public partial class MainWindow : Window
     private void MapPort_Click(object sender, RoutedEventArgs e)
     {
         if (DeviceList.SelectedItem is not DeviceRow row || _session is not { } s || _relays is not { } r || !s.CanRelayThrough(row.Device)) return;
-        if (PortForm.Ask(this, _rows.Select(x => x.Device).Where(s.CanRelayThrough).ToList(), row.Device) is not { } asked) return;
+        if (PortForm.Ask(this, _rows.Select(x => x.Device).Where(s.CanRelayThrough).ToList(), row.Device, s.IsLocal) is not { } asked) return;
         try
         {
             var m = r.Start(asked.Target, asked.Remember);
@@ -750,7 +750,7 @@ public partial class MainWindow : Window
     {
         if (DeviceList.SelectedItem is not DeviceRow row || _session is not { } s || !s.CanRelayThrough(row.Device)) return;
         var server = s.Server.BaseUri.ToString();
-        if (SshForm.Ask(this, row.Name, RelayStore.Shared.SshOf(server, row.Id)) is not { } asked) return;
+        if (SshForm.Ask(this, row.Name, RelayStore.Shared.SshOf(server, row.Id), s.IsLocal(row.Device) ? row.Device.Address ?? "" : null) is not { } asked) return;
         RelayStore.Shared.RememberSsh(new SshProfile { Server = server, NodeId = row.Id, Host = asked.Host, Port = asked.Port, User = asked.Login.User, KeyPath = asked.Login.PrivateKeyPath });
         var device = row.Device;
         TerminalWindow? w = null;
@@ -955,7 +955,7 @@ public partial class MainWindow : Window
     {
         if (_session is not { } s) return;
         if (_groupsWindow is { IsLoaded: true }) { _groupsWindow.Activate(); return; }
-        var w = _groupsWindow = new GroupsWindow(s, id => _rows.Count(r => r.Device.GroupId == id));
+        var w = _groupsWindow = new GroupsWindow(s, id => _rows.Count(r => r.Device.GroupId == id), id => _rows.FirstOrDefault(r => r.Id == id)?.Name ?? id);
         _sessionWindows.Add(w);
         w.Closed += (_, _) => { _sessionWindows.Remove(w); if (ReferenceEquals(_groupsWindow, w)) _groupsWindow = null; };
         w.Show();

@@ -30,6 +30,10 @@ public sealed record UserError(string Message, bool MustAct, string Footer, stri
         "acciones/ejecutar-ordenes/respuesta-ilegible" => ("The device's PowerShell did not answer: nobody may be signed in there, or a policy may block it.",
             "El PowerShell del equipo no ha contestado: puede que no haya nadie con sesión, o que una directiva lo bloquee.", true),
         "acciones/ejecutar-ordenes/rechazo-remoto" => ("The device could not run the commands.", "El equipo no ha podido ejecutar las órdenes.", true),
+        "redireccion/llevar-conexion/sin-conexion" => ("The server (or the group's agent) could not reach this device: check its address and that the port is open on it.",
+            "El servidor (o el agente del grupo) no llega a este equipo: revisa su dirección y que el puerto esté abierto en él.", true),
+        "redireccion/llevar-conexion/no-autorizado" => ("You do not have remote control on this device, which the server asks to connect to a device without an agent.",
+            "No tienes control remoto en este equipo, que el servidor pide para conectar con un equipo sin agente.", true),
         _ => null,
     };
 

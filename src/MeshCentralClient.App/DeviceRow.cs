@@ -21,7 +21,7 @@ public sealed class DeviceRow : INotifyPropertyChanged
     public string Id => _device.Id;
     public string Name => _device.Name;
     public string GroupName { get => _groupName; set { _groupName = value; Changed(); } }
-    public string Os => _device.OsDescription ?? "";
+    public string Os => _device.OsDescription ?? (_device.IsLocal ? _device.IsWindows ? "Windows" : _device.IsMac ? "macOS" : "Linux" : "");
     public string Address => _device.Address ?? "";
     public string Tags => string.Join(", ", _device.Tags);
     public bool IsOnline => _device.IsOnline;
@@ -29,7 +29,8 @@ public sealed class DeviceRow : INotifyPropertyChanged
     public bool CanOpenFiles => _device.CanOpenFiles;
     public bool CanOpenDesktop => _device.CanOpenDesktop;
     public bool IsWindows => _device.IsWindows;
-    public string Status => L.T(_device.IsOnline ? "Online" : "Offline");
+    // A device without an agent is neither online nor offline for the server. / Un equipo sin agente no está ni conectado ni desconectado.
+    public string Status => L.T(_device.IsOnline ? "Online" : _device.IsLocal ? "NoAgent" : "Offline");
 
     public bool Matches(string filter) => filter.Length == 0
         || Name.Contains(filter, StringComparison.CurrentCultureIgnoreCase)

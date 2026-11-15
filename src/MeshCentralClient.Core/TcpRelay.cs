@@ -40,24 +40,53 @@ public sealed class TcpRelay : IAsyncDisposable
         ArgumentNullException.ThrowIfNull(session);
         if (port is < 1 or > 65535)
             throw new MeshClientException(MeshFailure.Rejected, "redireccion/llevar-conexion/dato-invalido", $"{port} is not a TCP port (1 to 65535).");
-        var cookies = await session.GetRelayCookiesAsync(ct).ConfigureAwait(false);
+        // Where the tunnel goes. A device with its agent: meshrelay.ashx to its agent. A device without one: through the
+        // group's relay agent to its address, or (no relay) localrelay.ashx with a cookie for that device and port, and the
+        // server connects itself; a device without an agent has no machines behind it, so host is ignored.
+        // Adónde va el túnel. Con agente: a su agente. Sin agente: por el agente relé del grupo hasta su dirección, o (sin
+        // relé) localrelay.ashx con una cookie de ese equipo y puerto, y conecta el propio servidor.
+        var device = await session.KnownDeviceAsync(nodeId, ct).ConfigureAwait(false);
+        var local = device is not null && session.IsLocal(device) ? device : null;
+        string endpoint, query;
+        if (local is null)
+        {
+            var cookies = await session.GetRelayCookiesAsync(ct).ConfigureAwait(false);
+            endpoint = "meshrelay.ashx";
+            query = $"nodeid={Uri.EscapeDataString(nodeId)}&tcpport={port}"
+                    + (string.IsNullOrWhiteSpace(host) ? "" : $"&tcpaddr={Uri.EscapeDataString(host.Trim())}")
+                    + $"&auth={Uri.EscapeDataString(cookies.Cookie)}";
+        }
+        else
+        {
+            var address = string.IsNullOrWhiteSpace(local.Address)
+                ? throw new MeshClientException(MeshFailure.Rejected, "redireccion/llevar-conexion/dato-invalido", $"\"{local.Name}\" has no address.")
+                : local.Address.Trim();
+            if (session.RelayOf(local) is { } agent)
+            {
+                var cookies = await session.GetRelayCookiesAsync(ct).ConfigureAwait(false);
+                endpoint = "meshrelay.ashx";
+                query = $"nodeid={Uri.EscapeDataString(agent)}&tcpport={port}&tcpaddr={Uri.EscapeDataString(address)}&auth={Uri.EscapeDataString(cookies.Cookie)}";
+            }
+            else
+            {
+                endpoint = "localrelay.ashx";
+                query = $"auth={Uri.EscapeDataString(await session.LocalCookieAsync(nodeId, port, ct).ConfigureAwait(false))}";
+            }
+        }
         var ws = new ClientWebSocket();
         ws.Options.RemoteCertificateValidationCallback = session.Trust.Validate;
         ws.Options.KeepAliveInterval = TimeSpan.FromSeconds(30);
-        var query = $"nodeid={Uri.EscapeDataString(nodeId)}&tcpport={port}"
-                    + (string.IsNullOrWhiteSpace(host) ? "" : $"&tcpaddr={Uri.EscapeDataString(host.Trim())}")
-                    + $"&auth={Uri.EscapeDataString(cookies.Cookie)}";
         var relay = new TcpRelay(ws);
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
         cts.CancelAfter(session.Timeout);
         try
         {
-            await ws.ConnectAsync(new Uri($"{session.Server.WebSocketUri("meshrelay.ashx")}?{query}"), cts.Token).ConfigureAwait(false);
+            await ws.ConnectAsync(new Uri($"{session.Server.WebSocketUri(endpoint)}?{query}"), cts.Token).ConfigureAwait(false);
             var buffer = new byte[256];
             while (true)
             {
                 var r = await ws.ReceiveAsync(buffer, cts.Token).ConfigureAwait(false);
-                if (r.MessageType == WebSocketMessageType.Close) throw Refused(host, port, null);
+                if (r.MessageType == WebSocketMessageType.Close) throw local is not null ? Unreachable(local, port) : Refused(host, port, null);
                 if (r.MessageType != WebSocketMessageType.Text || !r.EndOfMessage) continue;
                 var text = Encoding.UTF8.GetString(buffer, 0, r.Count);
                 if (text is "c" or "cr") { relay.IsRecorded = text == "cr"; return relay; }
@@ -72,7 +101,7 @@ public sealed class TcpRelay : IAsyncDisposable
         catch (Exception ex) when (ex is WebSocketException or IOException)
         {
             await relay.DisposeAsync().ConfigureAwait(false);
-            throw Refused(host, port, ex);
+            throw local is not null ? Unreachable(local, port) : Refused(host, port, ex);
         }
         catch
         {
@@ -80,6 +109,14 @@ public sealed class TcpRelay : IAsyncDisposable
             throw;
         }
     }
+
+    /// <summary>A device without an agent that the server (or the group's agent) cannot reach at its address.
+    /// Un equipo sin agente al que el servidor (o el agente del grupo) no llega en su dirección.</summary>
+    public const string UnreachableKey = "redireccion/llevar-conexion/sin-conexion";
+
+    private static MeshClientException Unreachable(Device local, int port) =>
+        new(MeshFailure.Rejected, "redireccion/llevar-conexion/sin-conexion",
+            $"Could not reach {local.Address}:{port} (from the server or the group's agent): check the address and that the port is open.");
 
     private static MeshClientException Refused(string? host, int port, Exception? inner) =>
         new(MeshFailure.ConnectionLost, "redireccion/llevar-conexion/conexion-cortada",

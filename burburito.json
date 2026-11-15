@@ -1930,6 +1930,46 @@
       "titulo": "Una carpeta no se puede copiar dentro de sí misma",
       "explicacion": "Se intentó pegar una carpeta en ella misma o en una de sus subcarpetas.",
       "que_hacer": "Pegar en otra carpeta que no esté dentro de la que se copia."
+    },
+    {
+      "modulo": "redireccion",
+      "accion": "llevar-conexion",
+      "causa": "sin-conexion",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "No se llega al equipo sin agente",
+      "explicacion": "El servidor (o el agente que hace de relé del grupo) no consigue conectar con la dirección y el puerto de ese equipo.",
+      "que_hacer": "Revisar la dirección del equipo y que el puerto esté abierto en él."
+    },
+    {
+      "modulo": "redireccion",
+      "accion": "llevar-conexion",
+      "causa": "no-autorizado",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "Sin permiso para conectar con ese equipo",
+      "explicacion": "El servidor no da la conexión a un equipo sin agente si la cuenta no tiene control remoto en él.",
+      "que_hacer": "Pedir a quien administra el grupo el permiso de control remoto."
+    },
+    {
+      "modulo": "redireccion",
+      "accion": "llevar-conexion",
+      "causa": "respuesta-ilegible",
+      "severidad": "error",
+      "actuar": false,
+      "titulo": "El servidor no dio la cookie de la conexión",
+      "explicacion": "La respuesta a getcookie llegó sin la cookie que necesita localrelay.ashx.",
+      "que_hacer": "Probar otra vez; si se repite, puede ser otra versión de MeshCentral."
+    },
+    {
+      "modulo": "ficha",
+      "accion": "cambiar-ajustes",
+      "causa": "dato-invalido",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "La dirección no vale",
+      "explicacion": "La dirección de un equipo sin agente debe ser un nombre o una IP de 1 a 256 caracteres, sin espacios.",
+      "que_hacer": "Escribir el nombre o la IP con la que el servidor llega al equipo."
     }
   ]
 }

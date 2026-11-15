@@ -110,7 +110,7 @@ public sealed partial class MeshServerSession
     /// (meshrelay.js, 0x00200008) and the agent connected. / Redirección, SSH y RDP por el equipo: el servidor pide
     /// control remoto o relé, y el agente conectado.</summary>
     public bool CanRelayThrough(Device device) =>
-        (Has(RightsOn(device), MeshRights.RemoteControl) || Has(RightsOn(device), MeshRights.Relay)) && device.HasAgent;
+        (Has(RightsOn(device), MeshRights.RemoteControl) || Has(RightsOn(device), MeshRights.Relay)) && (device.HasAgent || IsLocal(device));
 
     /// <summary>
     /// MeshCentral's own clipboard: text only (meshcore.js setclip). The agent answers {action:'msg', type:'setclip',

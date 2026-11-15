@@ -52,6 +52,7 @@ public sealed class GroupsWindow : Window
     private readonly Button _removeUser = new() { Content = L.T("RemoveUser"), MinWidth = 90 };
     private readonly StackPanel _addPanel = new();
     private readonly TextBlock _cannotAdd = new() { Text = L.T("CannotAddDevices"), Opacity = 0.65 };
+    private readonly Button _addLocal = new() { Content = L.T("LocalAdd"), MinWidth = 140, HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0, 4, 0, 0) };
     private readonly ComboBox _mode = new() { MinWidth = 260 };
     private readonly ComboBox _expiry = new() { MinWidth = 120, Margin = new Thickness(8, 0, 8, 0) };
     private readonly Button _createInvite = new() { Content = L.T("CreateInvite"), MinWidth = 110 };
@@ -72,10 +73,14 @@ public sealed class GroupsWindow : Window
         { (AgentInstallMode.BackgroundAndInteractive, "InstallBoth"), (AgentInstallMode.BackgroundOnly, "InstallBackground"), (AgentInstallMode.InteractiveOnly, "InstallInteractive") };
 
     /// <param name="deviceCount">How many devices of the list are in a group, for the delete warning. / Cuántos equipos de la lista hay en un grupo.</param>
-    public GroupsWindow(MeshServerSession session, Func<string, int> deviceCount)
+    private readonly Func<string, string> _relayName;
+
+    /// <param name="deviceName">A device's name by its id (the relay of a local group). / El nombre de un equipo por su id.</param>
+    public GroupsWindow(MeshServerSession session, Func<string, int> deviceCount, Func<string, string>? deviceName = null)
     {
         _session = session;
         _deviceCount = deviceCount;
+        _relayName = deviceName ?? (id => id);
         Title = L.F("GroupsTitle", string.IsNullOrEmpty(session.ServerInfo.Name) ? session.Server.Host : session.ServerInfo.Name);
         // Never taller or wider than the screen's work area: on 1024×768 the title bar went off the top (CI screenshot 08-11).
         // Nunca más alta ni ancha que la zona útil de la pantalla: en 1024×768 la barra de título se salía por arriba.
@@ -84,7 +89,7 @@ public sealed class GroupsWindow : Window
         WindowStartupLocation = WindowStartupLocation.CenterScreen;
         foreach (var (e, id) in new (FrameworkElement, string)[]
         {
-            (this, "GroupsWindow"), (_groups, "GroupList"), (_new, "NewGroupButton"), (_edit, "EditGroupButton"), (_delete, "DeleteGroupButton"), (_settings, "GroupSettingsButton"), (_summary, "GroupSettingsSummary"),
+            (this, "GroupsWindow"), (_groups, "GroupList"), (_new, "NewGroupButton"), (_edit, "EditGroupButton"), (_delete, "DeleteGroupButton"), (_settings, "GroupSettingsButton"), (_summary, "GroupSettingsSummary"), (_addLocal, "AddLocalDeviceButton"),
             (_name, "GroupNameText"), (_desc, "GroupDescText"), (_members, "MemberList"), (_addUsers, "AddUsersButton"), (_addUserGroup, "AddUserGroupButton"), (_changeRights, "ChangeRightsButton"),
             (_removeUser, "RemoveUserButton"), (_mode, "InstallMode"), (_expiry, "InviteExpiry"), (_createInvite, "CreateInviteButton"), (_invite, "InviteLinkBox"),
             (_copyInvite, "CopyInviteButton"), (_platform, "AgentPlatform"), (_download, "DownloadAgentButton"), (_linux, "LinuxCommandBox"),
@@ -125,6 +130,7 @@ public sealed class GroupsWindow : Window
         _detail.Children.Add(Row(_addUsers, _addUserGroup, _changeRights, _removeUser));
         _detail.Children.Add(Section("AddDevicesSection"));
         _detail.Children.Add(_cannotAdd);
+        _detail.Children.Add(_addLocal);
         _addPanel.Children.Add(Row(new TextBlock { Text = L.T("InstallMode"), VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 8, 0) }, _mode));
         _addPanel.Children.Add(new TextBlock { Text = L.T("InviteLabel"), TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 12, 0, 0) });
         _addPanel.Children.Add(Row(new TextBlock { Text = L.T("InviteExpiry"), VerticalAlignment = VerticalAlignment.Center }, _expiry, _createInvite));
@@ -155,6 +161,7 @@ public sealed class GroupsWindow : Window
         _edit.Click += async (_, _) => await EditGroup();
         _delete.Click += async (_, _) => await DeleteGroup();
         _settings.Click += async (_, _) => await EditSettings();
+        _addLocal.Click += async (_, _) => await AddLocal();
         _addUsers.Click += async (_, _) => await AddUsers();
         _addUserGroup.Click += async (_, _) => await AddUserGroup();
         _changeRights.Click += async (_, _) => await ChangeRights();
@@ -204,7 +211,8 @@ public sealed class GroupsWindow : Window
             DeviceGroupKind.Agents => "GroupKindAgents", DeviceGroupKind.IntelAmtOnly => "GroupKindAmt",
             DeviceGroupKind.LocalDevices => "GroupKindLocal", DeviceGroupKind.IpKvm => "GroupKindKvm", _ => "",
         };
-        _facts.Text = $"{L.T(kind)} · {L.F("GroupDevices", _deviceCount(g.Id))}";
+        _facts.Text = $"{L.T(kind)} · {L.F("GroupDevices", _deviceCount(g.Id))}"
+            + (g.Kind == DeviceGroupKind.LocalDevices ? " · " + L.F("LocalReachedBy", g.RelayId is null ? L.T("LocalByServer") : _relayName(g.RelayId)) : "");
         _edit.IsEnabled = can.Edit;
         _settings.IsEnabled = can.Edit;
         _summary.Text = GroupSettingsWindow.Summary(g.Settings, _session.ServerInfo);
@@ -217,7 +225,10 @@ public sealed class GroupsWindow : Window
         _addUserGroup.IsEnabled = can.ManageUsers;
         UpdateMemberButtons();
         _addPanel.Visibility = can.AddDevices ? Visibility.Visible : Visibility.Collapsed;
-        _cannotAdd.Visibility = can.AddDevices ? Visibility.Collapsed : Visibility.Visible;
+        // A group of devices without an agent adds them by their address, not with an invitation. / Sin agente: por su dirección.
+        var addLocal = _session.CanAddLocalDevice(g);
+        _addLocal.Visibility = addLocal ? Visibility.Visible : Visibility.Collapsed;
+        _cannotAdd.Visibility = can.AddDevices || addLocal ? Visibility.Collapsed : Visibility.Visible;
         if (can.AddDevices) _linux.Text = _session.LinuxInstallCommand(g);
         if (_inviteFor != g.Id) ClearInvite();
     }
@@ -261,10 +272,18 @@ public sealed class GroupsWindow : Window
         return L.F("GroupSettingsSaved", g.Name);
     });
 
+    private Task AddLocal() => Run(async () =>
+    {
+        if (Selected is not { } g || LocalDeviceForm.Ask(this) is not { } f) return null;
+        await _session.AddLocalDeviceAsync(g, f.Name, f.Host, f.Os);
+        return L.F("LocalAdded", f.Name);
+    });
+
     private Task NewGroup() => Run(async () =>
     {
-        if (GroupForm.Ask(this, L.T("NewGroup").TrimEnd('…'), "", "") is not { } f) return null;
-        _selectId = await _session.CreateGroupAsync(f.Name, f.Description);
+        var agents = (await _session.GetDevicesAsync()).Where(d => d.HasAgent).OrderBy(d => d.Name, StringComparer.CurrentCultureIgnoreCase).ToList();
+        if (GroupForm.Ask(this, L.T("NewGroup").TrimEnd('…'), "", "", agents) is not { } f) return null;
+        _selectId = f.Local ? await _session.CreateLocalGroupAsync(f.Name, f.Description, f.RelayId) : await _session.CreateGroupAsync(f.Name, f.Description);
         // The createmesh event usually arrives first; if not, the next one refreshes. / El aviso createmesh suele llegar antes.
         Refresh();
         return L.F("GroupCreated", f.Name);
@@ -357,13 +376,78 @@ public sealed class GroupsWindow : Window
     });
 }
 
+/// <summary>A device without an agent: its name, the address the server reaches it at, and its system.
+/// Un equipo sin agente: su nombre, la dirección con que llega el servidor y su sistema.</summary>
+public static class LocalDeviceForm
+{
+    public sealed record Result(string Name, string Host, LocalDeviceOs Os);
+
+    public static Result? Ask(Window owner)
+    {
+        var nameBox = new TextBox { MaxLength = 256, Margin = new Thickness(0, 4, 0, 12), MinWidth = 380 };
+        var hostBox = new TextBox { MaxLength = 256, Margin = new Thickness(0, 4, 0, 0) };
+        var os = new ComboBox { Margin = new Thickness(0, 4, 0, 0) };
+        foreach (var (o, label) in new[] { (LocalDeviceOs.Windows, "Windows"), (LocalDeviceOs.Linux, "Linux"), (LocalDeviceOs.Mac, "macOS") })
+            os.Items.Add(new ComboBoxItem { Content = label, Tag = o });
+        os.SelectedIndex = 0;
+        var ok = new Button { Content = L.T("Ok"), IsDefault = true, MinWidth = 90, Margin = new Thickness(0, 0, 8, 0), IsEnabled = false };
+        var cancel = new Button { Content = L.T("Cancel"), IsCancel = true, MinWidth = 90 };
+        AP.SetAutomationId(nameBox, "LocalNameBox"); AP.SetAutomationId(hostBox, "LocalHostBox"); AP.SetAutomationId(os, "LocalOsBox"); AP.SetAutomationId(ok, "LocalOk");
+        AP.SetName(nameBox, L.T("ColName")); AP.SetName(hostBox, L.T("LocalHost")); AP.SetName(os, L.T("ColOs"));
+        void Validate() => ok.IsEnabled = nameBox.Text.Trim().Length > 0 && MeshServerSession.ValidLocalHost(hostBox.Text);
+        nameBox.TextChanged += (_, _) => Validate(); hostBox.TextChanged += (_, _) => Validate();
+        var w = new Window
+        {
+            Title = L.T("LocalAdd"), Owner = owner, SizeToContent = SizeToContent.WidthAndHeight, ResizeMode = ResizeMode.NoResize,
+            WindowStartupLocation = WindowStartupLocation.CenterOwner,
+            Content = new StackPanel
+            {
+                Margin = new Thickness(20), MaxWidth = 460,
+                Children =
+                {
+                    new TextBlock { Text = L.T("ColName") }, nameBox,
+                    new TextBlock { Text = L.T("LocalHost") }, hostBox,
+                    new TextBlock { Text = L.T("LocalHostHelp"), Opacity = 0.7, TextWrapping = TextWrapping.Wrap, FontSize = 11, Margin = new Thickness(0, 2, 0, 12) },
+                    new TextBlock { Text = L.T("ColOs") }, os,
+                    new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 16, 0, 0), Children = { ok, cancel } },
+                },
+            },
+        };
+        AP.SetAutomationId(w, "LocalDeviceForm");
+        Result? result = null;
+        ok.Click += (_, _) => { result = new(nameBox.Text.Trim(), hostBox.Text.Trim(), (LocalDeviceOs)((ComboBoxItem)os.SelectedItem).Tag); w.Close(); };
+        w.Loaded += (_, _) => nameBox.Focus();
+        w.ShowDialog();
+        return result;
+    }
+}
+
 /// <summary>Name and description of a group. / Nombre y descripción de un grupo.</summary>
 public static class GroupForm
 {
-    public sealed record Result(string Name, string Description);
+    /// <summary>Local: a group of devices without an agent; RelayId: the device whose agent reaches them (null = the server).
+    /// Local: un grupo de equipos sin agente; RelayId: el equipo por cuyo agente se llega (null = el servidor).</summary>
+    public sealed record Result(string Name, string Description, bool Local = false, string? RelayId = null);
 
-    public static Result? Ask(Window owner, string title, string name, string description)
+    private sealed class RelayItem(Device? d)
     {
+        public Device? Device { get; } = d;
+        public override string ToString() => Device?.Name ?? L.T("LocalByServer");
+    }
+
+    /// <param name="relays">For a new group: the devices with the agent that can be its relay; then the form also asks with
+    /// or without the agent, as the website does. / Para un grupo nuevo: los equipos con agente que pueden hacer de relé.</param>
+    public static Result? Ask(Window owner, string title, string name, string description, IReadOnlyList<Device>? relays = null)
+    {
+        var agents = new RadioButton { Content = L.T("GroupKindAgentsChoice"), IsChecked = true, Margin = new Thickness(0, 12, 0, 0) };
+        var local = new RadioButton { Content = L.T("GroupKindLocalChoice"), Margin = new Thickness(0, 6, 0, 0) };
+        var relay = new ComboBox { MinWidth = 300, Margin = new Thickness(22, 4, 0, 0), IsEnabled = false };
+        relay.Items.Add(new RelayItem(null));
+        foreach (var d in relays ?? Array.Empty<Device>()) relay.Items.Add(new RelayItem(d));
+        relay.SelectedIndex = 0;
+        local.Checked += (_, _) => relay.IsEnabled = true; agents.Checked += (_, _) => relay.IsEnabled = false;
+        AP.SetAutomationId(agents, "GroupKindAgents"); AP.SetAutomationId(local, "GroupKindLocal"); AP.SetAutomationId(relay, "GroupRelayBox");
+        AP.SetName(relay, L.T("LocalReachTitle"));
         var nameBox = new TextBox { Text = name, MaxLength = 128, Margin = new Thickness(0, 4, 0, 12), MinWidth = 380 };
         var descBox = new TextBox { Text = description, MaxLength = 1024, AcceptsReturn = true, TextWrapping = TextWrapping.Wrap, MinHeight = 70, Margin = new Thickness(0, 4, 0, 0) };
         var ok = new Button { Content = L.T("Ok"), IsDefault = true, MinWidth = 90, Margin = new Thickness(0, 0, 8, 0), IsEnabled = name.Trim().Length > 0 };
@@ -381,13 +465,32 @@ public static class GroupForm
                 {
                     new TextBlock { Text = L.T("GroupName") }, nameBox,
                     new TextBlock { Text = L.T("GroupDescription") }, descBox,
+                    KindChoice(),
                     new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 16, 0, 0), Children = { ok, cancel } },
                 },
             },
         };
         AP.SetAutomationId(w, "GroupForm");
         Result? result = null;
-        ok.Click += (_, _) => { result = new(nameBox.Text.Trim(), descBox.Text.Trim()); w.Close(); };
+        UIElement KindChoice()
+        {
+            if (relays is null) return new StackPanel();
+            return new StackPanel
+            {
+                Children =
+                {
+                    agents, new TextBlock { Text = L.T("GroupKindAgentsHint"), Opacity = 0.7, FontSize = 11, Margin = new Thickness(22, 0, 0, 0), TextWrapping = TextWrapping.Wrap },
+                    local, new TextBlock { Text = L.T("GroupKindLocalHint"), Opacity = 0.7, FontSize = 11, Margin = new Thickness(22, 0, 0, 0), TextWrapping = TextWrapping.Wrap },
+                    new TextBlock { Text = L.T("LocalReachTitle"), Margin = new Thickness(22, 8, 0, 0) }, relay,
+                },
+            };
+        }
+        ok.Click += (_, _) =>
+        {
+            var isLocal = relays is not null && local.IsChecked == true;
+            result = new(nameBox.Text.Trim(), descBox.Text.Trim(), isLocal, isLocal ? (relay.SelectedItem as RelayItem)?.Device?.Id : null);
+            w.Close();
+        };
         w.Loaded += (_, _) => { nameBox.Focus(); nameBox.SelectAll(); };
         w.ShowDialog();
         return result;

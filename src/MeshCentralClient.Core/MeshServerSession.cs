@@ -182,6 +182,7 @@ public sealed partial class MeshServerSession : IAsyncDisposable
         foreach (var (groupId, nodes) in byGroup)
             if (nodes is JsonArray a)
                 list.AddRange(a.OfType<JsonObject>().Select(n => Device.From(n, groupId)));
+        _knownDevices = list.ToDictionary(d => d.Id);
         return list;
     }
 

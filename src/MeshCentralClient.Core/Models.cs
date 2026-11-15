@@ -80,7 +80,12 @@ public sealed record DeviceGroup(string Id, string Name, string? Description, De
     {
         Links = JsonExtensions.Links(o), Members = GroupMember.From(o),
         Settings = new GroupSettings((int)(o.Long("consent") ?? 0), (int)(o.Long("flags") ?? 0), (int)(o.Long("expireDevs") ?? 0)),
+        RelayId = o.Str("relayid") is { } r && r.StartsWith("node/", StringComparison.Ordinal) ? r : null,
     };
+
+    /// <summary>Local devices: the device whose agent the server reaches them through (null = the server itself).
+    /// Equipos locales: el equipo por cuyo agente llega el servidor (null = el propio servidor).</summary>
+    public string? RelayId { get; init; }
 
     /// <summary>Its consent and features. / Su consentimiento y sus funciones.</summary>
     public GroupSettings Settings { get; init; } = new();
@@ -137,6 +142,13 @@ public sealed record Device(
 
     public bool IsOnline => Connectivity != DeviceConnectivity.None;
 
+    /// <summary>A device without an agent, reached by its address through the server (a group of local devices).
+    /// Un equipo sin agente, al que se llega por su dirección a través del servidor.</summary>
+    public bool IsLocal { get; init; }
+
+    /// <summary>macOS agents (agenttypes.js). / Agentes de macOS.</summary>
+    public bool IsMac => AgentId is 11 or 16 or 29 or 10005;
+
     /// <summary>The agent is connected (power, messages and commands need it). / El agente está conectado (lo necesitan energía, avisos y órdenes).</summary>
     public bool HasAgent => Connectivity.HasFlag(DeviceConnectivity.Agent);
 
@@ -168,7 +180,7 @@ public sealed record Device(
             (int)(agent?.Long("id") ?? 0),
             o.Str("desc"),
             o.Long("lastbootuptime") is long boot and > 0 ? DateTimeOffset.FromUnixTimeMilliseconds(boot) : null,
-            agent?.Str("core")) { Links = JsonExtensions.Links(o) };
+            agent?.Str("core")) { Links = JsonExtensions.Links(o), IsLocal = o.Long("mtype") == 3 };
     }
 
     /// <summary>Applies a "changenode" update, which does not carry connection state.

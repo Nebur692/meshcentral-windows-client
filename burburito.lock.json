@@ -1,5 +1,5 @@
 {
-  "generado": "2026-11-15T12:46:47Z",
+  "generado": "2026-11-15T19:28:01Z",
   "aviso": "Generado por bin/burburito. No editar a mano: la fuente de verdad es el burburito.json de al lado.",
   "proyecto": {
     "id": 35,
@@ -379,6 +379,12 @@
       "actuar": true,
       "titulo": "El servidor no dejó cambiar el equipo"
     },
+    "ficha/cambiar-ajustes/dato-invalido": {
+      "codigo": "035-008-007-061",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "La dirección no vale"
+    },
     "ficha/abrir-detalle/tiempo-agotado": {
       "codigo": "035-008-022-002",
       "severidad": "aviso",
@@ -757,11 +763,29 @@
       "actuar": true,
       "titulo": "Ese puerto de este PC ya lo usa otro programa"
     },
+    "redireccion/llevar-conexion/sin-conexion": {
+      "codigo": "035-013-510-001",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "No se llega al equipo sin agente"
+    },
     "redireccion/llevar-conexion/conexion-cortada": {
       "codigo": "035-013-510-005",
       "severidad": "aviso",
       "actuar": false,
       "titulo": "El servidor cerró la conexión"
+    },
+    "redireccion/llevar-conexion/respuesta-ilegible": {
+      "codigo": "035-013-510-022",
+      "severidad": "error",
+      "actuar": false,
+      "titulo": "El servidor no dio la cookie de la conexión"
+    },
+    "redireccion/llevar-conexion/no-autorizado": {
+      "codigo": "035-013-510-046",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "Sin permiso para conectar con ese equipo"
     },
     "redireccion/llevar-conexion/dato-invalido": {
       "codigo": "035-013-510-061",

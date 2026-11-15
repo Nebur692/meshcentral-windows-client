@@ -68,6 +68,12 @@ docker run -d --rm --name "$SSHD" --network "$NET" --cpus 0.5 --memory 128m -v "
   echo "sshd ready" && exec /usr/sbin/sshd -D -e' >/dev/null
 for _ in $(seq 1 60); do logged "$SSHD" "sshd ready" && break; sleep 1; done
 logged "$SSHD" "sshd ready" || { echo "the SSH server did not start / el servidor SSH no arrancó" >&2; docker logs "$SSHD" >&2; exit 1; }
+# A name only the agent knows, for the SSH server: a device without an agent behind the group's relay agent is reached
+# only if the tunnel really goes through that agent (the server cannot resolve it).
+# Un nombre que solo conoce el agente, para el servidor SSH: un equipo sin agente tras el agente relé del grupo solo se
+# alcanza si el túnel va de verdad por ese agente (el servidor no lo resuelve).
+SSHD_IP=$(docker inspect "$SSHD" --format "{{(index .NetworkSettings.Networks \"$NET\").IPAddress}}")
+docker exec "$AGENT" sh -c "echo '$SSHD_IP solo-agente' >> /etc/hosts"
 
 CERT=$(docker exec "$SRV" node -e "const c=require('crypto'),f=require('fs');console.log(new c.X509Certificate(f.readFileSync('/opt/meshcentral/meshcentral-data/webserver-cert-public.crt')).fingerprint256.replace(/:/g,''))")
 echo "server $SRV · agent $AGENT · cert ${CERT:0:16}…"
@@ -77,7 +83,7 @@ echo "server $SRV · agent $AGENT · cert ${CERT:0:16}…"
 docker run --rm --network "$NET" --add-host "mesh.test:$SRV_IP" --cpus 2 --memory 3g --user "$(id -u):$(id -g)" \
   -e HOME=/tmp -e DOTNET_CLI_HOME=/tmp -e NUGET_PACKAGES=/tmp/nuget -e DOTNET_NOLOGO=1 -e DOTNET_CLI_TELEMETRY_OPTOUT=1 \
   -e MESHTEST_FILTER="${MESHTEST_FILTER:-}" -e MESHTEST_URL="https://mesh.test/" -e MESHTEST_CERT_SHA256="$CERT" -e MESHTEST_OTP_SECRET="$OTP" -e MESHTEST_GROUP_ID="$GROUP" \
-  -e MESHTEST_SSH_HOST="$SSHD" -e MESHTEST_SSH_DIR=/work/ssh \
+  -e MESHTEST_SSH_HOST="$SSHD" -e MESHTEST_SSH_DIR=/work/ssh -e MESHTEST_AGENT_ONLY_HOST=solo-agente \
   -v "$ROOT:/src" -v "$WORK:/work" -w /src "$SDK_IMAGE" \
   sh -c 't() { dotnet test tests/MeshCentralClient.Core.Tests --nologo -v q "$@" --results-directory /work/results --artifacts-path /tmp/artifacts; }
          if [ -n "$MESHTEST_FILTER" ]; then t --filter "$MESHTEST_FILTER" --logger "console;verbosity=detailed"; exit; fi
