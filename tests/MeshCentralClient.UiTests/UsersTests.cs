@@ -237,7 +237,7 @@ public sealed class UsersTests : IDisposable
     public async Task A_person_secures_their_own_account()
     {
         var name = "yo" + _tag;
-        await using (var admin = await As("admin", "Admin-Pass-1234")) await admin.CreateUserAsync(new(name, "Mine-Pass-1234"));
+        await using (var admin = await As("admin", "Admin-Pass-1234")) await admin.CreateUserAsync(new(name, "Mine-Pass-1234", $"{name}@mesh.test", EmailVerified: true));
         var win = SignIn(name, "Mine-Pass-1234");
         // Not an administrator: no Users button (collapsed, so not even in the tree). / No es administrador: sin botón de Usuarios.
         Assert.True(win.FindFirstDescendant(cf => cf.ByAutomationId("UsersButton")) is null or { IsOffscreen: true });

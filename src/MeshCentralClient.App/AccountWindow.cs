@@ -45,6 +45,13 @@ public sealed class AccountWindow : Window
     private readonly TextBlock _authState = new() { VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 12, 0) };
     private readonly Button _addAuth = new() { Content = L.T("AddAuthenticator"), MinWidth = 90, Margin = new Thickness(0, 0, 8, 0) };
     private readonly Button _removeAuth = new() { Content = L.T("RemoveAuthenticator"), MinWidth = 90 };
+    private readonly StackPanel _emailRow = new();
+    private readonly TextBlock _emailState = new() { VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 12, 0) };
+    private readonly Button _emailToggle = new() { MinWidth = 90 };
+    private readonly StackPanel _phoneRow = new();
+    private readonly TextBlock _phoneState = new() { VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 12, 0) };
+    private readonly Button _addPhone = new() { Content = L.T("AddPhone"), MinWidth = 90, Margin = new Thickness(0, 0, 8, 0) };
+    private readonly Button _removePhone = new() { Content = L.T("RemovePhone"), MinWidth = 90 };
     private readonly TextBlock _codesState = new() { Opacity = 0.8 };
     private readonly Button _showCodes = new() { Content = L.T("ShowCodes"), MinWidth = 80, Margin = new Thickness(0, 0, 8, 0) };
     private readonly Button _newCodes = new() { Content = L.T("NewCodes"), MinWidth = 110, Margin = new Thickness(0, 0, 8, 0) };
@@ -70,7 +77,8 @@ public sealed class AccountWindow : Window
             (_change, "ChangePasswordButton"), (_authState, "AuthenticatorState"), (_addAuth, "AddAuthenticatorButton"), (_removeAuth, "RemoveAuthenticatorButton"),
             (_codesState, "CodesState"), (_showCodes, "ShowCodesButton"), (_newCodes, "NewCodesButton"), (_clearCodes, "ClearCodesButton"), (_codes, "CodesBox"),
             (_keys, "KeyList"), (_removeKey, "RemoveKeyButton"), (_tokens, "TokenList"), (_newToken, "NewTokenButton"), (_removeToken, "RemoveTokenButton"),
-            (_status, "AccountStatus"),
+            (_status, "AccountStatus"), (_emailState, "EmailCodesState"), (_emailToggle, "EmailCodesButton"), (_phoneState, "PhoneState"),
+            (_addPhone, "AddPhoneButton"), (_removePhone, "RemovePhoneButton"),
         }) AP.SetAutomationId(e, id);
         AP.SetName(_current, L.T("CurrentPassword")); AP.SetName(_new, L.T("NewPassword")); AP.SetName(_repeat, L.T("RepeatPassword"));
 
@@ -98,6 +106,14 @@ public sealed class AccountWindow : Window
         page.Children.Add(Row(_change));
         page.Children.Add(Section("AuthenticatorSection"));
         page.Children.Add(Row(_authState, _addAuth, _removeAuth));
+        // Codes by email and by SMS, only when this server offers them, as the website. / Por correo y SMS, solo si el servidor los ofrece.
+        _emailRow.Children.Add(Section("EmailCodesSection"));
+        _emailRow.Children.Add(Row(_emailState, _emailToggle));
+        page.Children.Add(_emailRow);
+        _phoneRow.Children.Add(Section("PhoneSection"));
+        _phoneRow.Children.Add(Help("PhoneHelp"));
+        _phoneRow.Children.Add(Row(_phoneState, _addPhone, _removePhone));
+        page.Children.Add(_phoneRow);
         page.Children.Add(Section("BackupSection"));
         page.Children.Add(Help("BackupHelp"));
         page.Children.Add(_codesState);
@@ -121,6 +137,9 @@ public sealed class AccountWindow : Window
         _change.Click += async (_, _) => await ChangePassword();
         _addAuth.Click += async (_, _) => await AddAuthenticator();
         _removeAuth.Click += async (_, _) => await RemoveAuthenticator();
+        _emailToggle.Click += async (_, _) => await ToggleEmail();
+        _addPhone.Click += async (_, _) => await AddPhone();
+        _removePhone.Click += async (_, _) => await RemovePhone();
         _showCodes.Click += async (_, _) => await Codes(BackupCodeAction.Show);
         _newCodes.Click += async (_, _) => await Codes(BackupCodeAction.New);
         _clearCodes.Click += async (_, _) => await Codes(BackupCodeAction.Clear);
@@ -148,6 +167,14 @@ public sealed class AccountWindow : Window
         _authState.Text = L.T(u.HasAuthenticator ? "AuthenticatorOn" : "AuthenticatorOff");
         _addAuth.IsEnabled = !locked && !u.HasAuthenticator;
         _removeAuth.IsEnabled = !locked && u.HasAuthenticator;
+        _emailRow.Visibility = _session.ServerInfo.EmailTwoFactorAllowed ? Visibility.Visible : Visibility.Collapsed;
+        _emailState.Text = string.IsNullOrEmpty(u.Email) ? L.T("EmailCodesNoEmail") : L.F(u.HasEmailTwoFactor ? "EmailCodesOn" : "EmailCodesOff", u.Email);
+        _emailToggle.Content = L.T(u.HasEmailTwoFactor ? "TurnOff" : "TurnOn");
+        _emailToggle.IsEnabled = !locked && (u.HasEmailTwoFactor || !string.IsNullOrEmpty(u.Email));
+        _phoneRow.Visibility = _session.ServerInfo.SmsTwoFactorAllowed ? Visibility.Visible : Visibility.Collapsed;
+        _phoneState.Text = u.Phone ?? L.T("NoPhone");
+        _addPhone.IsEnabled = !locked && u.Phone is null;
+        _removePhone.IsEnabled = !locked && u.Phone is not null;
         _codesState.Text = L.T(!u.HasTwoFactor ? "BackupNeedsFactor" : u.HasBackupCodes ? "CodesThere" : "NoCodes");
         _showCodes.IsEnabled = u.HasTwoFactor;
         _newCodes.IsEnabled = !locked && u.HasTwoFactor;
@@ -183,6 +210,34 @@ public sealed class AccountWindow : Window
         // El diálogo comprueba cada código con el servidor: uno malo se dice allí y se puede volver a escribir.
         if (!AuthenticatorDialog.Ask(this, setup, code => _session.ConfirmAuthenticatorAsync(setup, code), _session.ServerInfo.Version)) return null;
         return L.T("AuthenticatorAdded");
+    });
+
+    private Task ToggleEmail() => Run(async () =>
+    {
+        var on = !_session.User.HasEmailTwoFactor;
+        await _session.SetEmailTwoFactorAsync(on);
+        return L.T(on ? "EmailCodesTurnedOn" : "EmailCodesTurnedOff");
+    });
+
+    /// <summary>The number, then the code the server sends to it by SMS (three tries). / El número y luego el código que le llega (tres intentos).</summary>
+    private Task AddPhone() => Run(async () =>
+    {
+        if (InputDialog.Ask(this, L.T("PhoneSection"), L.T("PhoneNumber"), "+") is not { } phone) return null;
+        var check = await _session.StartPhoneAsync(phone);
+        for (var tries = 0; tries < 3; tries++)
+        {
+            if (InputDialog.Ask(this, L.T("PhoneSection"), L.F(tries == 0 ? "PhoneCodeAsk" : "PhoneCodeWrong", check.Phone)) is not { } code) return null;
+            try { await _session.ConfirmPhoneAsync(check, code); return L.F("PhoneAdded", check.Phone); }
+            catch (MeshClientException e) when (e.Failure == MeshFailure.InvalidTwoFactorCode) { }
+        }
+        return L.T("PhoneNotChecked");
+    });
+
+    private Task RemovePhone() => Run(async () =>
+    {
+        if (!Confirm(L.F("ConfirmRemovePhone", _session.User.Phone ?? ""), L.T("PhoneSection"))) return null;
+        await _session.RemovePhoneAsync();
+        return L.T("PhoneRemoved");
     });
 
     private Task RemoveAuthenticator() => Run(async () =>

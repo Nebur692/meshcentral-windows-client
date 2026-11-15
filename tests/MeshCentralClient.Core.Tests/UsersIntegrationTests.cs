@@ -100,8 +100,8 @@ public class UsersIntegrationTests(ITestOutputHelper output)
     {
         await using var admin = await As("admin", "Admin-Pass-1234");
         var t = Tag();
-        var managerId = await admin.CreateUserAsync(new("jefe" + t, "Jefe-Pass-1234", SiteRights: (long)SiteRight.ManageUsers));
-        var otherId = await admin.CreateUserAsync(new("otro" + t, "Otro-Pass-1234"));
+        var managerId = await admin.CreateUserAsync(new("jefe" + t, "Jefe-Pass-1234", $"jefe{t}@mesh.test", SiteRights: (long)SiteRight.ManageUsers, EmailVerified: true));
+        var otherId = await admin.CreateUserAsync(new("otro" + t, "Otro-Pass-1234", $"otro{t}@mesh.test", EmailVerified: true));
         try
         {
             await using var manager = await As("jefe" + t, "Jefe-Pass-1234");
@@ -140,7 +140,7 @@ public class UsersIntegrationTests(ITestOutputHelper output)
     {
         await using var admin = await As("admin", "Admin-Pass-1234");
         var t = Tag();
-        var memberId = await admin.CreateUserAsync(new("miembro" + t, "Miembro-Pass-1234"));
+        var memberId = await admin.CreateUserAsync(new("miembro" + t, "Miembro-Pass-1234", $"miembro{t}@mesh.test", EmailVerified: true));
         var seen = new ConcurrentQueue<UserGroupChangedEventArgs>();
         admin.UserGroupChanged += (_, e) => seen.Enqueue(e);
         string? groupId = null;
@@ -197,7 +197,7 @@ public class UsersIntegrationTests(ITestOutputHelper output)
     {
         await using var admin = await As("admin", "Admin-Pass-1234");
         var name = "yo" + Tag();
-        var id = await admin.CreateUserAsync(new(name, "Mine-Pass-1234"));
+        var id = await admin.CreateUserAsync(new(name, "Mine-Pass-1234", $"{name}@mesh.test", EmailVerified: true));
         try
         {
             await using (var me = await As(name, "Mine-Pass-1234"))

@@ -57,8 +57,12 @@
               <TextBlock Text="{app:T TwoFactorTitle}" FontWeight="SemiBold" />
               <TextBlock x:Name="TwoFactorHelp" Text="{app:T TwoFactorHelp}" TextWrapping="Wrap" Margin="0,4,0,8" />
               <TextBox x:Name="CodeBox" FontSize="18" MaxLength="12" />
-              <Button x:Name="EmailCodeButton" Content="{app:T SendEmailCode}" Visibility="Collapsed"
-                      HorizontalAlignment="Left" Margin="0,8,0,0" Click="EmailCodeButton_Click" />
+              <StackPanel Orientation="Horizontal">
+                <Button x:Name="EmailCodeButton" Content="{app:T SendEmailCode}" Visibility="Collapsed"
+                        HorizontalAlignment="Left" Margin="0,8,8,0" Click="EmailCodeButton_Click" />
+                <Button x:Name="SmsCodeButton" Content="{app:T SendSmsCode}" Visibility="Collapsed"
+                        HorizontalAlignment="Left" Margin="0,8,0,0" Click="SmsCodeButton_Click" />
+              </StackPanel>
             </StackPanel>
           </Border>
 

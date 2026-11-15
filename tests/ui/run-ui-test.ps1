@@ -34,12 +34,22 @@ $ok = $false
 for ($i = 0; $i -lt 30 -and -not $ok; $i++) { Start-Sleep 1; try { Invoke-WebRequest 'http://localhost:3000/.well-known/openid-configuration' -TimeoutSec 3 | Out-Null; $ok = $true } catch { } }
 if (-not $ok) { Get-Content (Join-Path $Work 'oidc.err') -Tail 20; throw 'the OIDC provider did not start' }
 
+Write-Host '== Mailbox for email and SMS codes'
+# Before MeshCentral, which sends to it: SMTP on 2525 and the "url" SMS gateway on 8025 (GET /read gives what arrived).
+# Antes que MeshCentral, que le manda: SMTP en 2525 y la pasarela de SMS «url» en 8025 (GET /read da lo recibido).
+$sinkProc = Start-Process node -ArgumentList (Join-Path $root 'tests\server\sink.mjs') -PassThru -NoNewWindow -RedirectStandardOutput (Join-Path $Work 'sink.log') -RedirectStandardError (Join-Path $Work 'sink.err')
+$ok = $false
+for ($i = 0; $i -lt 20 -and -not $ok; $i++) { Start-Sleep 1; try { Invoke-WebRequest 'http://localhost:8025/read' -TimeoutSec 3 | Out-Null; $ok = $true } catch { } }
+if (-not $ok) { throw 'the mailbox did not start' }
+
 Write-Host "== MeshCentral $MeshCentralVersion from npm"
 Push-Location $mc
 npm install --no-audit --no-fund --loglevel=error "meshcentral@$MeshCentralVersion" | Out-Host
 @'
 {
   "settings": { "cert": "mesh.test", "port": 4443, "redirPort": 0, "mpsPort": 0, "selfUpdate": false, "maxInvalidLogin": false, "agentDownloads": { "enabled": false } },
+  "smtp": { "host": "localhost", "port": 2525, "from": "mesh@mesh.test", "tls": false },
+  "sms": { "provider": "url", "url": "http://localhost:8025/sms?phone={{phone}}&msg={{message}}" },
   "domains": { "": { "title": "Test", "newAccounts": false, "sessionRecording": { "protocols": [1, 200] },
     "authStrategies": { "oidc": { "issuer": "http://localhost:3000",
       "client": { "client_id": "meshcentral-test", "client_secret": "test-secret-not-for-production" },
@@ -52,10 +62,13 @@ $m = 'node_modules\meshcentral'
 $agentCache = if ($env:MESHTEST_AGENT_CACHE) { $env:MESHTEST_AGENT_CACHE } else { Join-Path $Work 'agentcache' }
 node (Join-Path $root 'tests\server\fetch-agents.mjs') (Join-Path $m 'agents\agent-defaults.json') $data $agentCache MeshService64.exe
 if ($LASTEXITCODE -ne 0) { throw 'the Windows agent could not be supplied to MeshCentral' }
-node $m --createaccount admin --pass Admin-Pass-1234 --name Admin | Out-Host
+# With a mail server MeshCentral asks every account for a verified email to sign in: --email gives it.
+# Con servidor de correo MeshCentral pide a cada cuenta el correo verificado para entrar: --email se lo da.
+node $m --createaccount admin --pass Admin-Pass-1234 --name Admin --email admin@mesh.test | Out-Host
 node $m --adminaccount admin | Out-Host
-node $m --createaccount user --pass User-Pass-1234 --name User | Out-Host
-node $m --createaccount otp --pass Otp-Pass-1234 --name Otp | Out-Host
+node $m --createaccount user --pass User-Pass-1234 --name User --email user@mesh.test | Out-Host
+node $m --createaccount otp --pass Otp-Pass-1234 --name Otp --email otp@mesh.test | Out-Host
+node $m --createaccount mfa --pass Mfa-Pass-1234 --name Mfa --email mfa@mesh.test | Out-Host
 $server = Start-Process node -ArgumentList $m -PassThru -NoNewWindow -RedirectStandardOutput (Join-Path $Work 'mc.log') -RedirectStandardError (Join-Path $Work 'mc.err')
 Pop-Location
 
@@ -185,6 +198,7 @@ try {
   $env:MESHUI_EXE = $Exe
   $env:MESHUI_AGENT_PID = $agentProc.Id
   $env:MESHUI_SERVER = 'mesh.test:4443'
+  $env:MESHUI_SINK = 'http://localhost:8025'
   # The server's own certificate, for tests that use the core directly. / El certificado del servidor, para las pruebas que usan el núcleo directamente.
   $env:MESHUI_CERT_SHA256 = (New-Object System.Security.Cryptography.X509Certificates.X509Certificate2 (Join-Path $data 'webserver-cert-public.crt')).GetCertHashString('SHA256')
   $env:MESHUI_OTP_SECRET = $otp
@@ -201,7 +215,7 @@ finally {
   if (Test-Path $agentDowns) { Write-Host "AGENT CAME DOWN at: $((Get-Content $agentDowns) -join ', ')" } else { Write-Host 'agent never came down' }
   Get-ChildItem $agent | ForEach-Object { Write-Host "  agent file: $($_.Name) $($_.Length)" }
   Get-ChildItem $agent -Filter '*.log' | ForEach-Object { Write-Host "== $($_.Name)"; Get-Content $_.FullName -Tail 30 | ForEach-Object { "  agent| $_" } }
-  foreach ($p in @($agentProc, $server, $feedProc, $oidcProc)) { if ($p -and -not $p.HasExited) { Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue } }
+  foreach ($p in @($agentProc, $server, $feedProc, $oidcProc, $sinkProc)) { if ($p -and -not $p.HasExited) { Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue } }
   if ($sshStarted) {
     # What the SSH server logged, for when the SSH test fails. / Lo que apuntó el servidor SSH, por si falla su prueba.
     Get-WinEvent -LogName 'OpenSSH/Operational' -MaxEvents 30 -ErrorAction SilentlyContinue | Sort-Object TimeCreated | ForEach-Object { "  sshd| $($_.TimeCreated.ToString('HH:mm:ss')) $($_.Message)" }

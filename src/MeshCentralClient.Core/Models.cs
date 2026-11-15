@@ -20,6 +20,12 @@ public sealed record ServerInfo(string Name, string Domain, string? Version)
     /// <summary>The server's feature bits (serverinfo.features), as the website reads them. / Los bits de funciones del servidor.</summary>
     public long Features { get; init; }
 
+    /// <summary>Two-factor by email is offered: a mail server and not forbidden (webserver.js 0x00800000). / Se ofrece el doble factor por correo.</summary>
+    public bool EmailTwoFactorAllowed => (Features & 0x00800000) != 0;
+
+    /// <summary>Two-factor by SMS is offered: an SMS gateway and not forbidden (0x04000000). / Se ofrece el doble factor por SMS.</summary>
+    public bool SmsTwoFactorAllowed => (Features & 0x04000000) != 0;
+
     /// <summary>The server lets this account manage every device group (managealldevicegroups). / El servidor deja a esta cuenta gestionar todos los grupos.</summary>
     public bool ManageAllDeviceGroups { get; init; }
 }
@@ -36,7 +42,14 @@ public sealed record UserInfo(string Id, string Name, bool IsFullAdministrator)
         // The server sends a flag or a count instead of each secret (CloneSafeUser). / El servidor manda una marca o un número en vez de cada secreto.
         HasAuthenticator = o.Long("otpsecret") is > 0, HasBackupCodes = o.Long("otpkeys") is > 0, SecurityKeys = (int)(o.Long("otphkeys") ?? 0),
         HasOtherTwoFactor = o.Long("otpekey") is > 0 || o.Long("otpduo") is > 0 || o.Long("otpdev") is > 0 || o.Str("phone") is { Length: > 0 },
+        HasEmailTwoFactor = o.Long("otpekey") is > 0, Phone = o.Str("phone") is { Length: > 0 } p ? p : null,
     };
+
+    /// <summary>Codes by email at sign-in (otpekey). / Códigos por correo al entrar.</summary>
+    public bool HasEmailTwoFactor { get; init; }
+
+    /// <summary>The verified phone for SMS codes, as the server shows it. / El teléfono verificado para los códigos por SMS.</summary>
+    public string? Phone { get; init; }
 
     private static DateTimeOffset? Seconds(long? s) => s is > 0 ? DateTimeOffset.FromUnixTimeSeconds(s.Value) : null;
 
@@ -226,3 +239,6 @@ internal static class JsonExtensions
         return map;
     }
 }
+
+/// <summary>A phone being verified: the server sent it a code by SMS and keeps this cookie. / Un teléfono a verificar.</summary>
+public sealed record PhoneCheck(string Phone, string Cookie);

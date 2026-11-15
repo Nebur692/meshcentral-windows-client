@@ -19,6 +19,7 @@ public partial class MainWindow : Window
     private CancellationTokenSource? _connectCts;
     private UserError? _shownError;
     private bool _emailCodeAvailable;
+    private bool _smsCodeAvailable;
     private readonly List<Window> _sessionWindows = new();
     private static readonly Version AppVersion = typeof(MainWindow).Assembly.GetName().Version ?? new Version(0, 0, 0);
     private AvailableUpdate? _update;
@@ -280,6 +281,8 @@ public partial class MainWindow : Window
 
     private async void EmailCodeButton_Click(object sender, RoutedEventArgs e) => await ConnectAsync(emailCode: true);
 
+    private async void SmsCodeButton_Click(object sender, RoutedEventArgs e) => await ConnectAsync(smsCode: true);
+
     private void ForgetButton_Click(object sender, RoutedEventArgs e)
     {
         if (ServerBox.SelectedItem is not SavedServer s) return;
@@ -293,7 +296,7 @@ public partial class MainWindow : Window
         ForgetButton.Visibility = Visibility.Collapsed;
     }
 
-    private async Task ConnectAsync(bool emailCode = false)
+    private async Task ConnectAsync(bool emailCode = false, bool smsCode = false)
     {
         HideError();
         if (!ServerAddress.TryParse(ServerBox.Text, out var address))
@@ -305,8 +308,8 @@ public partial class MainWindow : Window
         var user = UserBox.Text.Trim();
         var password = PasswordBox.Password;
         // No password: single sign-on. A password login always needs one. / Sin contraseña: inicio único. Entrar con contraseña siempre la necesita.
-        if (password.Length == 0 && !emailCode && TwoFactorPanel.Visibility != Visibility.Visible) { await SignInWithSsoAsync(null); return; }
-        var code = emailCode ? "**email**" : (TwoFactorPanel.Visibility == Visibility.Visible ? CodeBox.Text.Trim() : null);
+        if (password.Length == 0 && !emailCode && !smsCode && TwoFactorPanel.Visibility != Visibility.Visible) { await SignInWithSsoAsync(null); return; }
+        var code = emailCode ? "**email**" : smsCode ? "**sms**" : (TwoFactorPanel.Visibility == Visibility.Visible ? CodeBox.Text.Trim() : null);
         if (code is { Length: 0 }) code = null;
         var key = address!.ToString();
 
@@ -341,7 +344,7 @@ public partial class MainWindow : Window
         }
         catch (MeshClientException ex) when (ex.Failure == MeshFailure.TwoFactorRequired)
         {
-            ShowTwoFactor(ex.EmailCodeAvailable, ex.EmailCodeSent);
+            ShowTwoFactor(ex.EmailCodeAvailable, ex.EmailCodeSent, ex.SmsCodeAvailable, ex.SmsCodeSent);
         }
         catch (MeshClientException ex)
         {
@@ -366,12 +369,14 @@ public partial class MainWindow : Window
         ServerBox.IsEnabled = UserBox.IsEnabled = PasswordBox.IsEnabled = !busy;
     }
 
-    private void ShowTwoFactor(bool emailAvailable, bool emailSent)
+    private void ShowTwoFactor(bool emailAvailable, bool emailSent, bool smsAvailable = false, bool smsSent = false)
     {
         _emailCodeAvailable |= emailAvailable;
+        _smsCodeAvailable |= smsAvailable;
         TwoFactorPanel.Visibility = Visibility.Visible;
-        TwoFactorHelp.Text = L.T(emailSent ? "TwoFactorEmailSent" : "TwoFactorHelp");
+        TwoFactorHelp.Text = L.T(emailSent ? "TwoFactorEmailSent" : smsSent ? "TwoFactorSmsSent" : _emailCodeAvailable || _smsCodeAvailable ? "TwoFactorHelpAny" : "TwoFactorHelp");
         EmailCodeButton.Visibility = _emailCodeAvailable ? Visibility.Visible : Visibility.Collapsed;
+        SmsCodeButton.Visibility = _smsCodeAvailable ? Visibility.Visible : Visibility.Collapsed;
         CodeBox.Text = "";
         CodeBox.Focus();
     }
@@ -379,6 +384,7 @@ public partial class MainWindow : Window
     private void HideTwoFactor()
     {
         _emailCodeAvailable = false;
+        _smsCodeAvailable = false;
         TwoFactorPanel.Visibility = Visibility.Collapsed;
         CodeBox.Text = "";
     }

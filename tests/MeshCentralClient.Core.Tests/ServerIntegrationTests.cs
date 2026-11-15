@@ -155,8 +155,8 @@ public class ServerIntegrationTests(ITestOutputHelper output)
     {
         await using var admin = await As("admin", "Admin-Pass-1234");
         var t = Tag();
-        var oneId = await admin.CreateUserAsync(new("uno" + t, "Uno-Pass-1234"));
-        var twoId = await admin.CreateUserAsync(new("dos" + t, "Dos-Pass-1234"));
+        var oneId = await admin.CreateUserAsync(new("uno" + t, "Uno-Pass-1234", $"uno{t}@mesh.test", EmailVerified: true));
+        var twoId = await admin.CreateUserAsync(new("dos" + t, "Dos-Pass-1234", $"dos{t}@mesh.test", EmailVerified: true));
         try
         {
             await using var one = await As("uno" + t, "Uno-Pass-1234");

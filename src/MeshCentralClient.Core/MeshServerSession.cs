@@ -392,6 +392,7 @@ public sealed partial class MeshServerSession : IAsyncDisposable
             EmailCodeAvailable = close.Bool("email2fa"),
             SmsCodeAvailable = close.Bool("sms2fa"),
             EmailCodeSent = close.Bool("email2fasent"),
+            SmsCodeSent = close.Bool("sms2fasent"),
         };
         return (cause, msg) switch
         {

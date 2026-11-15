@@ -1970,6 +1970,26 @@
       "titulo": "La dirección no vale",
       "explicacion": "La dirección de un equipo sin agente debe ser un nombre o una IP de 1 a 256 caracteres, sin espacios.",
       "que_hacer": "Escribir el nombre o la IP con la que el servidor llega al equipo."
+    },
+    {
+      "modulo": "usuarios",
+      "accion": "cambiar-ajustes",
+      "causa": "no-autorizado",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "El servidor no ofrece eso",
+      "explicacion": "Este servidor no tiene códigos por correo o por SMS (le falta el servidor de correo o la pasarela de SMS, o los tiene prohibidos).",
+      "que_hacer": "Pedírselo a quien administra el servidor, o usar una app de autenticación."
+    },
+    {
+      "modulo": "usuarios",
+      "accion": "cambiar-ajustes",
+      "causa": "falta-dato",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "A la cuenta le falta el correo",
+      "explicacion": "Los códigos por correo necesitan que la cuenta tenga un correo.",
+      "que_hacer": "Pedir a un administrador que ponga el correo de la cuenta."
     }
   ]
 }

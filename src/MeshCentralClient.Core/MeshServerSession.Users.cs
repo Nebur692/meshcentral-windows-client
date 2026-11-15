@@ -70,8 +70,11 @@ public sealed class UserGroupChangedEventArgs(UserChangeKind kind, string groupI
 }
 
 /// <summary>A new account. / Una cuenta nueva.</summary>
+/// <param name="EmailVerified">The email is already known to be theirs, as the website's "Email verified" box: with a mail
+/// server, MeshCentral asks for a verified email to sign in. / El correo ya se sabe suyo, como la casilla de la web: con
+/// servidor de correo, MeshCentral pide el correo verificado para entrar.</param>
 public sealed record NewUser(string UserName, string Password, string? Email = null, string? RealName = null,
-    long? SiteRights = null, bool MustChangePassword = false);
+    long? SiteRights = null, bool MustChangePassword = false, bool EmailVerified = false);
 
 /// <summary>One of the ten backup codes; each works once. / Uno de los diez códigos de respaldo; cada uno sirve una vez.</summary>
 public sealed record BackupCode(string Code, bool Used);
@@ -189,7 +192,7 @@ public sealed partial class MeshServerSession
         if (n.SiteRights is long sr && !CanGiveNewUserRights(User, sr))
             throw UserError("usuarios/gestionar-usuarios/no-autorizado", "Only a full administrator gives those server rights.");
         var cmd = new JsonObject { ["action"] = "adduser", ["username"] = name, ["pass"] = n.Password, ["resetNextLogin"] = n.MustChangePassword };
-        if (!string.IsNullOrWhiteSpace(n.Email)) cmd["email"] = n.Email.Trim();
+        if (!string.IsNullOrWhiteSpace(n.Email)) { cmd["email"] = n.Email.Trim(); if (n.EmailVerified) cmd["emailVerified"] = true; }
         if (!string.IsNullOrWhiteSpace(n.RealName)) cmd["realname"] = n.RealName.Trim();
         if (n.SiteRights is long rights) cmd["siteadmin"] = rights;
         var r = await AnsweredRequest(cmd, "usuarios/gestionar-usuarios/tiempo-agotado", "usuarios/gestionar-usuarios/conexion-cortada", ct).ConfigureAwait(false);
@@ -426,6 +429,69 @@ public sealed partial class MeshServerSession
 
     /// <summary>The server never answers otp-hkey-remove: confirmed by its "Removed security key" event.
     /// El servidor nunca contesta: se confirma con su aviso «Removed security key».</summary>
+    // ------------------------------------------------------------------ email and SMS / correo y SMS (the same as the Android app's)
+
+    private bool OwnAccountEvent(JsonObject e, long msgid) => e.Str("action") == "accountchange" && e.Long("msgid") == msgid && e["account"] is JsonObject a && a.Str("_id") == User.Id;
+
+    /// <summary>Codes by email at sign-in on or off (otpemail), as the website's "Email verification". The server must offer
+    /// it and the account have an email. / Códigos por correo al entrar, sí o no. El servidor tiene que ofrecerlo y la cuenta tener correo.</summary>
+    public async Task SetEmailTwoFactorAsync(bool enabled, CancellationToken ct = default)
+    {
+        CheckOwnSettings();
+        if (!ServerInfo.EmailTwoFactorAllowed) throw UserError("usuarios/cambiar-ajustes/no-autorizado", "This server does not offer codes by email.");
+        if (enabled && string.IsNullOrEmpty(User.Email)) throw UserError("usuarios/cambiar-ajustes/falta-dato", "This account has no email for the codes.");
+        if (User.HasEmailTwoFactor == enabled) return;
+        var r = await RequestAsync(new JsonObject { ["action"] = "otpemail", ["enabled"] = enabled }, o => o.Str("action") == "otpemail",
+            "usuarios/cambiar-ajustes/tiempo-agotado", "usuarios/cambiar-ajustes/conexion-cortada", ct).ConfigureAwait(false);
+        if (!r.Bool("success")) throw UserError("usuarios/cambiar-ajustes/rechazo-remoto", "The server did not change the codes by email.");
+        User = User with { HasEmailTwoFactor = enabled, HasOtherTwoFactor = enabled || User.HasOtherTwoFactor || User.Phone is not null };
+    }
+
+    /// <summary>What MeshCentral takes as a phone: an optional +, then 10 or more digits, spaces, dashes or dots. / Lo que admite como teléfono.</summary>
+    public static bool ValidPhone(string phone)
+    {
+        var p = phone.Trim().TrimStart('+');
+        return p.Length is >= 10 and <= 17 && p.All(c => char.IsAsciiDigit(c) || c is ' ' or '-' or '.');
+    }
+
+    /// <summary>Sends a code by SMS to the phone (verifyPhone); then <see cref="ConfirmPhoneAsync"/> with it.
+    /// Manda un código por SMS al teléfono; luego se confirma con él.</summary>
+    public async Task<PhoneCheck> StartPhoneAsync(string phone, CancellationToken ct = default)
+    {
+        CheckOwnSettings();
+        if (!ServerInfo.SmsTwoFactorAllowed) throw UserError("usuarios/cambiar-ajustes/no-autorizado", "This server does not send SMS.");
+        if (!ValidPhone(phone)) throw UserError("usuarios/cambiar-ajustes/dato-invalido", $"\"{phone}\" is not a phone number (+ and 10 digits or more).");
+        var r = await RequestAsync(new JsonObject { ["action"] = "verifyPhone", ["phone"] = phone.Trim() }, o => o.Str("action") == "verifyPhone",
+            "usuarios/cambiar-ajustes/tiempo-agotado", "usuarios/cambiar-ajustes/conexion-cortada", ct).ConfigureAwait(false);
+        if (!r.Bool("success") || r.Str("cookie") is not { } cookie) throw UserError("usuarios/cambiar-ajustes/error-remoto", "The server could not send the SMS.");
+        return new PhoneCheck(phone.Trim(), cookie);
+    }
+
+    /// <summary>Confirms the phone with the code it got. A right code is answered only by the account's event (msgid 96); a
+    /// wrong one by verifyPhone again, 2 to 6 s later. / Un código bueno solo lo contesta el aviso de la cuenta; uno malo, verifyPhone otra vez.</summary>
+    public async Task ConfirmPhoneAsync(PhoneCheck check, string code, CancellationToken ct = default)
+    {
+        CheckOwnSettings();
+        var digits = new string(code.Where(char.IsAsciiDigit).ToArray());
+        if (digits.Length != 6) throw UserError("usuarios/cambiar-ajustes/dato-invalido", "The code has 6 digits.");
+        var r = await RequestAsync(new JsonObject { ["action"] = "confirmPhone", ["cookie"] = check.Cookie, ["code"] = digits },
+            o => (o.Str("action") == "event" && o["event"] is JsonObject e && OwnAccountEvent(e, 96)) || (o.Str("action") == "verifyPhone" && o.Str("cookie") == check.Cookie),
+            "usuarios/cambiar-ajustes/tiempo-agotado", "usuarios/cambiar-ajustes/conexion-cortada", ct, TimeSpan.FromSeconds(Math.Max(Timeout.TotalSeconds, 10))).ConfigureAwait(false);
+        if (r.Str("action") != "event")
+            throw new MeshClientException(MeshFailure.InvalidTwoFactorCode, "usuarios/cambiar-ajustes/credencial-invalida", "That code is not the one sent by SMS.");
+        User = User with { Phone = check.Phone, HasOtherTwoFactor = true };
+    }
+
+    /// <summary>Removes the phone (removePhone); confirmed by the account's event (msgid 97). / Quita el teléfono; lo confirma su aviso.</summary>
+    public async Task RemovePhoneAsync(CancellationToken ct = default)
+    {
+        CheckOwnSettings();
+        if (User.Phone is null) return;
+        await ConfirmedByEvent(new JsonObject { ["action"] = "removePhone" }, e => OwnAccountEvent(e, 97),
+            "usuarios/cambiar-ajustes/tiempo-agotado", "usuarios/cambiar-ajustes/conexion-cortada", ct).ConfigureAwait(false);
+        User = User with { Phone = null };
+    }
+
     public async Task RemoveSecurityKeyAsync(SecurityKey key, CancellationToken ct = default)
     {
         CheckOwnSettings();

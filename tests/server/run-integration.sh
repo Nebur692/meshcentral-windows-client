@@ -14,12 +14,12 @@ HERE="$ROOT/tests/server"
 MESH_IMAGE=${MESH_IMAGE:-ghcr.io/ylianst/meshcentral:latest}
 SDK_IMAGE=${SDK_IMAGE:-mcr.microsoft.com/dotnet/sdk:10.0}
 ID=$$
-NET=mctest-net-$ID; SRV=mctest-srv-$ID; AGENT=mctest-agent-$ID; OIDC=mctest-oidc-$ID; SSHD=mctest-ssh-$ID
+NET=mctest-net-$ID; SRV=mctest-srv-$ID; AGENT=mctest-agent-$ID; OIDC=mctest-oidc-$ID; SSHD=mctest-ssh-$ID; SINK=mctest-sink-$ID
 WORK=${1:-$(mktemp -d)}
 mkdir -p "$WORK"
 
 cleanup() {
-  docker stop "$AGENT" "$SRV" "$OIDC" "$SSHD" >/dev/null 2>&1 || true
+  docker stop "$AGENT" "$SRV" "$OIDC" "$SSHD" "$SINK" >/dev/null 2>&1 || true
   # The agent is not --rm, so its state survives a crash: removed here by name.
   # El agente no es --rm, para que su estado sobreviva a una caída: se borra aquí por su nombre.
   docker rm -f "$AGENT" >/dev/null 2>&1 || true
@@ -48,7 +48,9 @@ docker run -d --rm --name "$OIDC" --network "$NET" --cpus 0.5 --memory 256m -e I
 for _ in $(seq 1 60); do logged "$OIDC" "oidc ready" && break; sleep 2; done
 logged "$OIDC" "oidc ready" || { echo "the OIDC provider did not start / el proveedor OIDC no arrancó" >&2; docker logs "$OIDC" >&2; exit 1; }
 
-OIDC_ISSUER="http://$OIDC:3000" "$HERE/start-test-server.sh" "$SRV" "$WORK/meshdata" "$NET" "$MESH_IMAGE" >/dev/null
+# The mailbox for email and SMS codes (sink.mjs), before the server that sends to it. / El buzón de correo y SMS, antes que el servidor.
+docker run -d --rm --name "$SINK" --network "$NET" --cpus 0.25 --memory 128m -v "$HERE/sink.mjs:/sink.mjs:ro" node:22-alpine node /sink.mjs >/dev/null
+SINK_HOST="$SINK" OIDC_ISSUER="http://$OIDC:3000" "$HERE/start-test-server.sh" "$SRV" "$WORK/meshdata" "$NET" "$MESH_IMAGE" >/dev/null
 SRV_IP=$(docker inspect "$SRV" --format "{{(index .NetworkSettings.Networks \"$NET\").IPAddress}}")
 read -r OTP GROUP < <(docker exec -i "$SRV" node - < "$HERE/setup-test-data.js")
 [ -n "${OTP:-}" ] && [ -n "${GROUP:-}" ]
@@ -83,7 +85,7 @@ echo "server $SRV · agent $AGENT · cert ${CERT:0:16}…"
 docker run --rm --network "$NET" --add-host "mesh.test:$SRV_IP" --cpus 2 --memory 3g --user "$(id -u):$(id -g)" \
   -e HOME=/tmp -e DOTNET_CLI_HOME=/tmp -e NUGET_PACKAGES=/tmp/nuget -e DOTNET_NOLOGO=1 -e DOTNET_CLI_TELEMETRY_OPTOUT=1 \
   -e MESHTEST_FILTER="${MESHTEST_FILTER:-}" -e MESHTEST_URL="https://mesh.test/" -e MESHTEST_CERT_SHA256="$CERT" -e MESHTEST_OTP_SECRET="$OTP" -e MESHTEST_GROUP_ID="$GROUP" \
-  -e MESHTEST_SSH_HOST="$SSHD" -e MESHTEST_SSH_DIR=/work/ssh -e MESHTEST_AGENT_ONLY_HOST=solo-agente \
+  -e MESHTEST_SSH_HOST="$SSHD" -e MESHTEST_SSH_DIR=/work/ssh -e MESHTEST_AGENT_ONLY_HOST=solo-agente -e MESHTEST_SINK="http://$SINK:8025" \
   -v "$ROOT:/src" -v "$WORK:/work" -w /src "$SDK_IMAGE" \
   sh -c 't() { dotnet test tests/MeshCentralClient.Core.Tests --nologo -v q "$@" --results-directory /work/results --artifacts-path /tmp/artifacts; }
          if [ -n "$MESHTEST_FILTER" ]; then t --filter "$MESHTEST_FILTER" --logger "console;verbosity=detailed"; exit; fi

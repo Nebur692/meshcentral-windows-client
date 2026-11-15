@@ -289,7 +289,7 @@ public sealed class UsersWindow : Window
     private Task NewUser() => Run(async () =>
     {
         if (UserForm.Ask(this, _session.User, null) is not { } f) return null;
-        var id = await _session.CreateUserAsync(new(f.UserName, f.Password!, f.Email, f.RealName, f.SiteRights, f.MustChangePassword));
+        var id = await _session.CreateUserAsync(new(f.UserName, f.Password!, f.Email, f.RealName, f.SiteRights, f.MustChangePassword, f.EmailVerified));
         await ReloadUsers(id);
         return L.F("UserCreated", f.UserName);
     });
@@ -383,7 +383,7 @@ public sealed class UsersWindow : Window
 /// <summary>A new account, or the editable parts of one. / Una cuenta nueva, o lo que se puede cambiar de una.</summary>
 public static class UserForm
 {
-    public sealed record Result(string UserName, string? Password, string? Email, string? RealName, long SiteRights, bool MustChangePassword);
+    public sealed record Result(string UserName, string? Password, string? Email, string? RealName, long SiteRights, bool MustChangePassword, bool EmailVerified = false);
 
     public static Result? Ask(Window owner, UserInfo me, UserInfo? existing)
     {
@@ -394,6 +394,9 @@ public static class UserForm
         var email = new TextBox { Text = existing?.Email ?? "", MaxLength = 1024, Margin = new Thickness(0, 4, 0, 10) };
         var realName = new TextBox { Text = existing?.RealName ?? "", MaxLength = 256, Margin = new Thickness(0, 4, 0, 10) };
         var mustChange = new CheckBox { Content = L.T("MustChangePassword"), Margin = new Thickness(0, 0, 0, 10) };
+        // As the website's "Email verified": with a mail server the account cannot sign in until its email is checked.
+        // Como «Correo verificado» de la web: con servidor de correo la cuenta no entra hasta comprobar su correo.
+        var verified = new CheckBox { Content = L.T("EmailVerifiedBox"), Margin = new Thickness(0, 0, 0, 10), IsChecked = true };
         var error = new TextBlock { Foreground = System.Windows.Media.Brushes.Firebrick, TextWrapping = TextWrapping.Wrap };
         var current = existing?.SiteRights ?? 0;
         var full = new CheckBox { Content = L.T("SiteFull"), IsChecked = current == (long)SiteRight.FullAdministrator, Margin = new Thickness(0, 2, 0, 2) };
@@ -421,7 +424,7 @@ public static class UserForm
 
         var ok = new Button { Content = L.T("Ok"), IsDefault = true, MinWidth = 90, Margin = new Thickness(0, 0, 8, 0) };
         var cancel = new Button { Content = L.T("Cancel"), IsCancel = true, MinWidth = 90 };
-        foreach (var (e, id) in new (FrameworkElement, string)[] { (userName, "UserNameBox"), (pass, "UserPasswordBox"), (repeat, "UserRepeatBox"), (email, "UserEmailBox"), (realName, "UserRealNameBox"), (mustChange, "MustChangeBox"), (ok, "UserFormOk") })
+        foreach (var (e, id) in new (FrameworkElement, string)[] { (userName, "UserNameBox"), (pass, "UserPasswordBox"), (repeat, "UserRepeatBox"), (email, "UserEmailBox"), (realName, "UserRealNameBox"), (mustChange, "MustChangeBox"), (verified, "EmailVerifiedBox"), (ok, "UserFormOk") })
             AP.SetAutomationId(e, id);
         // Two fixed columns: a wrap panel made a third one that the dialog cut off (CI screenshot 08-11).
         // Dos columnas fijas: un panel que se reparte solo hizo una tercera que el diálogo cortaba.
@@ -438,6 +441,7 @@ public static class UserForm
             form.Children.Add(mustChange);
         }
         form.Children.Add(new TextBlock { Text = L.T("UserFormEmail") }); form.Children.Add(email);
+        if (isNew) form.Children.Add(verified);
         form.Children.Add(new TextBlock { Text = L.T("UserFormRealName") }); form.Children.Add(realName);
         form.Children.Add(new TextBlock { Text = L.T("SiteRightsSection"), FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 4, 0, 4) });
         form.Children.Add(rights);
@@ -454,7 +458,8 @@ public static class UserForm
         {
             if (isNew && (userName.Text.Trim().Length == 0 || pass.Password.Length == 0)) { error.Text = L.T("UserFormUserName"); return; }
             if (isNew && pass.Password != repeat.Password) { error.Text = L.T("PasswordsDiffer"); return; }
-            result = new(userName.Text.Trim(), isNew ? pass.Password : null, email.Text.Trim(), realName.Text.Trim(), Chosen(), mustChange.IsChecked == true);
+            result = new(userName.Text.Trim(), isNew ? pass.Password : null, email.Text.Trim(), realName.Text.Trim(), Chosen(), mustChange.IsChecked == true,
+                isNew && verified.IsChecked == true);
             w.Close();
         };
         w.Loaded += (_, _) => (isNew ? userName : (Control)email).Focus();

@@ -51,4 +51,6 @@ public sealed class MeshClientException : Exception
     public bool EmailCodeAvailable { get; init; }
     public bool SmsCodeAvailable { get; init; }
     public bool EmailCodeSent { get; init; }
+    /// <summary>The server has just sent the code by SMS. / El servidor acaba de mandar el código por SMS.</summary>
+    public bool SmsCodeSent { get; init; }
 }

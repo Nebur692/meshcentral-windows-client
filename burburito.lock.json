@@ -1,5 +1,5 @@
 {
-  "generado": "2026-11-15T19:28:01Z",
+  "generado": "2026-11-15T21:47:36Z",
   "aviso": "Generado por bin/burburito. No editar a mano: la fuente de verdad es el burburito.json de al lado.",
   "proyecto": {
     "id": 35,
@@ -990,6 +990,18 @@
       "severidad": "aviso",
       "actuar": false,
       "titulo": "Los ajustes de tu cuenta están bloqueados"
+    },
+    "usuarios/cambiar-ajustes/no-autorizado": {
+      "codigo": "035-011-007-046",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "El servidor no ofrece eso"
+    },
+    "usuarios/cambiar-ajustes/falta-dato": {
+      "codigo": "035-011-007-060",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "A la cuenta le falta el correo"
     },
     "usuarios/cambiar-ajustes/dato-invalido": {
       "codigo": "035-011-007-061",
