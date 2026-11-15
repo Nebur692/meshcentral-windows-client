@@ -663,6 +663,8 @@ public partial class MainWindow : Window
         PowerMenu.IsEnabled = abilities.Any(a => a.Power);
         SendMessageItem.IsEnabled = abilities.Any(a => a.Notify || a.MessageBox);
         RunCommandsItem.IsEnabled = abilities.Any(a => a.RunCommands);
+        ChatItem.IsEnabled = row is not null && _session is { } cs && (cs.RightsOn(row.Device) & (long)MeshRights.ChatNotify) != 0 && row.Device.HasAgent;
+        UpdateAgentItem.IsEnabled = _session is { } us && SelectedDevices().Any(us.CanUpdateAgent);
         MoveToGroupItem.IsEnabled = MoveTargets(SelectedDevices()).Count > 0;
     }
 
@@ -831,6 +833,37 @@ public partial class MainWindow : Window
         catch (MeshClientException ex) { ErrorWindow.Show(this, UserError.From(ex, s.ServerInfo.Version)); }
     }
 
+    /// <summary>A chat with the person at the device (the right-clicked one). / Un chat con la persona del equipo.</summary>
+    private void Chat_Click(object sender, RoutedEventArgs e)
+    {
+        if (DeviceList.SelectedItem is not DeviceRow row || _session is not { } s) return;
+        var w = new ChatWindow(s, row.Device);
+        _sessionWindows.Add(w);
+        w.Closed += (_, _) => _sessionWindows.Remove(w);
+        w.Show();
+    }
+
+    /// <summary>Asks the selected agents to update and shows what each one said. / Pide actualizar y enseña lo que dijo cada agente.</summary>
+    private async void UpdateAgent_Click(object sender, RoutedEventArgs e)
+    {
+        if (_session is not { } s) return;
+        var all = SelectedDevices();
+        var can = all.Where(s.CanUpdateAgent).ToList();
+        var skipped = all.Except(can).Select(d => d.Name).ToList();
+        if (can.Count == 0) { ActionStatus.Text = L.T("NoneCanUpdateAgent"); return; }
+        if (MessageBox.Show(this, L.F("ConfirmUpdateAgent", can.Count, string.Join(", ", can.Select(d => d.Name))), L.T("UpdateAgentItem"),
+                MessageBoxButton.YesNo, MessageBoxImage.Warning, MessageBoxResult.No) != MessageBoxResult.Yes) return;
+        try
+        {
+            var said = await s.UpdateAgentsAsync(can);
+            Status(L.F("UpdateAgentSent", can.Count), skipped);
+            // Silence is not failure: an agent that updates restarts and connects again without a word. / Callar no es fallar.
+            var text = string.Join(Environment.NewLine + Environment.NewLine, can.Select(d => $"{d.Name}{Environment.NewLine}{said.GetValueOrDefault(d.Id) ?? L.T("UpdateAgentSilent")}"));
+            MessageBox.Show(this, text, L.T("UpdateAgentAnswers"), MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+        catch (MeshClientException ex) { ErrorWindow.Show(this, UserError.From(ex, s.ServerInfo.Version)); }
+    }
+
     private void RunCommands_Click(object sender, RoutedEventArgs e)
     {
         if (_session is not { } s) return;
@@ -856,6 +889,8 @@ public partial class MainWindow : Window
     private ServerWindow? _serverWindow;
 
     private ContextMenu? _serverMenu;
+    private MenuItem? _recordingsItem;
+    private RecordingsWindow? _recordingsWindow;
     private MenuItem? _serverStateItem;
 
     /// <summary>One menu, made once: a new one on every click left old copies of its items for UI Automation to find (CI 08-11).
@@ -877,9 +912,11 @@ public partial class MainWindow : Window
             Item("EventsItem", s => OpenOnce(ref _eventsWindow, () => new EventsWindow(s, NamesFor(s))));
             Item("ReportsItem", s => OpenOnce(ref _reportsWindow, () => new ReportsWindow(s, NamesFor(s))));
             _serverStateItem = Item("ServerStateItem", s => OpenOnce(ref _serverWindow, () => new ServerWindow(s)));
+            _recordingsItem = Item("RecordingsItem", s => OpenOnce(ref _recordingsWindow, () => new RecordingsWindow(s, NamesFor(s))));
         }
         // Only for the administrators the server shows its state to. / Solo para los administradores a los que el servidor enseña su estado.
         _serverStateItem!.IsEnabled = _session.CanSeeServer;
+        _recordingsItem!.IsEnabled = _session.CanSeeRecordings;
         _serverMenu.IsOpen = true;
     }
 

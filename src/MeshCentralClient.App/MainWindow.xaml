@@ -161,7 +161,9 @@
                 <MenuItem x:Name="SleepItem" Header="{app:T SleepItem}" Click="Sleep_Click" />
               </MenuItem>
               <MenuItem x:Name="SendMessageItem" Header="{app:T SendMessageItem}" Click="SendMessage_Click" />
+              <MenuItem x:Name="ChatItem" Header="{app:T ChatItem}" Click="Chat_Click" />
               <MenuItem x:Name="RunCommandsItem" Header="{app:T RunCommandsItem}" Click="RunCommands_Click" />
+              <MenuItem x:Name="UpdateAgentItem" Header="{app:T UpdateAgentItem}" Click="UpdateAgent_Click" />
               <MenuItem x:Name="MoveToGroupItem" Header="{app:T MoveToGroupItem}" Click="MoveToGroup_Click" />
               <Separator />
               <MenuItem Header="{app:T OpenInBrowser}" Click="OpenInBrowser_Click" />

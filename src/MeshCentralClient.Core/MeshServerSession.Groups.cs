@@ -319,6 +319,10 @@ public sealed partial class MeshServerSession
                 // It carries name, desc, mtype and links, not the whole group. / Trae nombre, descripción, tipo y enlaces, no el grupo entero.
                 var changed = DeviceGroup.From(e);
                 if (_groups.GetValueOrDefault(id) is { } old && e["links"] is null) changed = changed with { Links = old.Links, Members = old.Members };
+                // expireDevs comes only when this very edit set it (meshuser.js: command.expireDevs): otherwise the days stay.
+                // expireDevs solo llega si esta misma edición lo puso: si no, los días se quedan.
+                if (_groups.GetValueOrDefault(id) is { } before && e["expireDevs"] is null)
+                    changed = changed with { Settings = changed.Settings with { RemoveInactiveDays = before.Settings.RemoveInactiveDays } };
                 // Losing every right on it hides it, as on the website. / Si se pierden todos los permisos, desaparece, como en la web.
                 var visible = GroupRights(User, ServerInfo, changed) != 0 || ServerInfo.ManageAllDeviceGroups;
                 var groups = new Dictionary<string, DeviceGroup>(_groups);

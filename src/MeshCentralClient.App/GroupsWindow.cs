@@ -43,6 +43,8 @@ public sealed class GroupsWindow : Window
     private readonly Button _new = new() { Content = L.T("NewGroup"), Margin = new Thickness(0, 8, 0, 0), HorizontalAlignment = HorizontalAlignment.Stretch };
     private readonly Button _edit = new() { Content = L.T("EditGroup"), MinWidth = 100, Margin = new Thickness(0, 0, 8, 0) };
     private readonly Button _delete = new() { Content = L.T("DeleteGroup"), MinWidth = 100 };
+    private readonly Button _settings = new() { Content = L.T("GroupSettings"), MinWidth = 100, Margin = new Thickness(8, 0, 0, 0) };
+    private readonly TextBlock _summary = new() { Opacity = 0.65, Margin = new Thickness(0, 4, 0, 0), TextWrapping = TextWrapping.Wrap };
     private readonly ListView _members = new() { MinHeight = 90, MaxHeight = 220, Margin = new Thickness(0, 4, 0, 6) };
     private readonly Button _addUsers = new() { Content = L.T("AddUsers"), MinWidth = 100, Margin = new Thickness(0, 0, 8, 0) };
     private readonly Button _addUserGroup = new() { Content = L.T("AddUserGroup"), MinWidth = 150, Margin = new Thickness(0, 0, 8, 0) };
@@ -82,7 +84,7 @@ public sealed class GroupsWindow : Window
         WindowStartupLocation = WindowStartupLocation.CenterScreen;
         foreach (var (e, id) in new (FrameworkElement, string)[]
         {
-            (this, "GroupsWindow"), (_groups, "GroupList"), (_new, "NewGroupButton"), (_edit, "EditGroupButton"), (_delete, "DeleteGroupButton"),
+            (this, "GroupsWindow"), (_groups, "GroupList"), (_new, "NewGroupButton"), (_edit, "EditGroupButton"), (_delete, "DeleteGroupButton"), (_settings, "GroupSettingsButton"), (_summary, "GroupSettingsSummary"),
             (_name, "GroupNameText"), (_desc, "GroupDescText"), (_members, "MemberList"), (_addUsers, "AddUsersButton"), (_addUserGroup, "AddUserGroupButton"), (_changeRights, "ChangeRightsButton"),
             (_removeUser, "RemoveUserButton"), (_mode, "InstallMode"), (_expiry, "InviteExpiry"), (_createInvite, "CreateInviteButton"), (_invite, "InviteLinkBox"),
             (_copyInvite, "CopyInviteButton"), (_platform, "AgentPlatform"), (_download, "DownloadAgentButton"), (_linux, "LinuxCommandBox"),
@@ -116,7 +118,8 @@ public sealed class GroupsWindow : Window
         _detail.Children.Add(_name);
         _detail.Children.Add(_desc);
         _detail.Children.Add(_facts);
-        _detail.Children.Add(Row(_edit, _delete));
+        _detail.Children.Add(_summary);
+        _detail.Children.Add(Row(_edit, _delete, _settings));
         _detail.Children.Add(Section("UsersSection"));
         _detail.Children.Add(_members);
         _detail.Children.Add(Row(_addUsers, _addUserGroup, _changeRights, _removeUser));
@@ -151,6 +154,7 @@ public sealed class GroupsWindow : Window
         _new.Click += async (_, _) => await NewGroup();
         _edit.Click += async (_, _) => await EditGroup();
         _delete.Click += async (_, _) => await DeleteGroup();
+        _settings.Click += async (_, _) => await EditSettings();
         _addUsers.Click += async (_, _) => await AddUsers();
         _addUserGroup.Click += async (_, _) => await AddUserGroup();
         _changeRights.Click += async (_, _) => await ChangeRights();
@@ -202,6 +206,8 @@ public sealed class GroupsWindow : Window
         };
         _facts.Text = $"{L.T(kind)} · {L.F("GroupDevices", _deviceCount(g.Id))}";
         _edit.IsEnabled = can.Edit;
+        _settings.IsEnabled = can.Edit;
+        _summary.Text = GroupSettingsWindow.Summary(g.Settings, _session.ServerInfo);
         _delete.IsEnabled = can.Delete;
         var memberId = (_members.SelectedItem as MemberItem)?.Member.Id;
         _members.Items.Clear();
@@ -244,6 +250,16 @@ public sealed class GroupsWindow : Window
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { ErrorWindow.Show(this, UserError.Unexpected(ex)); }
         finally { IsEnabled = true; }
     }
+
+    private Task EditSettings() => Run(async () =>
+    {
+        if (Selected is not { } g || GroupSettingsWindow.Ask(this, g, _session.ServerInfo) is not { } wanted) return null;
+        await _session.SaveGroupSettingsAsync(g, wanted);
+        // The meshchange event refreshes the list; asked again in case it came before. / El aviso meshchange refresca; se pide por si llegó antes.
+        await _session.GetDeviceGroupsAsync();
+        Refresh();
+        return L.F("GroupSettingsSaved", g.Name);
+    });
 
     private Task NewGroup() => Run(async () =>
     {

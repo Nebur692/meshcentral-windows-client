@@ -145,6 +145,14 @@ public class Phase9IntegrationTests(ITestOutputHelper output)
                 (int)(GroupFeature.PreferAgentName | GroupFeature.Record), 30));
             Assert.Equal(new GroupSettings(0x8 | 0x40 | 0x4, 0, 30), saved);
             Assert.Equal(saved, (await s.GetDeviceGroupsAsync()).First(x => x.Id == g.Id).Settings);
+            // A later edit of the description: its meshchange event has no expireDevs, and the days must stay.
+            // Una edición posterior de la descripción: su aviso meshchange no trae expireDevs, y los días se quedan.
+            var changed = new TaskCompletionSource();
+            s.GroupChanged += (_, e) => { if (e.GroupId == g.Id) changed.TrySetResult(); };
+            await s.EditGroupAsync(s.GroupById(g.Id)!, null, "Integration tests (edited)");
+            await changed.Task.WaitAsync(TimeSpan.FromSeconds(10));
+            Assert.Equal(30, s.GroupById(g.Id)!.Settings.RemoveInactiveDays);
+            await s.EditGroupAsync(s.GroupById(g.Id)!, null, g.Description ?? "");
             // Removing on disconnect and removing the inactive ones do not go together. / Las dos no van juntas.
             var other = await s.SaveGroupSettingsAsync(g, new GroupSettings(0, (int)(GroupFeature.RemoveOnDisconnect | GroupFeature.SyncName | GroupFeature.AllowOverride), 30));
             Assert.Equal(new GroupSettings(0, 0x1 | 0x2 | 0x10, 0), other);
