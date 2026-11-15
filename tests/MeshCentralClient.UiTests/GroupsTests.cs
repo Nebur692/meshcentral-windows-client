@@ -63,8 +63,11 @@ public sealed class GroupsTests : IDisposable
         if ((await s.GetDevicesAsync()).All(d => d.GroupId != g.Id)) await s.DeleteGroupAsync(g);
     }
 
+    // A UI Automation query that times out while a system dialog closes is asked again, not taken as the answer (CI 15-11:
+    // COMException 0x80131505 right after the save dialog). / Una consulta que agota su tiempo mientras se cierra un diálogo del
+    // sistema se repite, no se toma por la respuesta.
     private static AutomationElement WaitFor(Func<AutomationElement?> find, string what) =>
-        Retry.WhileNull(find, Timeout, TimeSpan.FromMilliseconds(250)).Result ?? throw new Exception(what + " did not appear");
+        Retry.WhileNull(find, Timeout, TimeSpan.FromMilliseconds(250), throwOnTimeout: false, ignoreException: true).Result ?? throw new Exception(what + " did not appear");
 
     private static AutomationElement Id(AutomationElement root, string id) => WaitFor(() => root.FindFirstDescendant(cf => cf.ByAutomationId(id)), id);
 
@@ -72,7 +75,7 @@ public sealed class GroupsTests : IDisposable
 
     private static void Until(Func<bool> condition, string what, Func<string>? seen = null)
     {
-        if (Retry.WhileFalse(condition, Timeout, TimeSpan.FromMilliseconds(250)).Result) return;
+        if (Retry.WhileFalse(condition, Timeout, TimeSpan.FromMilliseconds(250), throwOnTimeout: false, ignoreException: true).Result) return;
         Shot("FAILED-" + string.Concat(what.Where(char.IsLetterOrDigit)));
         throw new Exception(what + (seen is null ? "" : " — seen: " + seen()));
     }
