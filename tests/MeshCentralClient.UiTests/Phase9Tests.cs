@@ -114,8 +114,9 @@ public sealed class Phase9Tests : IDisposable
             var r = await ws.ReceiveAsync(buffer, cts.Token);
             if (r.MessageType == WebSocketMessageType.Close) return null;
             var t = Encoding.UTF8.GetString(buffer, 0, r.Count);
-            // The relay's own control messages are not the app's. / Los mensajes de control del relé no son de la app.
-            if (!t.Contains("ctrlChannel", StringComparison.Ordinal)) return t;
+            // The relay's "c"/"cr" and its control messages are not the app's. / El «c»/«cr» del relé y su control no son de la app.
+            if (t is "c" or "cr" || t.Contains("ctrlChannel", StringComparison.Ordinal)) continue;
+            return t;
         }
     }
 

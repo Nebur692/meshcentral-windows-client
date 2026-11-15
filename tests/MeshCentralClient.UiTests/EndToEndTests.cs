@@ -149,7 +149,7 @@ public sealed class EndToEndTests(ITestOutputHelper output) : IDisposable
         //     El doble clic abre una terminal en el agente de Windows real; una orden se ejecuta y su salida sale en pantalla.
         Find("DeviceList").FindFirstDescendant(cf => cf.ByName(machine))!.DoubleClick();
         var term = FindAnywhere("TerminalWindow");
-        var ready = Retry.WhileFalse(() => term.FindFirstDescendant(cf => cf.ByAutomationId("TerminalStatus"))?.Name.StartsWith("Select to copy") == true,
+        var ready = Retry.WhileFalse(() => term.FindFirstDescendant(cf => cf.ByAutomationId("TerminalStatus"))?.Name.Contains("Select to copy", StringComparison.Ordinal) == true,
             TimeSpan.FromSeconds(45), TimeSpan.FromMilliseconds(300)).Result;
         Shot("terminal-open");
         Assert.True(ready, "terminal did not open: " + term.FindFirstDescendant(cf => cf.ByAutomationId("TerminalStatus"))?.Name);
@@ -200,7 +200,7 @@ public sealed class EndToEndTests(ITestOutputHelper output) : IDisposable
         psRow.RightClick();
         FindAnywhere("PowerShellItem").AsMenuItem().Invoke();
         var ps = FindAnywhere("TerminalWindow");
-        Assert.True(Retry.WhileFalse(() => ps.FindFirstDescendant(cf => cf.ByAutomationId("TerminalStatus"))?.Name.StartsWith("Select to copy") == true, TimeSpan.FromSeconds(45), TimeSpan.FromMilliseconds(300)).Result, "PowerShell did not open");
+        Assert.True(Retry.WhileFalse(() => ps.FindFirstDescendant(cf => cf.ByAutomationId("TerminalStatus"))?.Name.Contains("Select to copy", StringComparison.Ordinal) == true, TimeSpan.FromSeconds(45), TimeSpan.FromMilliseconds(300)).Result, "PowerShell did not open");
         Find("TerminalView", ps).Click();
         // PowerShell shows its prompt before it has finished loading and drops what is typed meanwhile (seen in captures, as in any
         // console), so the order is repeated until it answers. / PowerShell enseña su aviso antes de acabar de cargar y tira lo que se

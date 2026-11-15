@@ -97,7 +97,7 @@ public sealed class TerminalWindow : Window
             else ShowFailure(UserError.From(e, _session.ServerInfo.Version));
         });
         _terminal.Output += (_, d) => Post(new JsonObject { ["t"] = "data", ["b64"] = Convert.ToBase64String(d.Span) });
-        _status.Text = (_terminal.IsRecorded ? L.T("TerminalRecorded") : L.T("TerminalHelp")) + (_terminal is SshTerminal ssh ? "  ·  " + ssh.HostKey.Fingerprint : "");
+        _status.Text = Help() + (_terminal is SshTerminal ssh ? "  ·  " + ssh.HostKey.Fingerprint : "");
         Post(new JsonObject { ["t"] = "focus" });
     }
 
@@ -154,7 +154,7 @@ public sealed class TerminalWindow : Window
         var shown = _status.Text = told;
         await Task.Delay(TimeSpan.FromSeconds(3));
         // Unless something else was said meanwhile. / Salvo que entretanto se haya dicho otra cosa.
-        if (_status.Text == shown) _status.Text = before == shown ? (_terminal?.IsRecorded == true ? L.T("TerminalRecorded") : L.T("TerminalHelp")) : before;
+        if (_status.Text == shown) _status.Text = before == shown ? Help() : before;
     }
 
     // A failed keystroke after the tunnel closed is already reported by Closed. / Una tecla que falla tras cerrarse el túnel ya la avisa Closed.
@@ -174,4 +174,8 @@ public sealed class TerminalWindow : Window
     }
 
     private void OnTheme(object? sender, EventArgs e) => Post(new JsonObject { ["t"] = "theme", ["dark"] = ThemeService.IsDark });
+
+    /// <summary>The copy and paste help, after the recording notice when the server records: neither hides the other.
+    /// La ayuda de copiar y pegar, tras el aviso de grabación si el servidor graba: ninguno tapa al otro.</summary>
+    private string Help() => _terminal?.IsRecorded == true ? L.T("TerminalRecorded") + "  ·  " + L.T("TerminalHelp") : L.T("TerminalHelp");
 }
