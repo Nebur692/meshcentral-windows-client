@@ -27,6 +27,8 @@ AUTH=""
 if [ -n "${OIDC_ISSUER:-}" ]; then
   AUTH=', "authStrategies": { "oidc": { "issuer": "'"$OIDC_ISSUER"'", "client": { "client_id": "meshcentral-test", "client_secret": "test-secret-not-for-production" }, "newAccounts": true, "groups": { "claim": "groups", "required": ["mesh-users"] } } }'
 fi
+# Session recording for the recordings tests (every protocol, the files beside the data). / Grabación de sesiones.
+AUTH="$AUTH"', "sessionRecording": { "filepath": "/opt/meshcentral/meshcentral-data/recordings" }'
 cat > "$DATA/config.json" <<JSON
 {
   "settings": { "cert": "mesh.test", "port": 443, "redirPort": 0, "mpsPort": 0, "selfUpdate": false,

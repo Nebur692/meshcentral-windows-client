@@ -1,5 +1,5 @@
 {
-  "generado": "2026-11-11T07:18:56Z",
+  "generado": "2026-11-14T23:57:45Z",
   "aviso": "Generado por bin/burburito. No editar a mano: la fuente de verdad es el burburito.json de al lado.",
   "proyecto": {
     "id": 35,
@@ -66,6 +66,24 @@
       "severidad": "aviso",
       "actuar": false,
       "titulo": "Sin permiso para encender, apagar o reiniciar ese equipo"
+    },
+    "acciones/desplegar/sin-conexion": {
+      "codigo": "035-009-141-001",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "El equipo no está conectado"
+    },
+    "acciones/desplegar/conexion-cortada": {
+      "codigo": "035-009-141-005",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "Se cortó la conexión al pedir la actualización"
+    },
+    "acciones/desplegar/no-autorizado": {
+      "codigo": "035-009-141-046",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "Sin permiso para actualizar el agente"
     },
     "acciones/ejecutar-ordenes/sin-conexion": {
       "codigo": "035-009-501-001",
@@ -162,6 +180,48 @@
       "severidad": "aviso",
       "actuar": true,
       "titulo": "Falta WebView2 Runtime en el PC"
+    },
+    "chat/abrir-detalle/sin-conexion": {
+      "codigo": "035-016-022-001",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "El equipo no está conectado"
+    },
+    "chat/abrir-detalle/conexion-cortada": {
+      "codigo": "035-016-022-005",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "Se cortó la conexión al abrir el chat"
+    },
+    "chat/abrir-detalle/no-autorizado": {
+      "codigo": "035-016-022-046",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "Sin permiso para chatear con ese equipo"
+    },
+    "chat/abrir-detalle/dispositivo-mudo": {
+      "codigo": "035-016-022-120",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "Nadie ha abierto el chat en el equipo"
+    },
+    "chat/enviar-mensaje/conexion-cortada": {
+      "codigo": "035-016-040-005",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "No se pudo mandar el mensaje"
+    },
+    "chat/enviar-mensaje/dato-invalido": {
+      "codigo": "035-016-040-061",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "El mensaje no vale"
+    },
+    "chat/recibir-mensaje/conexion-cortada": {
+      "codigo": "035-016-041-005",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "El chat ha terminado"
     },
     "conexion/iniciar-sesion/sin-conexion": {
       "codigo": "035-001-001-001",
@@ -420,6 +480,66 @@
       "severidad": "aviso",
       "actuar": true,
       "titulo": "El equipo no hizo el cambio"
+    },
+    "grabaciones/ver-pantalla/tiempo-agotado": {
+      "codigo": "035-017-020-002",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "El servidor no ha contestado"
+    },
+    "grabaciones/ver-pantalla/conexion-cortada": {
+      "codigo": "035-017-020-005",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "Se cortó la conexión"
+    },
+    "grabaciones/ver-pantalla/rechazo-remoto": {
+      "codigo": "035-017-020-021",
+      "severidad": "error",
+      "actuar": false,
+      "titulo": "El servidor no pudo leer sus grabaciones"
+    },
+    "grabaciones/ver-pantalla/no-autorizado": {
+      "codigo": "035-017-020-046",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "Sin permiso para ver grabaciones"
+    },
+    "grabaciones/ver-pantalla/no-encontrado": {
+      "codigo": "035-017-020-062",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "Este servidor no graba sesiones"
+    },
+    "grabaciones/descargar/conexion-cortada": {
+      "codigo": "035-017-023-005",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "Se cortó la descarga"
+    },
+    "grabaciones/descargar/rechazo-remoto": {
+      "codigo": "035-017-023-021",
+      "severidad": "error",
+      "actuar": false,
+      "titulo": "El servidor no dio la grabación"
+    },
+    "grabaciones/descargar/sesion-cerrada": {
+      "codigo": "035-017-023-044",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "Hace falta la sesión de la web"
+    },
+    "grabaciones/descargar/no-encontrado": {
+      "codigo": "035-017-023-062",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "La grabación ya no está"
+    },
+    "grabaciones/descargar/permisos-fichero": {
+      "codigo": "035-017-023-081",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "No se pudo guardar la grabación"
     },
     "grupos/descargar/sin-conexion": {
       "codigo": "035-010-023-001",

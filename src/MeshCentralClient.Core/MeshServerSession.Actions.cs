@@ -155,6 +155,35 @@ public sealed partial class MeshServerSession
 
     private static JsonArray Ids(IEnumerable<Device> devices) => new(devices.Select(d => (JsonNode)d.Id).ToArray());
 
+    // ------------------------------------------------------------------ agent update / actualizar el agente
+
+    /// <summary>The website offers "Force agent update" only to who has every right on the device, with its agent connected.
+    /// La web solo ofrece «Forzar actualización del agente» a quien tiene todos los permisos, con el agente conectado.</summary>
+    public bool CanUpdateAgent(Device device) => device.HasAgent && RightsOn(device) == (long)MeshRights.Full;
+
+    /// <summary>
+    /// Asks the agents to update themselves from this server ("updateAgents"). The server never answers; an agent that
+    /// cannot update says why on its console (measured on 1.3.1: "Self Update Failed because this agent is not an
+    /// instance of (meshagent)"), and one that can downloads its new version, restarts and connects again. Returns, per
+    /// device id, what its agent said within the wait, or null when it said nothing.
+    /// Pide a los agentes que se actualicen desde este servidor. El servidor no contesta; un agente que no puede dice por
+    /// qué en su consola, y uno que puede se reinicia y vuelve. Devuelve, por equipo, lo que dijo su agente o null.
+    /// </summary>
+    public async Task<IReadOnlyDictionary<string, string?>> UpdateAgentsAsync(IReadOnlyList<Device> devices, TimeSpan? wait = null, CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(devices);
+        if (devices.Count == 0) throw new ArgumentException("no devices", nameof(devices));
+        foreach (var d in devices)
+        {
+            if (!d.HasAgent) throw Offline("acciones/desplegar/sin-conexion");
+            if (RightsOn(d) != (long)MeshRights.Full) throw Denied("acciones/desplegar/no-autorizado", "update its agent");
+        }
+        var said = await SendAndCollectAsync(new JsonObject { ["action"] = "updateAgents", ["nodeids"] = Ids(devices) },
+            devices.Select(d => (Func<JsonObject, bool>)(m => m.Str("action") == "msg" && m.Str("type") == "console" && m.Str("nodeid") == d.Id)).ToList(),
+            wait ?? TimeSpan.FromSeconds(10), "acciones/desplegar/conexion-cortada", ct).ConfigureAwait(false);
+        return devices.Select((d, i) => (d.Id, said[i]?.Str("value"))).ToDictionary(x => x.Id, x => x.Item2);
+    }
+
     // ------------------------------------------------------------------ power / energía
 
     /// <summary>Wakes devices (wake-on-LAN sent by other agents of their network). Returns what the server says.

@@ -56,6 +56,12 @@ public sealed partial class MeshServerSession : IAsyncDisposable
 
     public bool IsOpen => _ws.State == WebSocketState.Open && Volatile.Read(ref _closed) == 0;
 
+    /// <summary>The web session's cookies, when it came from a single sign-on (null with a password). / Las cookies de la sesión web.</summary>
+    private IReadOnlyDictionary<string, string>? _webCookies;
+
+    /// <summary>It has a web session, which some downloads need (recordings). / Tiene sesión web, que piden algunas descargas.</summary>
+    public bool HasWebSession => _webCookies is not null;
+
     public static async Task<MeshServerSession> ConnectAsync(
         ServerAddress server, PasswordCredentials credentials, CertificateTrust trust,
         CancellationToken cancellationToken = default, TimeSpan? timeout = null)
@@ -80,13 +86,15 @@ public sealed partial class MeshServerSession : IAsyncDisposable
         ArgumentNullException.ThrowIfNull(cookies);
         if (!cookies.ContainsKey("xid"))
             throw new MeshClientException(MeshFailure.SessionExpired, "conexion/iniciar-sesion/sesion-cerrada", "There is no MeshCentral session to use.");
-        return await ConnectCoreAsync(server, trust, o =>
+        var session = await ConnectCoreAsync(server, trust, o =>
             {
                 var jar = new CookieContainer();
                 foreach (var (name, value) in cookies) jar.Add(server.BaseUri, new Cookie(name, value, "/"));
                 o.Cookies = jar;
             },
             SessionFailure, cancellationToken, timeout).ConfigureAwait(false);
+        session._webCookies = new Dictionary<string, string>(cookies);
+        return session;
     }
 
     private static async Task<MeshServerSession> ConnectCoreAsync(
@@ -212,6 +220,33 @@ public sealed partial class MeshServerSession : IAsyncDisposable
         {
             throw LostError(ex);
         }
+    }
+
+    /// <summary>
+    /// Sends one message the server does not answer and collects, for <paramref name="wait"/> at most, the first message
+    /// matching each of <paramref name="answers"/> (null where none came): for what the agents answer on their own.
+    /// Manda un mensaje que el servidor no contesta y recoge, como mucho <paramref name="wait"/>, el primero que encaja
+    /// con cada una de <paramref name="answers"/> (null donde no llegó): para lo que contestan los agentes por su cuenta.
+    /// </summary>
+    internal async Task<IReadOnlyList<JsonObject?>> SendAndCollectAsync(JsonObject message, IReadOnlyList<Func<JsonObject, bool>> answers, TimeSpan wait, string lostKey, CancellationToken ct)
+    {
+        if (!IsOpen) throw new MeshClientException(MeshFailure.ConnectionLost, lostKey, "The connection to the server was lost.");
+        using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct, _life.Token);
+        cts.CancelAfter(wait);
+        var waits = answers.Select(a => WaitFor(a, cts.Token)).ToList();
+        try { await SendAsync(message, ct).ConfigureAwait(false); }
+        catch (Exception ex) when (ex is WebSocketException or IOException or ObjectDisposedException)
+        {
+            cts.Cancel();
+            throw new MeshClientException(MeshFailure.ConnectionLost, lostKey, "The connection to the server was lost.", ex);
+        }
+        var got = new List<JsonObject?>();
+        foreach (var w in waits)
+        {
+            try { got.Add(await w.ConfigureAwait(false)); }
+            catch (OperationCanceledException) when (!ct.IsCancellationRequested) { got.Add(null); }
+        }
+        return got;
     }
 
     internal async Task SendAsync(JsonObject message, CancellationToken ct)

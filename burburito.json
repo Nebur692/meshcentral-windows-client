@@ -96,6 +96,18 @@
       "slug": "portapapeles",
       "nombre": "Copiar y pegar de todo con un equipo Windows",
       "descripcion": "RemoteClipboard.cs y DesktopClipboard: texto con el setclip de MeshCentral; imágenes y ficheros con una terminal PowerShell del usuario con sesión (túnel 9, el de la web: runcommands con runAsUser no contesta, medido) más el túnel de ficheros. Se lleva al entrar en el visor y se trae al salir o al copiar dentro."
+    },
+    {
+      "id": 16,
+      "slug": "chat",
+      "nombre": "El chat con la persona del equipo",
+      "descripcion": "MeshChat.cs (y su ventana; MeshChat.kt en Android): meshmessenger pide al agente que abra la página de chat en el navegador del equipo y los dos lados se encuentran en el relé meshmessenger/<equipo>/<usuario>. El relé solo guarda 15 s a un lado solo, así que se vuelve a llamar hasta 2 minutos. Mensajes «chat» y «outtext»; el WebRTC de la página no arranca."
+    },
+    {
+      "id": 17,
+      "slug": "grabaciones",
+      "nombre": "Las grabaciones de sesiones del servidor",
+      "descripcion": "MeshServerSession.Recordings.cs (y su ventana; Recordings.kt en Android): la petición recordings (el servidor calla si no graba) y la descarga de recordings.ashx, que el servidor solo da a una sesión web (inicio de sesión único); si no, se abre su lista en la web (viewmode 52)."
     }
   ],
   "acciones": [
@@ -1708,6 +1720,206 @@
       "titulo": "Se cortó la conexión al copiar o pegar",
       "explicacion": "La conexión con el servidor se cerró a medias, o el PowerShell del equipo se cerró: puede que no haya nadie con sesión allí.",
       "que_hacer": "Mirar si hay alguien con sesión en el equipo y copiar otra vez; el texto se puede mandar con «Escribir el portapapeles»."
+    },
+    {
+      "modulo": "chat",
+      "accion": "abrir-detalle",
+      "causa": "no-autorizado",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "Sin permiso para chatear con ese equipo",
+      "explicacion": "La cuenta no tiene en ese grupo el permiso de chat y avisos.",
+      "que_hacer": "Pedir ese permiso a un administrador del grupo de equipos."
+    },
+    {
+      "modulo": "chat",
+      "accion": "abrir-detalle",
+      "causa": "sin-conexion",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "El equipo no está conectado",
+      "explicacion": "El agente de MeshCentral de ese equipo no está conectado ahora, así que no puede abrir el chat.",
+      "que_hacer": "Esperar a que el equipo esté en línea y volver a abrir el chat."
+    },
+    {
+      "modulo": "chat",
+      "accion": "abrir-detalle",
+      "causa": "dispositivo-mudo",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "Nadie ha abierto el chat en el equipo",
+      "explicacion": "El chat se pidió, pero en dos minutos nadie lo abrió en el equipo: puede que no haya nadie con sesión o que su navegador no se abriera.",
+      "que_hacer": "Comprobar que hay alguien delante del equipo y volver a abrir el chat."
+    },
+    {
+      "modulo": "chat",
+      "accion": "abrir-detalle",
+      "causa": "conexion-cortada",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "Se cortó la conexión al abrir el chat",
+      "explicacion": "La conexión con el servidor se cerró mientras se pedía el chat.",
+      "que_hacer": "Volver a entrar y abrir el chat otra vez."
+    },
+    {
+      "modulo": "chat",
+      "accion": "enviar-mensaje",
+      "causa": "dato-invalido",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "El mensaje no vale",
+      "explicacion": "Un mensaje lleva de 1 a 4000 caracteres.",
+      "que_hacer": "Escribir un mensaje más corto (o no vacío)."
+    },
+    {
+      "modulo": "chat",
+      "accion": "enviar-mensaje",
+      "causa": "conexion-cortada",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "No se pudo mandar el mensaje",
+      "explicacion": "La conexión del chat se cerró al mandarlo.",
+      "que_hacer": "Volver a abrir el chat y mandarlo otra vez."
+    },
+    {
+      "modulo": "chat",
+      "accion": "recibir-mensaje",
+      "causa": "conexion-cortada",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "El chat ha terminado",
+      "explicacion": "La persona cerró el chat en el equipo, o se cortó la línea con él.",
+      "que_hacer": "Si hace falta, volver a abrir el chat."
+    },
+    {
+      "modulo": "acciones",
+      "accion": "desplegar",
+      "causa": "sin-conexion",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "El equipo no está conectado",
+      "explicacion": "Para actualizar el agente, el equipo tiene que estar en línea.",
+      "que_hacer": "Esperar a que el equipo esté en línea y pedirlo otra vez."
+    },
+    {
+      "modulo": "acciones",
+      "accion": "desplegar",
+      "causa": "no-autorizado",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "Sin permiso para actualizar el agente",
+      "explicacion": "Solo quien tiene todos los permisos sobre el equipo puede actualizar su agente, como en la web.",
+      "que_hacer": "Pedírselo a un administrador del grupo de equipos."
+    },
+    {
+      "modulo": "acciones",
+      "accion": "desplegar",
+      "causa": "conexion-cortada",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "Se cortó la conexión al pedir la actualización",
+      "explicacion": "La conexión con el servidor se cerró al mandar la orden.",
+      "que_hacer": "Volver a entrar y pedirlo otra vez."
+    },
+    {
+      "modulo": "grabaciones",
+      "accion": "ver-pantalla",
+      "causa": "no-autorizado",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "Sin permiso para ver grabaciones",
+      "explicacion": "La cuenta no tiene el permiso del servidor de gestionar grabaciones.",
+      "que_hacer": "Pedir ese permiso a un administrador del servidor."
+    },
+    {
+      "modulo": "grabaciones",
+      "accion": "ver-pantalla",
+      "causa": "tiempo-agotado",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "El servidor no ha contestado",
+      "explicacion": "El servidor tardó demasiado en dar la lista de grabaciones.",
+      "que_hacer": "Volver a intentarlo dentro de un momento."
+    },
+    {
+      "modulo": "grabaciones",
+      "accion": "ver-pantalla",
+      "causa": "conexion-cortada",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "Se cortó la conexión",
+      "explicacion": "La conexión con el servidor se cerró al pedir las grabaciones.",
+      "que_hacer": "Volver a entrar y abrir las grabaciones otra vez."
+    },
+    {
+      "modulo": "grabaciones",
+      "accion": "ver-pantalla",
+      "causa": "no-encontrado",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "Este servidor no graba sesiones",
+      "explicacion": "El servidor no contesta a la lista de grabaciones: la grabación de sesiones está apagada en su configuración.",
+      "que_hacer": "Si hace falta, que el administrador del servidor active la grabación de sesiones."
+    },
+    {
+      "modulo": "grabaciones",
+      "accion": "ver-pantalla",
+      "causa": "rechazo-remoto",
+      "severidad": "error",
+      "actuar": false,
+      "titulo": "El servidor no pudo leer sus grabaciones",
+      "explicacion": "El servidor contestó con un error al leer la carpeta o la base de datos de grabaciones.",
+      "que_hacer": "Avisar al administrador del servidor."
+    },
+    {
+      "modulo": "grabaciones",
+      "accion": "descargar",
+      "causa": "sesion-cerrada",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "Hace falta la sesión de la web",
+      "explicacion": "El servidor solo da las grabaciones a quien ha entrado en su web (o por inicio de sesión único).",
+      "que_hacer": "Abrir la grabación en la web del servidor, o entrar en la app por inicio de sesión único."
+    },
+    {
+      "modulo": "grabaciones",
+      "accion": "descargar",
+      "causa": "no-encontrado",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "La grabación ya no está",
+      "explicacion": "El fichero de esa grabación ya no está en el servidor.",
+      "que_hacer": "Elegir otra grabación."
+    },
+    {
+      "modulo": "grabaciones",
+      "accion": "descargar",
+      "causa": "conexion-cortada",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "Se cortó la descarga",
+      "explicacion": "La conexión se cerró a mitad de la descarga; no se guardó nada a medias.",
+      "que_hacer": "Volver a descargarla."
+    },
+    {
+      "modulo": "grabaciones",
+      "accion": "descargar",
+      "causa": "rechazo-remoto",
+      "severidad": "error",
+      "actuar": false,
+      "titulo": "El servidor no dio la grabación",
+      "explicacion": "El servidor contestó con un error HTTP al pedir la grabación.",
+      "que_hacer": "Volver a intentarlo; si sigue, avisar al administrador del servidor."
+    },
+    {
+      "modulo": "grabaciones",
+      "accion": "descargar",
+      "causa": "permisos-fichero",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "No se pudo guardar la grabación",
+      "explicacion": "El fichero no se pudo escribir donde se eligió.",
+      "que_hacer": "Elegir otra carpeta y descargarla otra vez."
     }
   ]
 }

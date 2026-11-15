@@ -5,7 +5,17 @@ namespace MeshCentralClient.Core;
 public sealed record ServerInfo(string Name, string Domain, string? Version)
 {
     internal static ServerInfo From(JsonObject o) => new(
-        o.Str("name") ?? "", o.Str("domain") ?? "", o.Str("serverVersion") ?? o.Str("version")) { ManageAllDeviceGroups = o.Bool("manageAllDeviceGroups"), Features = o.Long("features") ?? 0 };
+        o.Str("name") ?? "", o.Str("domain") ?? "", o.Str("serverVersion") ?? o.Str("version"))
+    {
+        ManageAllDeviceGroups = o.Bool("manageAllDeviceGroups"), Features = o.Long("features") ?? 0,
+        ForcedConsent = (int)(o.Long("consent") ?? 0), GroupsChooseRecording = o.Long("devGroupSessionRecording") == 1,
+    };
+
+    /// <summary>Consent the server forces on every group (userConsentFlags). / Consentimiento que impone el servidor a todos los grupos.</summary>
+    public int ForcedConsent { get; init; }
+
+    /// <summary>Groups can choose to record their sessions (sessionRecording.onlySelectedDeviceGroups). / Los grupos pueden elegir grabar.</summary>
+    public bool GroupsChooseRecording { get; init; }
 
     /// <summary>The server's feature bits (serverinfo.features), as the website reads them. / Los bits de funciones del servidor.</summary>
     public long Features { get; init; }
@@ -67,7 +77,13 @@ public sealed record DeviceGroup(string Id, string Name, string? Description, De
 {
     internal static DeviceGroup From(JsonObject o) => new(
         o.Str("_id") ?? o.Str("meshid") ?? "", o.Str("name") ?? "", o.Str("desc"), (DeviceGroupKind)(o.Long("mtype") ?? 0))
-    { Links = JsonExtensions.Links(o), Members = GroupMember.From(o) };
+    {
+        Links = JsonExtensions.Links(o), Members = GroupMember.From(o),
+        Settings = new GroupSettings((int)(o.Long("consent") ?? 0), (int)(o.Long("flags") ?? 0), (int)(o.Long("expireDevs") ?? 0)),
+    };
+
+    /// <summary>Its consent and features. / Su consentimiento y sus funciones.</summary>
+    public GroupSettings Settings { get; init; } = new();
 
     /// <summary>Who has rights on the group: accounts and user groups. / Quién tiene permisos en el grupo: cuentas y grupos de usuarios.</summary>
     public IReadOnlyDictionary<string, long> Links { get; init; } = JsonExtensions.NoLinks;
