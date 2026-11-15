@@ -33,9 +33,26 @@ public sealed class Phase9Tests : IDisposable
     private readonly DirectoryInfo _dir = Directory.CreateTempSubdirectory("mcc-phase9-ui-");
     private readonly string _group = "UI9 " + Guid.NewGuid().ToString("N")[..6];
     private Application? _app;
+    private readonly DateTime _started = DateTime.Now;
+
+    /// <summary>
+    /// The agent of this machine opens the chat page in its browser, as it must on a person's PC (measured on CI: an Edge
+    /// window stays open and takes the keyboard from the next test). Only the browsers started during this test close.
+    /// El agente de esta máquina abre la página del chat en su navegador, como debe en el PC de una persona (medido en la
+    /// CI: un Edge se queda abierto y le quita el teclado a la prueba siguiente). Solo se cierran los que abrió esta prueba.
+    /// </summary>
+    private void CloseBrowsersItOpened()
+    {
+        foreach (var p in Process.GetProcessesByName("msedge"))
+        {
+            try { if (p.StartTime >= _started) p.Kill(entireProcessTree: true); } catch (Exception) { }
+            finally { p.Dispose(); }
+        }
+    }
 
     public void Dispose()
     {
+        CloseBrowsersItOpened();
         try { _app?.Close(); } catch (Exception) { }
         try { _app?.Kill(); } catch (Exception) { }
         _app?.Dispose();
@@ -158,6 +175,8 @@ public sealed class Phase9Tests : IDisposable
             Item(Id(chat, "ChatLines"), "Hola desde la página: ñ €");
             Id(chat, "ChatBox").Click();
             Keyboard.Type("Hello from the app");
+            // Sent when the box has it all, as a person presses Send after typing. / Se manda con la caja entera, como hace una persona.
+            Until(() => Id(chat, "ChatBox").AsTextBox().Text == "Hello from the app", "the typed message", () => Id(chat, "ChatBox").AsTextBox().Text);
             Id(chat, "ChatSend").AsButton().Invoke();
             string? heard;
             do heard = await Heard(person); while (heard is not null && heard.Contains("\"outtext\"", StringComparison.Ordinal));
@@ -169,6 +188,8 @@ public sealed class Phase9Tests : IDisposable
         Until(() => Id(chat, "ChatState").Name.StartsWith("The person closed the chat", StringComparison.Ordinal), "the end of the chat", () => Id(chat, "ChatState").Name);
         Assert.True(Id(chat, "ChatAgain").IsOffscreen == false);
         chat.AsWindow().Close();
+        CloseBrowsersItOpened();
+        win.SetForeground();
 
         // 2. The agent update is offered and asks first; "No" sends nothing (the agent serves the other tests). / Pregunta antes.
         me.RightClick();
