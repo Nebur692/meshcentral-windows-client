@@ -1920,6 +1920,16 @@
       "titulo": "No se pudo guardar la grabación",
       "explicacion": "El fichero no se pudo escribir donde se eligió.",
       "que_hacer": "Elegir otra carpeta y descargarla otra vez."
+    },
+    {
+      "modulo": "ficheros",
+      "accion": "gestionar-ficheros",
+      "causa": "dato-invalido",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "Una carpeta no se puede copiar dentro de sí misma",
+      "explicacion": "Se intentó pegar una carpeta en ella misma o en una de sus subcarpetas.",
+      "que_hacer": "Pegar en otra carpeta que no esté dentro de la que se copia."
     }
   ]
 }

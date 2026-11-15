@@ -1,5 +1,5 @@
 {
-  "generado": "2026-11-14T23:57:45Z",
+  "generado": "2026-11-15T12:46:47Z",
   "aviso": "Generado por bin/burburito. No editar a mano: la fuente de verdad es el burburito.json de al lado.",
   "proyecto": {
     "id": 35,
@@ -480,6 +480,12 @@
       "severidad": "aviso",
       "actuar": true,
       "titulo": "El equipo no hizo el cambio"
+    },
+    "ficheros/gestionar-ficheros/dato-invalido": {
+      "codigo": "035-007-500-061",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "Una carpeta no se puede copiar dentro de sí misma"
     },
     "grabaciones/ver-pantalla/tiempo-agotado": {
       "codigo": "035-017-020-002",
