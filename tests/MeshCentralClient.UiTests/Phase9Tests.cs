@@ -232,8 +232,10 @@ public sealed class Phase9Tests : IDisposable
         gw.AsWindow().Close();
 
         // 4. The recordings: the chat above is there, and a password session opens them on the website. / Las grabaciones.
+        win.SetForeground();
         Id(win, "ServerMenuButton").AsButton().Invoke();
-        Anywhere("RecordingsItem").Click();
+        // Through its pattern, not a mouse point: the menu is a popup above other windows (as ServerTests). / Por su patrón, como ServerTests.
+        Anywhere("RecordingsItem").AsMenuItem().Invoke();
         var rw = Anywhere("RecordingsWindow");
         var list = Id(rw, "RecordingsList");
         Until(() => Text(list).Contains("Chat", StringComparison.Ordinal), "the chat's recording", () => Text(rw));
