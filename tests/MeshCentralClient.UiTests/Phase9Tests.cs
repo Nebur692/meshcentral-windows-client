@@ -76,8 +76,13 @@ public sealed class Phase9Tests : IDisposable
         return s;
     }
 
-    private static AutomationElement WaitFor(Func<AutomationElement?> find, string what) =>
-        Retry.WhileNull(find, Timeout, TimeSpan.FromMilliseconds(250)).Result ?? throw new Exception(what + " did not appear");
+    private static AutomationElement WaitFor(Func<AutomationElement?> find, string what)
+    {
+        if (Retry.WhileNull(find, Timeout, TimeSpan.FromMilliseconds(250)).Result is { } found) return found;
+        // What was on screen instead: without it there is only guessing. / Lo que había en pantalla: sin eso solo se adivina.
+        Shot("FAILED-" + string.Concat(what.Where(char.IsLetterOrDigit)));
+        throw new Exception(what + " did not appear");
+    }
 
     private static AutomationElement Id(AutomationElement root, string id) => WaitFor(() => root.FindFirstDescendant(cf => cf.ByAutomationId(id)), id);
 
