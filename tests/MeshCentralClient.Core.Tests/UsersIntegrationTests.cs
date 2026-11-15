@@ -42,7 +42,7 @@ public class UsersIntegrationTests(ITestOutputHelper output)
         var seen = new ConcurrentQueue<UserChangedEventArgs>();
         admin.UserChanged += (_, e) => seen.Enqueue(e);
         var name = "ana" + Tag();
-        var id = await admin.CreateUserAsync(new(name, "Ana-Pass-1234", "ana@example.org", "Ana Pérez", (long)SiteRight.NoNewDeviceGroups));
+        var id = await admin.CreateUserAsync(new(name, "Ana-Pass-1234", "ana@example.org", "Ana Pérez", (long)SiteRight.NoNewDeviceGroups, EmailVerified: true));
         try
         {
             var added = await GroupsIntegrationTests.Until(() => seen.FirstOrDefault(e => e.Kind == UserChangeKind.Added && e.UserId == id), "the accountcreate event");
