@@ -19,7 +19,11 @@ public sealed class TerminalWindow : Window
     private readonly string _kindName;
     private readonly Func<int, int, Task<ITerminalConnection>> _open;
     private readonly WebView2 _view = new() { DefaultBackgroundColor = System.Drawing.Color.Transparent };
-    private readonly TextBlock _status = new() { Margin = new Thickness(12, 4, 12, 6), Opacity = 0.7, TextWrapping = TextWrapping.Wrap };
+    // Always one line: a status that wraps changes the terminal's height, the terminal resizes and xterm drops the
+    // selection, so Ctrl+C on it found nothing (measured on CI with a recorded session). The whole text is the tooltip.
+    // Siempre una línea: un estado que salta de línea cambia el alto, la terminal se redimensiona y xterm pierde la
+    // selección, así que el Ctrl+C no encontraba nada (medido en la CI con una sesión grabada). El texto entero va en la ayuda emergente.
+    private readonly TextBlock _status = new() { Margin = new Thickness(12, 4, 12, 6), Opacity = 0.7, TextWrapping = TextWrapping.NoWrap, TextTrimming = TextTrimming.CharacterEllipsis };
     private ITerminalConnection? _terminal;
     private bool _closing;
 
@@ -51,6 +55,7 @@ public sealed class TerminalWindow : Window
         dock.Children.Add(_view);
         Content = dock;
         _status.Text = L.T("Connecting");
+        System.ComponentModel.DependencyPropertyDescriptor.FromProperty(TextBlock.TextProperty, typeof(TextBlock)).AddValueChanged(_status, (_, _) => _status.ToolTip = _status.Text);
         Loaded += async (_, _) => await StartAsync();
         Closed += async (_, _) => { _closing = true; ThemeService.Changed -= OnTheme; if (_terminal is not null) await _terminal.DisposeAsync(); };
         ThemeService.Changed += OnTheme;

@@ -176,6 +176,11 @@ public sealed class Phase9Tests : IDisposable
         using (var person = await Person(nodeId))
         {
             Until(() => Id(chat, "ChatState").Name == "In the chat", "the person in the chat", () => Id(chat, "ChatState").Name);
+            // The agent's browser comes up a moment later and takes the keyboard: it goes before typing. / El navegador del agente llega después y se queda el teclado.
+            Retry.WhileFalse(() => Process.GetProcessesByName("msedge").Any(p => { try { return p.StartTime >= _started; } catch (Exception) { return false; } }), TimeSpan.FromSeconds(20), TimeSpan.FromMilliseconds(500));
+            Thread.Sleep(1500);
+            CloseBrowsersItOpened();
+            chat.AsWindow().SetForeground();
             await person.SendAsync(Encoding.UTF8.GetBytes("""{"action":"chat","msg":"Hola desde la página: ñ €"}"""), WebSocketMessageType.Text, true, CancellationToken.None);
             Item(Id(chat, "ChatLines"), "Hola desde la página: ñ €");
             Id(chat, "ChatBox").Click();

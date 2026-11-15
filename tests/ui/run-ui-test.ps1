@@ -40,7 +40,7 @@ npm install --no-audit --no-fund --loglevel=error "meshcentral@$MeshCentralVersi
 @'
 {
   "settings": { "cert": "mesh.test", "port": 4443, "redirPort": 0, "mpsPort": 0, "selfUpdate": false, "maxInvalidLogin": false, "agentDownloads": { "enabled": false } },
-  "domains": { "": { "title": "Test", "newAccounts": false, "sessionRecording": { "protocols": [200] },
+  "domains": { "": { "title": "Test", "newAccounts": false, "sessionRecording": {},
     "authStrategies": { "oidc": { "issuer": "http://localhost:3000",
       "client": { "client_id": "meshcentral-test", "client_secret": "test-secret-not-for-production" },
       "newAccounts": true, "groups": { "claim": "groups", "required": ["mesh-users"] } } } } }
