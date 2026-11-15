@@ -21,7 +21,9 @@ public sealed class DeviceRow : INotifyPropertyChanged
     public string Id => _device.Id;
     public string Name => _device.Name;
     public string GroupName { get => _groupName; set { _groupName = value; Changed(); } }
-    public string Os => _device.OsDescription ?? (_device.IsLocal ? _device.IsWindows ? "Windows" : _device.IsMac ? "macOS" : "Linux" : "");
+    // A device without an agent: the system chosen when it was added, and that it has no agent. / El sistema elegido y que no tiene agente.
+    public string Os => _device.IsLocal ? $"{_device.OsDescription ?? (_device.IsWindows ? "Windows" : _device.IsMac ? "macOS" : "Linux")} · {L.T("NoAgent")}" : _device.OsDescription ?? "";
+    public bool IsLocal => _device.IsLocal;
     public string Address => _device.Address ?? "";
     public string Tags => string.Join(", ", _device.Tags);
     public bool IsOnline => _device.IsOnline;

@@ -192,6 +192,10 @@
                             <DataTrigger Binding="{Binding IsOnline}" Value="True">
                               <Setter Property="Fill" Value="{StaticResource OnlineBrush}" />
                             </DataTrigger>
+                            <!-- A device without an agent is neither on nor off: no dot. / Sin agente no está ni encendido ni apagado: sin punto. -->
+                            <DataTrigger Binding="{Binding IsLocal}" Value="True">
+                              <Setter Property="Visibility" Value="Hidden" />
+                            </DataTrigger>
                           </Style.Triggers>
                         </Style>
                       </Ellipse.Style>
