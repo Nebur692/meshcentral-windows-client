@@ -27,7 +27,9 @@ public sealed class RecordingRow(Recording recording, Names names)
     public string Length => r.Length.TotalMinutes >= 1 ? $"{(int)r.Length.TotalMinutes} min {r.Length.Seconds} s" : $"{r.Length.Seconds} s";
     public string Size => r.Present ? Sizes.Short(r.Bytes) : L.T("RecGone");
     public string Group => r.GroupName ?? "";
-    public bool Matches(string q) => q.Length == 0 || new[] { Device, Who, Group, r.FileName }.Any(x => x.Contains(q, StringComparison.CurrentCultureIgnoreCase));
+    public bool Matches(string q) => q.Length == 0 || new[] { Device, Kind, Who, Group, r.FileName }.Any(x => x.Contains(q, StringComparison.CurrentCultureIgnoreCase));
+    /// <summary>What a screen reader says of the row. / Lo que dice de la fila un lector de pantalla.</summary>
+    public override string ToString() => $"{When} {Device} {Kind}";
 }
 
 /// <summary>Short sizes ("12 KB"). / Tamaños cortos.</summary>

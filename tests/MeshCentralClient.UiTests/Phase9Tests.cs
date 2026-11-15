@@ -238,7 +238,10 @@ public sealed class Phase9Tests : IDisposable
         Anywhere("RecordingsItem").AsMenuItem().Invoke();
         var rw = Anywhere("RecordingsWindow");
         var list = Id(rw, "RecordingsList");
-        Until(() => Text(list).Contains("Chat", StringComparison.Ordinal), "the chat's recording", () => Text(rw));
+        // The list only builds the rows on screen: the search brings the chat's up. / La lista solo crea las filas visibles: el buscador trae la del chat.
+        Until(() => Text(rw).Contains("recording(s)", StringComparison.Ordinal), "the recordings loaded", () => Text(rw));
+        Replace(Id(rw, "RecordingsSearch"), "Chat");
+        Until(() => Text(list).Contains("| Chat |", StringComparison.Ordinal), "the chat's recording", () => Text(rw));
         Assert.Equal("Open on the website", Id(rw, "RecordingsDownload").Name);
         Shot("recordings");
         rw.AsWindow().Close();
