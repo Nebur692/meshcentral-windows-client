@@ -231,6 +231,19 @@ public sealed class Phase9Tests : IDisposable
         }
         gw.AsWindow().Close();
 
+        // 4a. The server itself has the chat's recording (else the window cannot show it). / El propio servidor tiene la grabación del chat.
+        await using (var s = await Server())
+        {
+            IReadOnlyList<Recording> recs = [];
+            for (var i = 0; i < 20; i++)
+            {
+                recs = await s.GetRecordingsAsync();
+                if (recs.Any(r => r.Kind == RecordedKind.Chat)) break;
+                await Task.Delay(1000);
+            }
+            Assert.True(recs.Any(r => r.Kind == RecordedKind.Chat),
+                "the server did not record the chat; it has: " + string.Join(", ", recs.Select(r => $"{r.Kind} {r.FileName} {r.Start:HH:mm:ss}")));
+        }
         // 4. The recordings: the chat above is there, and a password session opens them on the website. / Las grabaciones.
         win.SetForeground();
         Id(win, "ServerMenuButton").AsButton().Invoke();
