@@ -137,8 +137,15 @@ public sealed class SshTests(ITestOutputHelper output) : IDisposable
         if (Retry.WhileNull(() => _automation.GetDesktop().FindFirstDescendant(cf => cf.ByAutomationId("CertTrust")), TimeSpan.FromSeconds(15)).Result is { } trust) trust.AsButton().Invoke();
 
         var term = OpenSsh(win, expectQuestion: true);
+        // Typed only once the shell shows its prompt, and Enter only once the echo shows the whole word: keys typed
+        // before the session was ready were lost now and then (CI 15-11, the prompt there and no "whoami").
+        // Se escribe cuando el intérprete enseña su indicador, e Intro cuando el eco enseña la palabra entera: las teclas
+        // escritas antes de estar lista la sesión se perdían a veces (CI 15-11: el indicador y ningún «whoami»).
+        Assert.True(Retry.WhileNull(() => Row(term, t => t.TrimEnd().EndsWith('>')), Timeout, TimeSpan.FromMilliseconds(300)).Result is not null, "the shell's prompt");
         Id(term, "TerminalView").Click();
         Keyboard.Type("whoami");
+        Assert.True(Retry.WhileNull(() => Row(term, t => t.TrimEnd().EndsWith(">whoami", StringComparison.Ordinal)), Timeout, TimeSpan.FromMilliseconds(300)).Result is not null,
+            "whoami echoed: " + string.Join(" | ", term.FindAllDescendants().Select(SafeName).Where(n => n.Trim().Length > 0)));
         Keyboard.Type(VirtualKeyShort.ENTER);
         var me = Env("MESHUI_SSH_USER").ToLowerInvariant();
         var answer = Retry.WhileNull(() => Row(term, t => t.EndsWith("\\" + me, StringComparison.OrdinalIgnoreCase)), Timeout, TimeSpan.FromMilliseconds(300)).Result;
@@ -150,7 +157,9 @@ public sealed class SshTests(ITestOutputHelper output) : IDisposable
         term = OpenSsh(win, expectQuestion: false);
         Id(term, "TerminalView").Click();
         // Expanded there, so it cannot be the echo of what was typed. / Expandido allí, así que no puede ser el eco de lo tecleado.
+        Assert.True(Retry.WhileNull(() => Row(term, t => t.TrimEnd().EndsWith('>')), Timeout, TimeSpan.FromMilliseconds(300)).Result is not null, "the shell's prompt, second time");
         Keyboard.Type("echo otra-vez-%USERNAME%");
+        Assert.True(Retry.WhileNull(() => Row(term, t => t.TrimEnd().EndsWith(">echo otra-vez-%USERNAME%", StringComparison.Ordinal)), Timeout, TimeSpan.FromMilliseconds(300)).Result is not null, "the echo, second time");
         Keyboard.Type(VirtualKeyShort.ENTER);
         var again = Retry.WhileNull(() => Row(term, t => t.Equals("otra-vez-" + me, StringComparison.OrdinalIgnoreCase)), Timeout, TimeSpan.FromMilliseconds(300)).Result;
         Shot("second");
