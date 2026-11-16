@@ -126,7 +126,15 @@ public sealed class FilesTests : IDisposable
             () => Items(list) + " · status: " + (files.FindFirstDescendant(cf => cf.ByAutomationId("FilesStatus"))?.Name ?? "?"));
         Shot("drives");
 
+        // Typing a path offers the folders that match as it goes, as Explorer does. / Al escribir una ruta se ofrecen las carpetas que encajan.
         var path = Id(files, "PathBox");
+        path.Click();
+        Keyboard.TypeSimultaneously(VirtualKeyShort.CONTROL, VirtualKeyShort.KEY_A);
+        Keyboard.Type(@"C:\Win");
+        Until(() => _automation.GetDesktop().FindFirstDescendant(cf => cf.ByAutomationId("PathSuggestions"))?.FindFirstDescendant(cf => cf.ByName("Windows")) is not null,
+            "the path suggestions", () => path.AsTextBox().Text);
+        Shot("path-suggestions");
+        Keyboard.Type(VirtualKeyShort.ESCAPE);
         path.Click();
         Keyboard.TypeSimultaneously(VirtualKeyShort.CONTROL, VirtualKeyShort.KEY_A);
         Keyboard.Type(remote);

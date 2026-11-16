@@ -81,7 +81,11 @@ public sealed record BackupCode(string Code, bool Used);
 
 public enum BackupCodeAction { Show = 0, New = 1, Clear = 2 }
 
-public sealed record SecurityKey(int Index, string Name, string? Type);
+/// <summary>Index: MeshCentral's keyIndex, an unsigned 32-bit number (did not fit an int). / Índice: el keyIndex de MeshCentral, de 32 bits sin signo.</summary>
+public sealed record SecurityKey(long Index, string Name, string? Type)
+{
+    internal static SecurityKey From(JsonObject k) => new(k.Long("i") ?? 0, k.Str("name") ?? "", k.Str("type"));
+}
 
 /// <summary>A login token: a second user name and password for scripts and tools, tied to this account.
 /// Un token de acceso: otro usuario y contraseña para guiones y herramientas, atado a esta cuenta.</summary>
@@ -423,7 +427,7 @@ public sealed partial class MeshServerSession
         var r = await RequestAsync(new JsonObject { ["action"] = "otp-hkey-get" }, o => o.Str("action") == "otp-hkey-get",
             "usuarios/cambiar-ajustes/tiempo-agotado", "usuarios/cambiar-ajustes/conexion-cortada", ct).ConfigureAwait(false);
         return r["keys"] is JsonArray keys
-            ? keys.OfType<JsonObject>().Select(k => new SecurityKey((int)(k.Long("i") ?? 0), k.Str("name") ?? "", k.Str("type"))).ToList()
+            ? keys.OfType<JsonObject>().Select(SecurityKey.From).ToList()
             : [];
     }
 
@@ -541,12 +545,62 @@ public sealed partial class MeshServerSession
         User = User with { MessagingHandle = null };
     }
 
+    /// <summary>
+    /// Adds a security key or passkey (webauthn-startregister, then -endregister with the key's attestation; the server
+    /// answers otp-hkey-setup-response). A server that does not allow keys (no two-factor, no dotted name, keys locked or
+    /// the maximum reached) answers nothing, so the wait says so.
+    /// Añade una llave de seguridad. Un servidor que no las permite no contesta, y la espera lo dice.
+    /// </summary>
+    public async Task AddSecurityKeyAsync(string name, ISecurityKey key, CancellationToken ct = default)
+    {
+        CheckOwnSettings();
+        var n = name.Trim();
+        if (n.Length is 0 or > 64) throw UserError("usuarios/cambiar-ajustes/dato-invalido", "The key needs a name of 1 to 64 characters.");
+        var before = User.SecurityKeys;
+        JsonObject start;
+        try
+        {
+            start = await RequestAsync(new JsonObject { ["action"] = "webauthn-startregister", ["name"] = n }, o => o.Str("action") == "webauthn-startregister",
+                "usuarios/cambiar-ajustes/no-autorizado", "usuarios/cambiar-ajustes/conexion-cortada", ct, TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+        }
+        catch (MeshClientException e) when (e.Failure == MeshFailure.Timeout)
+        {
+            throw UserError("usuarios/cambiar-ajustes/no-autorizado", "This server does not let this account add security keys.");
+        }
+        if (start["request"] is not JsonObject req || req.Str("challenge") is not { } challenge || req["user"] is not JsonObject u)
+            throw UserError("usuarios/cambiar-ajustes/rechazo-remoto", "The server's key request was not understood.");
+        var (rpId, origin) = SecurityKeys.Site(Server);
+        var clientData = SecurityKeys.ClientData("webauthn.create", Convert.FromBase64String(challenge), origin);
+        var made = await key.MakeCredentialAsync(new KeyCreation(rpId, (req["rp"] as JsonObject)?.Str("name") ?? rpId,
+            Convert.FromBase64String(u.Str("id") ?? ""), u.Str("name") ?? User.Id, u.Str("displayName") ?? User.Name, clientData,
+            Array.Empty<byte[]>(), req.Str("userVerification") ?? "preferred", TimeSpan.FromMilliseconds(req.Long("timeout") ?? 60_000)), ct).ConfigureAwait(false);
+        var r = await RequestAsync(new JsonObject
+            {
+                ["action"] = "webauthn-endregister", ["name"] = n,
+                ["response"] = new JsonObject
+                {
+                    ["rawId"] = Convert.ToBase64String(made.CredentialId),
+                    ["response"] = new JsonObject { ["attestationObject"] = Convert.ToBase64String(made.AttestationObject), ["clientDataJSON"] = Convert.ToBase64String(clientData) },
+                },
+            }, o => o.Str("action") == "otp-hkey-setup-response",
+            "usuarios/cambiar-ajustes/tiempo-agotado", "usuarios/cambiar-ajustes/conexion-cortada", ct).ConfigureAwait(false);
+        if (!r.Bool("result")) throw UserError("usuarios/cambiar-ajustes/rechazo-remoto", "The server did not take the key.");
+        // Set, not added: the account's event (msgid 95) may have counted it already. / Se pone, no se suma: el aviso puede haberla contado ya.
+        User = User with { SecurityKeys = before + 1 };
+    }
+
     public async Task RemoveSecurityKeyAsync(SecurityKey key, CancellationToken ct = default)
     {
         CheckOwnSettings();
         var cmd = new JsonObject { ["action"] = "otp-hkey-remove", ["index"] = key.Index };
-        await ConfirmedByEvent(cmd, e => e.Str("action") == "accountchange" && e.Long("msgid") == 94 && e["account"] is JsonObject a && a.Str("_id") == User.Id,
+        var before = (await GetSecurityKeysAsync(ct).ConfigureAwait(false)).Count;
+        var m = await ConfirmedByEvent(cmd, e => e.Str("action") == "accountchange" && e.Long("msgid") == 94 && e["account"] is JsonObject a && a.Str("_id") == User.Id,
             "usuarios/cambiar-ajustes/tiempo-agotado", "usuarios/cambiar-ajustes/conexion-cortada", ct).ConfigureAwait(false);
+        // The server sends the event even when no key has that index: the account's count says whether it went.
+        // El servidor manda el aviso aunque ninguna llave tenga ese índice: el número de la cuenta dice si se fue.
+        var left = ((m["event"] as JsonObject)?["account"] as JsonObject)?.Long("otphkeys") ?? 0;
+        if (left >= before) throw UserError("usuarios/cambiar-ajustes/rechazo-remoto", "The server kept the key.");
+        User = User with { SecurityKeys = (int)left };
     }
 
     public async Task<IReadOnlyList<LoginToken>> GetLoginTokensAsync(CancellationToken ct = default) =>

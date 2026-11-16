@@ -65,6 +65,8 @@
                 <Button x:Name="MsgCodeButton" Content="{app:T SendMsgCode}" Visibility="Collapsed"
                         HorizontalAlignment="Left" Margin="0,8,0,0" Click="MsgCodeButton_Click" />
               </StackPanel>
+              <Button x:Name="KeyButton" Content="{app:T UseSecurityKey}" Visibility="Collapsed"
+                      HorizontalAlignment="Left" Margin="0,8,0,0" Click="KeyButton_Click" />
             </StackPanel>
           </Border>
 

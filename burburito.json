@@ -233,6 +233,46 @@
     },
     {
       "modulo": "conexion",
+      "accion": "verificar-identidad",
+      "causa": "no-encontrado",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "El servidor no pidió ninguna llave",
+      "explicacion": "Al entrar con una llave de seguridad, el formulario de MeshCentral no trajo reto de llave: la contraseña está mal o la cuenta no tiene ninguna llave.",
+      "que_hacer": "Comprobar la contraseña, o entrar con otro segundo factor y añadir la llave en Mi cuenta."
+    },
+    {
+      "modulo": "conexion",
+      "accion": "verificar-identidad",
+      "causa": "error-remoto",
+      "severidad": "error",
+      "actuar": false,
+      "titulo": "El formulario de entrada contestó con un error",
+      "explicacion": "Al entrar con una llave de seguridad, el formulario web de MeshCentral contestó con un estado HTTP de error.",
+      "que_hacer": "Probar de nuevo en un momento; si sigue, avisar a quien administra el servidor con el número del error."
+    },
+    {
+      "modulo": "conexion",
+      "accion": "verificar-identidad",
+      "causa": "sin-conexion",
+      "severidad": "error",
+      "actuar": false,
+      "titulo": "No se pudo llegar al formulario de entrada",
+      "explicacion": "Al entrar con una llave de seguridad no se pudo hablar con la página de entrada del servidor.",
+      "que_hacer": "Comprobar la conexión y la dirección del servidor."
+    },
+    {
+      "modulo": "conexion",
+      "accion": "verificar-identidad",
+      "causa": "dispositivo-mudo",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "La llave de seguridad no respondió",
+      "explicacion": "La ventana de llaves de Windows (webauthn.dll) devolvió un error: no había llave, no era de esta cuenta, se acabó el tiempo o Windows Hello no está configurado.",
+      "que_hacer": "Probar otra vez con la llave puesta o el móvil cerca; para Windows Hello, configurarlo en Ajustes > Cuentas > Opciones de inicio de sesión."
+    },
+    {
+      "modulo": "conexion",
       "accion": "iniciar-sesion",
       "causa": "limite-de-tasa",
       "severidad": "aviso",

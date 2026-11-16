@@ -3,6 +3,7 @@ using System.Globalization;
 using System.IO;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Data;
 using System.Windows.Input;
 using MeshCentralClient.Core;
@@ -44,6 +45,13 @@ public sealed class FilesWindow : Window
     private string _path = "";
     private bool _closing;
 
+    // Completing the path as it is typed (PathCompletion). / Completar la ruta mientras se escribe.
+    private readonly Popup _suggest = new() { Placement = PlacementMode.Bottom, StaysOpen = false };
+    private readonly ListBox _suggestList = new() { MaxHeight = 280, MinWidth = 280 };
+    private readonly Dictionary<string, IReadOnlyList<RemoteEntry>> _listed = new();
+    private CancellationTokenSource? _suggestCts;
+    private bool _completing;
+
     public FilesWindow(MeshServerSession session, DeviceRow device)
     {
         _session = session;
@@ -70,8 +78,9 @@ public sealed class FilesWindow : Window
         DockPanel.SetDock(right, Dock.Right);
         bar.Children.Add(right);
         _pathBox.Margin = new Thickness(8, 0, 8, 0);
-        _pathBox.KeyDown += async (_, e) => { if (e.Key == Key.Enter) await ShowAsync(FromDisplay(_pathBox.Text)); };
+        _pathBox.KeyDown += async (_, e) => { if (e.Key == Key.Enter) { _suggestCts?.Cancel(); _suggest.IsOpen = false; await ShowAsync(FromDisplay(_pathBox.Text)); } };
         bar.Children.Add(_pathBox);
+        SetUpCompletion();
 
         var grid = new GridView();
         grid.Columns.Add(new GridViewColumn { Width = 36, DisplayMemberBinding = new Binding(nameof(FileRow.Kind)) });
@@ -165,7 +174,95 @@ public sealed class FilesWindow : Window
 
     private string Display(string path) => path.Length == 0 ? L.T("Drives") : _device.IsWindows ? path.Replace('/', '\\') : path;
 
-    private static string FromDisplay(string text) => text.Trim().Replace('\\', '/');
+    private static string FromDisplay(string text)
+    {
+        var t = System.Text.RegularExpressions.Regex.Replace(text.Trim().Replace('\\', '/'), "/{2,}", "/");
+        // "C:/Users/" (left by the completion) is "C:/Users"; "/" and "C:/" stay. / «C:/Users/» es «C:/Users»; «/» y «C:/» se quedan.
+        return t.Length > 1 && t.EndsWith('/') && !(t.Length == 3 && t[1] == ':') ? t.TrimEnd('/') : t;
+    }
+
+    // ------------------------------------------------------------------ completing the path / completar la ruta
+
+    private void SetUpCompletion()
+    {
+        Id(_suggestList, "PathSuggestions");
+        var border = new Border { Child = _suggestList, BorderThickness = new Thickness(1), BorderBrush = SystemColors.ActiveBorderBrush, Padding = new Thickness(2) };
+        border.SetBinding(Border.BackgroundProperty, new Binding(nameof(Background)) { Source = this });
+        _suggest.Child = border;
+        _suggest.PlacementTarget = _pathBox;
+        _pathBox.TextChanged += async (_, e) =>
+        {
+            if (_completing || !_pathBox.IsKeyboardFocused) return;
+            await SuggestAsync(forward: e.Changes.Any(c => c.AddedLength > 0 && c.RemovedLength == 0));
+        };
+        _pathBox.PreviewKeyDown += (_, e) =>
+        {
+            if (!_suggest.IsOpen || _suggestList.Items.Count == 0) return;
+            switch (e.Key)
+            {
+                case Key.Down: _suggestList.SelectedIndex = Math.Min(_suggestList.SelectedIndex + 1, _suggestList.Items.Count - 1); _suggestList.ScrollIntoView(_suggestList.SelectedItem); e.Handled = true; break;
+                case Key.Up: _suggestList.SelectedIndex = Math.Max(_suggestList.SelectedIndex - 1, 0); _suggestList.ScrollIntoView(_suggestList.SelectedItem); e.Handled = true; break;
+                case Key.Tab: Take(_suggestList.SelectedItem as string ?? (string)_suggestList.Items[0]); e.Handled = true; break;
+                case Key.Right when _pathBox.SelectionLength > 0 || _suggestList.SelectedItem is not null:
+                    Take(_suggestList.SelectedItem as string ?? (string)_suggestList.Items[0]); e.Handled = true; break;
+                case Key.Escape: _suggest.IsOpen = false; e.Handled = true; break;
+            }
+        };
+        _suggestList.PreviewMouseLeftButtonUp += (_, _) => { if (_suggestList.SelectedItem is string name) Take(name); };
+        _pathBox.LostKeyboardFocus += (_, e) => { if (e.NewFocus is not DependencyObject d || !_suggestList.IsAncestorOf(d)) _suggest.IsOpen = false; };
+    }
+
+    /// <summary>
+    /// Lists the folder already typed (once per window) and offers its subfolders that start with the rest; typing
+    /// forward also writes the rest of the first one, selected, as Explorer does.
+    /// Lista la carpeta ya escrita (una vez por ventana) y ofrece sus subcarpetas; al escribir hacia delante pone el
+    /// resto de la primera, seleccionado, como el Explorador.
+    /// </summary>
+    private async Task SuggestAsync(bool forward)
+    {
+        if (_files is null) return;
+        _suggestCts?.Cancel();
+        var cts = _suggestCts = new CancellationTokenSource();
+        var typed = _pathBox.Text[.._pathBox.SelectionStart];
+        var (folder, prefix) = PathCompletion.Split(FromDisplayRaw(typed), _device.IsWindows);
+        if (!_listed.TryGetValue(folder, out var entries))
+        {
+            try
+            {
+                await Task.Delay(200, cts.Token);
+                entries = (await _files.ListAsync(folder, cts.Token)).Entries;
+                _listed[folder] = entries;
+            }
+            catch (Exception ex) when (ex is OperationCanceledException or MeshClientException) { if (!cts.IsCancellationRequested) _suggest.IsOpen = false; return; }
+        }
+        if (cts.IsCancellationRequested || _pathBox.Text[.._pathBox.SelectionStart] != typed) return;
+        var matches = PathCompletion.Matches(entries, prefix);
+        _suggestList.ItemsSource = matches;
+        _suggestList.SelectedIndex = -1;
+        _suggest.IsOpen = matches.Count > 0 && _pathBox.IsKeyboardFocused;
+        if (forward && prefix.Length > 0 && matches.Count > 0 && _pathBox.SelectionStart == _pathBox.Text.Length)
+        {
+            _completing = true;
+            _pathBox.Text = typed + matches[0][prefix.Length..];
+            _pathBox.Select(typed.Length, _pathBox.Text.Length - typed.Length);
+            _completing = false;
+        }
+    }
+
+    /// <summary>Takes a suggested name: the path gets it and a separator, and the next level is offered. / Toma un nombre sugerido.</summary>
+    private void Take(string name)
+    {
+        var typed = _pathBox.Text[.._pathBox.SelectionStart];
+        var (folder, _) = PathCompletion.Split(FromDisplayRaw(typed), _device.IsWindows);
+        _completing = true;
+        _pathBox.Text = Display(PathCompletion.Accept(folder, name));
+        _pathBox.CaretIndex = _pathBox.Text.Length;
+        _completing = false;
+        _pathBox.Focus();
+        _ = SuggestAsync(forward: false);
+    }
+
+    private static string FromDisplayRaw(string text) => text.Replace('\\', '/');
 
     internal static string Human(long bytes)
     {
@@ -185,7 +282,12 @@ public sealed class FilesWindow : Window
         {
             var folder = await _files.ListAsync(path);
             _path = path;
+            // The box shows where it is now: no suggestion still on its way writes over it. / Ninguna sugerencia pendiente escribe encima.
+            _suggestCts?.Cancel();
+            _suggest.IsOpen = false;
+            _completing = true;
             _pathBox.Text = Display(path);
+            _completing = false;
             _rows.Clear();
             foreach (var e in folder.Entries.OrderBy(e => e.Kind == RemoteEntryKind.File).ThenBy(e => e.Name, StringComparer.CurrentCultureIgnoreCase))
                 _rows.Add(new FileRow(e));

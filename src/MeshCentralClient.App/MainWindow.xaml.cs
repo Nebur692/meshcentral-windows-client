@@ -286,6 +286,8 @@ public partial class MainWindow : Window
 
     private async void MsgCodeButton_Click(object sender, RoutedEventArgs e) => await ConnectAsync(msgCode: true);
 
+    private async void KeyButton_Click(object sender, RoutedEventArgs e) => await ConnectAsync(securityKey: true);
+
     private void ForgetButton_Click(object sender, RoutedEventArgs e)
     {
         if (ServerBox.SelectedItem is not SavedServer s) return;
@@ -299,7 +301,7 @@ public partial class MainWindow : Window
         ForgetButton.Visibility = Visibility.Collapsed;
     }
 
-    private async Task ConnectAsync(bool emailCode = false, bool smsCode = false, bool msgCode = false)
+    private async Task ConnectAsync(bool emailCode = false, bool smsCode = false, bool msgCode = false, bool securityKey = false)
     {
         HideError();
         if (!ServerAddress.TryParse(ServerBox.Text, out var address))
@@ -311,7 +313,7 @@ public partial class MainWindow : Window
         var user = UserBox.Text.Trim();
         var password = PasswordBox.Password;
         // No password: single sign-on. A password login always needs one. / Sin contraseña: inicio único. Entrar con contraseña siempre la necesita.
-        if (password.Length == 0 && !emailCode && !smsCode && !msgCode && TwoFactorPanel.Visibility != Visibility.Visible) { await SignInWithSsoAsync(null); return; }
+        if (password.Length == 0 && !emailCode && !smsCode && !msgCode && !securityKey && TwoFactorPanel.Visibility != Visibility.Visible) { await SignInWithSsoAsync(null); return; }
         var code = emailCode ? "**email**" : smsCode ? "**sms**" : msgCode ? "**msg**" : (TwoFactorPanel.Visibility == Visibility.Visible ? CodeBox.Text.Trim() : null);
         if (code is { Length: 0 }) code = null;
         var key = address!.ToString();
@@ -324,7 +326,10 @@ public partial class MainWindow : Window
             MeshServerSession session;
             try
             {
-                session = await MeshServerSession.ConnectAsync(address, new PasswordCredentials(user, password, code), trust, _connectCts.Token);
+                // A key goes through the sign-in form, as the website (the control channel takes none). / Una llave va por el formulario, como la web.
+                session = securityKey
+                    ? await SecurityKeys.SignInAsync(address, user, password, trust, new WindowsSecurityKey(new System.Windows.Interop.WindowInteropHelper(this).Handle), _connectCts.Token)
+                    : await MeshServerSession.ConnectAsync(address, new PasswordCredentials(user, password, code), trust, _connectCts.Token);
             }
             catch (MeshClientException ex) when (ex.Failure == MeshFailure.UntrustedCertificate && ex.CertificateSha256 is not null)
             {
@@ -383,6 +388,9 @@ public partial class MainWindow : Window
         EmailCodeButton.Visibility = _emailCodeAvailable ? Visibility.Visible : Visibility.Collapsed;
         SmsCodeButton.Visibility = _smsCodeAvailable ? Visibility.Visible : Visibility.Collapsed;
         MsgCodeButton.Visibility = _msgCodeAvailable ? Visibility.Visible : Visibility.Collapsed;
+        // The control channel does not say whether the account has keys: offered whenever Windows can ask for one.
+        // El canal de control no dice si la cuenta tiene llaves: se ofrece siempre que Windows pueda pedir una.
+        KeyButton.Visibility = WindowsSecurityKey.Available ? Visibility.Visible : Visibility.Collapsed;
         CodeBox.Text = "";
         CodeBox.Focus();
     }

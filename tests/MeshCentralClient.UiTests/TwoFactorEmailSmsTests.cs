@@ -137,12 +137,15 @@ public sealed class TwoFactorEmailSmsTests(ITestOutputHelper output) : IDisposab
         Id(askCode, "InputOk").AsButton().Invoke();
         Until(() => Id(aw, "PhoneState").Name == "+34600000003", "the phone checked", () => Id(aw, "PhoneState").Name);
         Shot("account");
+        // Keys are added here with Windows' own window (Windows Hello, a USB key or a phone): the button is there and on.
+        Assert.True(Id(aw, "AddKeyButton").IsEnabled, "the add-a-key button");
         aw.AsWindow().Close();
 
         // 3. Signing in again asks for the code; the SMS one lets in. / Al volver a entrar pide el código; el del SMS deja entrar.
         Id(win, "DisconnectButton").AsButton().Invoke();
         SignInForm(win);
         Until(() => Shown(Id(win, "SmsCodeButton")), "the SMS code button", () => Text(win));
+        Assert.True(Shown(Id(win, "KeyButton")), "the use-a-security-key button");
         before = (await Texts()).Count;
         Id(win, "SmsCodeButton").AsButton().Invoke();
         var signInCode = await SmsCode(before);

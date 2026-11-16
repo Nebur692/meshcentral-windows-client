@@ -61,6 +61,7 @@ public sealed class AccountWindow : Window
     private readonly Button _clearCodes = new() { Content = L.T("ClearCodes"), MinWidth = 110 };
     private readonly TextBox _codes = new() { IsReadOnly = true, FontFamily = new FontFamily("Cascadia Mono, Consolas"), AcceptsReturn = true, Visibility = Visibility.Collapsed, Margin = new Thickness(0, 6, 0, 0), MaxHeight = 220, VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
     private readonly ListBox _keys = new() { MinHeight = 50, MaxHeight = 120, Margin = new Thickness(0, 4, 0, 6) };
+    private readonly Button _addKey = new() { Content = L.T("AddKey"), MinWidth = 110, Margin = new Thickness(0, 0, 8, 0) };
     private readonly Button _removeKey = new() { Content = L.T("RemoveItem"), MinWidth = 90 };
     private readonly ListView _tokens = new() { MinHeight = 70, MaxHeight = 180, Margin = new Thickness(0, 4, 0, 6) };
     private readonly Button _newToken = new() { Content = L.T("NewToken"), MinWidth = 110, Margin = new Thickness(0, 0, 8, 0) };
@@ -79,7 +80,7 @@ public sealed class AccountWindow : Window
             (this, "AccountWindow"), (_who, "AccountName"), (_current, "CurrentPasswordBox"), (_new, "NewPasswordBox"), (_repeat, "RepeatPasswordBox"),
             (_change, "ChangePasswordButton"), (_authState, "AuthenticatorState"), (_addAuth, "AddAuthenticatorButton"), (_removeAuth, "RemoveAuthenticatorButton"),
             (_codesState, "CodesState"), (_showCodes, "ShowCodesButton"), (_newCodes, "NewCodesButton"), (_clearCodes, "ClearCodesButton"), (_codes, "CodesBox"),
-            (_keys, "KeyList"), (_removeKey, "RemoveKeyButton"), (_tokens, "TokenList"), (_newToken, "NewTokenButton"), (_removeToken, "RemoveTokenButton"),
+            (_keys, "KeyList"), (_addKey, "AddKeyButton"), (_removeKey, "RemoveKeyButton"), (_tokens, "TokenList"), (_newToken, "NewTokenButton"), (_removeToken, "RemoveTokenButton"),
             (_status, "AccountStatus"), (_emailState, "EmailCodesState"), (_emailToggle, "EmailCodesButton"), (_phoneState, "PhoneState"),
             (_addPhone, "AddPhoneButton"), (_removePhone, "RemovePhoneButton"), (_ntfyState, "NtfyState"), (_removeNtfy, "RemoveNtfyButton"),
         }) AP.SetAutomationId(e, id);
@@ -131,7 +132,7 @@ public sealed class AccountWindow : Window
         page.Children.Add(Section("KeysSection"));
         page.Children.Add(Help("KeysHelp"));
         page.Children.Add(_keys);
-        page.Children.Add(Row(_removeKey));
+        page.Children.Add(Row(_addKey, _removeKey));
         page.Children.Add(Section("TokensSection"));
         page.Children.Add(Help("TokensHelp"));
         page.Children.Add(_tokens);
@@ -155,6 +156,7 @@ public sealed class AccountWindow : Window
         _clearCodes.Click += async (_, _) => await Codes(BackupCodeAction.Clear);
         _keys.SelectionChanged += (_, _) => ShowState();
         _removeKey.Click += async (_, _) => await RemoveKey();
+        _addKey.Click += async (_, _) => await AddKey();
         _tokens.SelectionChanged += (_, _) => ShowState();
         _newToken.Click += async (_, _) => await NewToken();
         _removeToken.Click += async (_, _) => await RemoveToken();
@@ -194,6 +196,7 @@ public sealed class AccountWindow : Window
         _clearCodes.IsEnabled = !locked && u.HasTwoFactor && u.HasBackupCodes;
         if (!u.HasTwoFactor) { _codes.Text = ""; _codes.Visibility = Visibility.Collapsed; }
         _removeKey.IsEnabled = !locked && _keys.SelectedItem is KeyItem;
+        _addKey.IsEnabled = !locked && WindowsSecurityKey.Available;
         _removeToken.IsEnabled = _tokens.SelectedItem is TokenRow;
     }
 
@@ -283,6 +286,16 @@ public sealed class AccountWindow : Window
         foreach (var k in await _session.GetSecurityKeysAsync()) _keys.Items.Add(new KeyItem(k));
         if (_keys.Items.Count == 0) _keys.Items.Add(new ListBoxItem { Content = L.T("NoKeys"), IsEnabled = false });
     }
+
+    /// <summary>Windows' own window asks for the key (Windows Hello, a USB/NFC key or a phone by QR). / La ventana de Windows pide la llave.</summary>
+    private Task AddKey() => Run(async () =>
+    {
+        if (InputDialog.Ask(this, L.T("KeysSection"), L.T("KeyName"), L.T("KeyNameDefault")) is not { } name) return null;
+        try { await _session.AddSecurityKeyAsync(name, new WindowsSecurityKey(new System.Windows.Interop.WindowInteropHelper(this).Handle)); }
+        catch (OperationCanceledException) { return L.T("KeyNotAdded"); }
+        await LoadKeys();
+        return L.F("KeyAdded", name.Trim());
+    });
 
     private Task RemoveKey() => Run(async () =>
     {

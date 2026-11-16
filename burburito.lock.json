@@ -1,5 +1,5 @@
 {
-  "generado": "2026-11-16T00:31:23Z",
+  "generado": "2026-11-16T07:26:27Z",
   "aviso": "Generado por bin/burburito. No editar a mano: la fuente de verdad es el burburito.json de al lado.",
   "proyecto": {
     "id": 35,
@@ -301,6 +301,18 @@
       "actuar": true,
       "titulo": "Sin contraseña y el servidor no ofrece inicio único"
     },
+    "conexion/verificar-identidad/sin-conexion": {
+      "codigo": "035-001-003-001",
+      "severidad": "error",
+      "actuar": false,
+      "titulo": "No se pudo llegar al formulario de entrada"
+    },
+    "conexion/verificar-identidad/error-remoto": {
+      "codigo": "035-001-003-020",
+      "severidad": "error",
+      "actuar": false,
+      "titulo": "El formulario de entrada contestó con un error"
+    },
     "conexion/verificar-identidad/credencial-invalida": {
       "codigo": "035-001-003-041",
       "severidad": "aviso",
@@ -312,6 +324,18 @@
       "severidad": "aviso",
       "actuar": false,
       "titulo": "El servidor pide el segundo factor"
+    },
+    "conexion/verificar-identidad/no-encontrado": {
+      "codigo": "035-001-003-062",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "El servidor no pidió ninguna llave"
+    },
+    "conexion/verificar-identidad/dispositivo-mudo": {
+      "codigo": "035-001-003-120",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "La llave de seguridad no respondió"
     },
     "conexion/ver-pantalla/conexion-cortada": {
       "codigo": "035-001-020-005",

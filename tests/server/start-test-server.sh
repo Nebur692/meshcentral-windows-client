@@ -47,10 +47,12 @@ if [ -n "${SINK_HOST:-}" ] && [ -n "${SINK_CA:-}" ]; then
   MAIL="$MAIL"', "messaging": { "ntfy": { "host": "'"$SINK_HOST"':8443" } }'
   TRUST="-e NODE_EXTRA_CA_CERTS=/certs/sink.crt -v $SINK_CA/sink.crt:/certs/sink.crt:ro"
 fi
+# The tests sign in from one address, many with a wrong code on purpose: MeshCentral would block it after 10 bad
+# second factors in 10 minutes (maxInvalid2fa), as after bad passwords (maxInvalidLogin). / Sin bloqueo por 2FA malo.
 cat > "$DATA/config.json" <<JSON
 {
   "settings": { "cert": "mesh.test", "port": 443, "redirPort": 0, "mpsPort": 0, "selfUpdate": false,
-                "maxInvalidLogin": false, "agentDownloads": { "enabled": false } }$MAIL,
+                "maxInvalidLogin": false, "maxInvalid2fa": false, "agentDownloads": { "enabled": false } }$MAIL,
   "domains": { "": { "title": "Test", "newAccounts": false, "minify": true $AUTH } }
 }
 JSON
