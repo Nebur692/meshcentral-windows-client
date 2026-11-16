@@ -559,6 +559,7 @@ public static class L
         ["MappingStarted"] = ("{0} now goes to {1}.", "{0} va ahora a {1}."),
         ["AddMappingTitle"] = ("Map a port", "Redirigir un puerto"),
         ["MappingService"] = ("Service", "Servicio"),
+        ["MappingProtocol"] = ("Protocol", "Protocolo"),
         ["ServiceOther"] = ("Other", "Otro"),
         ["MappingHost"] = ("Machine (empty: the device itself)", "Máquina (vacío: el propio equipo)"),
         ["MappingHostHelp"] = ("Another machine's name or address, as the device sees it on its network.", "El nombre o la dirección de otra máquina, tal como la ve el equipo en su red."),

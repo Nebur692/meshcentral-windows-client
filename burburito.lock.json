@@ -1,5 +1,5 @@
 {
-  "generado": "2026-11-16T07:26:27Z",
+  "generado": "2026-11-16T14:27:48Z",
   "aviso": "Generado por bin/burburito. No editar a mano: la fuente de verdad es el burburito.json de al lado.",
   "proyecto": {
     "id": 35,
@@ -786,6 +786,12 @@
       "severidad": "aviso",
       "actuar": true,
       "titulo": "Ese puerto de este PC ya lo usa otro programa"
+    },
+    "redireccion/redirigir-puerto/no-implementado": {
+      "codigo": "035-013-509-103",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "UDP necesita un agente"
     },
     "redireccion/llevar-conexion/sin-conexion": {
       "codigo": "035-013-510-001",

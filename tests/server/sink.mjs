@@ -67,3 +67,10 @@ if (fs.existsSync('/certs/sink.crt')) {
     });
   }).listen(8443, () => console.log('ntfy ready'));
 }
+
+// A UDP echo on 7777, for the UDP port mapping: each datagram comes back as it came, to whoever sent it.
+// Un eco UDP en el 7777, para la redirección UDP: cada datagrama vuelve tal cual a quien lo mandó.
+import dgram from 'node:dgram';
+const echo = dgram.createSocket('udp4');
+echo.on('message', (msg, from) => echo.send(msg, from.port, from.address));
+echo.bind(7777, () => console.log('udp echo ready'));

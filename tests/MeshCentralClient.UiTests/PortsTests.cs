@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Net;
 using System.Net.Security;
 using System.Net.Sockets;
 using System.Text;
@@ -180,6 +181,36 @@ public sealed class PortsTests(ITestOutputHelper output) : IDisposable
         Id(pw, "RemoveMappingButton").AsButton().Invoke();
         Until(() => !Listening(port), "the port closed after removing it");
         Assert.DoesNotContain("\"RemotePort\": 4443", File.ReadAllText(Path.Combine(_dir.FullName, "appdata", "MeshCentralClient", "relays.json")));
+    }
+
+    [Fact]
+    public async Task A_person_maps_a_UDP_port_and_the_datagrams_come_back()
+    {
+        // The bench's mailbox runs on this machine with a UDP echo on 7777; the device is this machine.
+        // El buzón del banco corre en esta máquina con un eco UDP en el 7777; el equipo es esta máquina.
+        var win = SignIn();
+        DeviceMenu(win, "MapPortItem");
+        var form = Anywhere("MappingForm");
+        Id(form, "MappingUdp").AsRadioButton().IsChecked = true;
+        Type(Id(form, "MappingRemotePortBox"), "7777");
+        Id(form, "MappingOk").AsButton().Invoke();
+        var pw = Anywhere("PortsWindow");
+        var list = Id(pw, "MappingList");
+        Until(() => LocalPort(list) > 0, "the UDP mapping in the list", () => Text(list));
+        Assert.Contains("UDP", Text(list));
+        var port = LocalPort(list);
+        using var udp = new UdpClient(new IPEndPoint(IPAddress.Loopback, 0));
+        string? echo = null;
+        for (var i = 0; i < 10 && echo is null; i++)
+        {
+            await udp.SendAsync(System.Text.Encoding.UTF8.GetBytes("hola por UDP"), new IPEndPoint(IPAddress.Loopback, port));
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(2));
+            try { echo = System.Text.Encoding.UTF8.GetString((await udp.ReceiveAsync(cts.Token)).Buffer); } catch (OperationCanceledException) { }
+        }
+        Shot("udp-mapping");
+        Assert.Equal("hola por UDP", echo);
+        list.FindFirstDescendant(cf => cf.ByControlType(ControlType.DataItem))!.Patterns.SelectionItem.Pattern.Select();
+        Id(pw, "RemoveMappingButton").AsButton().Invoke();
     }
 
     [Fact]

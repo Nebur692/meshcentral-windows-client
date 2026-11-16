@@ -35,11 +35,18 @@ public sealed class TcpRelay : IAsyncDisposable
     /// <summary>Raised as bytes go either way. / Se lanza al pasar bytes en cualquier sentido.</summary>
     public event EventHandler? Traffic;
 
-    public static async Task<TcpRelay> OpenAsync(MeshServerSession session, string nodeId, int port, string? host = null, CancellationToken ct = default)
+    /// <param name="udp">
+    /// A UDP relay instead (udpport/udpaddr): the agent opens a UDP socket to the port, and each binary message is one
+    /// datagram, both ways. Only through an agent: the server's own local relay carries TCP only.
+    /// Un relé UDP: el agente abre un socket UDP al puerto y cada mensaje binario es un datagrama, en los dos sentidos.
+    /// Solo por un agente: el relé local del propio servidor solo lleva TCP.
+    /// </param>
+    public static async Task<TcpRelay> OpenAsync(MeshServerSession session, string nodeId, int port, string? host = null, CancellationToken ct = default, bool udp = false)
     {
         ArgumentNullException.ThrowIfNull(session);
         if (port is < 1 or > 65535)
-            throw new MeshClientException(MeshFailure.Rejected, "redireccion/llevar-conexion/dato-invalido", $"{port} is not a TCP port (1 to 65535).");
+            throw new MeshClientException(MeshFailure.Rejected, "redireccion/llevar-conexion/dato-invalido", $"{port} is not a {(udp ? "UDP" : "TCP")} port (1 to 65535).");
+        var p = udp ? "udp" : "tcp";
         // Where the tunnel goes. A device with its agent: meshrelay.ashx to its agent. A device without one: through the
         // group's relay agent to its address, or (no relay) localrelay.ashx with a cookie for that device and port, and the
         // server connects itself; a device without an agent has no machines behind it, so host is ignored.
@@ -52,8 +59,8 @@ public sealed class TcpRelay : IAsyncDisposable
         {
             var cookies = await session.GetRelayCookiesAsync(ct).ConfigureAwait(false);
             endpoint = "meshrelay.ashx";
-            query = $"nodeid={Uri.EscapeDataString(nodeId)}&tcpport={port}"
-                    + (string.IsNullOrWhiteSpace(host) ? "" : $"&tcpaddr={Uri.EscapeDataString(host.Trim())}")
+            query = $"nodeid={Uri.EscapeDataString(nodeId)}&{p}port={port}"
+                    + (string.IsNullOrWhiteSpace(host) ? "" : $"&{p}addr={Uri.EscapeDataString(host.Trim())}")
                     + $"&auth={Uri.EscapeDataString(cookies.Cookie)}";
         }
         else
@@ -65,7 +72,12 @@ public sealed class TcpRelay : IAsyncDisposable
             {
                 var cookies = await session.GetRelayCookiesAsync(ct).ConfigureAwait(false);
                 endpoint = "meshrelay.ashx";
-                query = $"nodeid={Uri.EscapeDataString(agent)}&tcpport={port}&tcpaddr={Uri.EscapeDataString(address)}&auth={Uri.EscapeDataString(cookies.Cookie)}";
+                query = $"nodeid={Uri.EscapeDataString(agent)}&{p}port={port}&{p}addr={Uri.EscapeDataString(address)}&auth={Uri.EscapeDataString(cookies.Cookie)}";
+            }
+            else if (udp)
+            {
+                throw new MeshClientException(MeshFailure.Rejected, "redireccion/redirigir-puerto/no-implementado",
+                    $"UDP to \"{local.Name}\" needs an agent in its group to relay it: the server alone carries TCP only.");
             }
             else
             {
@@ -168,6 +180,64 @@ public sealed class TcpRelay : IAsyncDisposable
             Interlocked.Add(ref _down, r.Count);
             Traffic?.Invoke(this, EventArgs.Empty);
         }
+    }
+
+    /// <summary>
+    /// For a UDP relay: each datagram from <paramref name="fromLocal"/> goes as one binary message, and each whole message
+    /// from the device goes to <paramref name="toLocal"/> as one datagram, until the channel ends, the device closes,
+    /// nothing passes for <paramref name="idle"/> (UDP has no end of its own) or <paramref name="ct"/> is cancelled.
+    /// Para un relé UDP: cada datagrama va como un mensaje binario y cada mensaje entero del equipo vuelve como un datagrama,
+    /// hasta que acaba el canal, cierra el equipo, no pasa nada en <paramref name="idle"/> o se cancela.
+    /// </summary>
+    public async Task PumpDatagramsAsync(System.Threading.Channels.ChannelReader<byte[]> fromLocal, Func<ReadOnlyMemory<byte>, Task> toLocal,
+        TimeSpan idle, CancellationToken ct = default)
+    {
+        using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        var last = Environment.TickCount64;
+        async Task Up()
+        {
+            await foreach (var d in fromLocal.ReadAllAsync(cts.Token).ConfigureAwait(false))
+            {
+                await WholeMessage.SendAsync(_ws, _turn, d, WebSocketMessageType.Binary, cts.Token).ConfigureAwait(false);
+                Interlocked.Add(ref _up, d.Length);
+                Volatile.Write(ref last, Environment.TickCount64);
+                Traffic?.Invoke(this, EventArgs.Empty);
+            }
+        }
+        async Task Down()
+        {
+            var buffer = new byte[64 * 1024];
+            while (!cts.IsCancellationRequested)
+            {
+                using var whole = new MemoryStream();
+                WebSocketReceiveResult r;
+                do
+                {
+                    r = await _ws.ReceiveAsync(buffer, cts.Token).ConfigureAwait(false);
+                    if (r.MessageType == WebSocketMessageType.Close) return;
+                    whole.Write(buffer, 0, r.Count);
+                } while (!r.EndOfMessage);
+                if (r.MessageType != WebSocketMessageType.Binary || whole.Length == 0) continue;
+                await toLocal(whole.GetBuffer().AsMemory(0, (int)whole.Length)).ConfigureAwait(false);
+                Interlocked.Add(ref _down, whole.Length);
+                Volatile.Write(ref last, Environment.TickCount64);
+                Traffic?.Invoke(this, EventArgs.Empty);
+            }
+        }
+        async Task Quiet()
+        {
+            while (!cts.IsCancellationRequested)
+            {
+                await Task.Delay(TimeSpan.FromSeconds(Math.Min(5, idle.TotalSeconds)), cts.Token).ConfigureAwait(false);
+                if (Environment.TickCount64 - Volatile.Read(ref last) > idle.TotalMilliseconds) return;
+            }
+        }
+        var tasks = new[] { Task.Run(Up, CancellationToken.None), Task.Run(Down, CancellationToken.None), Task.Run(Quiet, CancellationToken.None) };
+        await Task.WhenAny(tasks).ConfigureAwait(false);
+        await cts.CancelAsync().ConfigureAwait(false);
+        await CloseAsync().ConfigureAwait(false);
+        try { await Task.WhenAll(tasks).ConfigureAwait(false); }
+        catch (Exception ex) when (ex is OperationCanceledException or IOException or WebSocketException or ObjectDisposedException or System.Threading.Channels.ChannelClosedException) { }
     }
 
     private async Task CloseAsync()

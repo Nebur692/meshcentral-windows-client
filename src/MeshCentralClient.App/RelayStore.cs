@@ -13,8 +13,10 @@ public sealed class SavedMapping
     public string? RemoteHost { get; set; }
     public int RemotePort { get; set; }
     public int LocalPort { get; set; }
+    /// <summary>UDP (absent in what older versions saved: TCP). / UDP (falta en lo que guardaban versiones anteriores: TCP).</summary>
+    public bool Udp { get; set; }
 
-    public PortTarget Target => new(NodeId, DeviceName, RemotePort, RemoteHost, LocalPort);
+    public PortTarget Target => new(NodeId, DeviceName, RemotePort, RemoteHost, LocalPort, Udp);
 }
 
 /// <summary>How the person last signed in to an SSH server through a device; never the password.
@@ -91,13 +93,13 @@ public sealed class RelayStore
     public void Remember(string server, PortTarget t, int localPort)
     {
         Forget(server, t);
-        _data.Mappings.Add(new SavedMapping { Server = server, NodeId = t.NodeId, DeviceName = t.DeviceName, RemoteHost = t.RemoteHost, RemotePort = t.RemotePort, LocalPort = localPort });
+        _data.Mappings.Add(new SavedMapping { Server = server, NodeId = t.NodeId, DeviceName = t.DeviceName, RemoteHost = t.RemoteHost, RemotePort = t.RemotePort, LocalPort = localPort, Udp = t.Udp });
         Save();
     }
 
     public void Forget(string server, PortTarget t)
     {
-        if (_data.Mappings.RemoveAll(m => Same(m.Server, server) && m.NodeId == t.NodeId && Same(m.RemoteHost, t.RemoteHost) && m.RemotePort == t.RemotePort) > 0) Save();
+        if (_data.Mappings.RemoveAll(m => Same(m.Server, server) && m.NodeId == t.NodeId && Same(m.RemoteHost, t.RemoteHost) && m.RemotePort == t.RemotePort && m.Udp == t.Udp) > 0) Save();
     }
 
     public SshProfile? SshOf(string server, string nodeId) =>

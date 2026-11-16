@@ -1574,6 +1574,16 @@
     {
       "modulo": "redireccion",
       "accion": "redirigir-puerto",
+      "causa": "no-implementado",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "UDP necesita un agente",
+      "explicacion": "MeshCentral solo lleva UDP a través de un agente: un equipo sin agente cuyo grupo no tiene agente relé solo admite TCP.",
+      "que_hacer": "Elegir un agente relé en el grupo del equipo, o redirigir por TCP."
+    },
+    {
+      "modulo": "redireccion",
+      "accion": "redirigir-puerto",
       "causa": "conflicto-estado",
       "severidad": "aviso",
       "actuar": true,

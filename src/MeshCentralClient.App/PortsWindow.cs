@@ -257,17 +257,25 @@ public static class PortForm
         foreach (var d in devices) deviceBox.Items.Add(new DeviceItem(d));
         deviceBox.SelectedIndex = Math.Max(0, devices.ToList().FindIndex(d => d.Id == preselected?.Id));
         var service = new ComboBox { MinWidth = 300 };
-        foreach (var s in new[] { new Service(L.T("ServiceOther"), 0), new("RDP", 3389), new("SSH", 22), new("HTTP", 80), new("HTTPS", 443), new("VNC", 5900), new("SMB", 445) }) service.Items.Add(s);
+        foreach (var s in new[] { new Service(L.T("ServiceOther"), 0), new("RDP", 3389), new("SSH", 22), new("HTTP", 80), new("HTTPS", 443), new("VNC", 5900), new("SMB", 445), new("DNS (UDP)", 53), new("SNMP (UDP)", 161) }) service.Items.Add(s);
         service.SelectedIndex = 0;
         var host = new TextBox { MinWidth = 300 };
         var remote = new TextBox { MinWidth = 120 };
         var local = new TextBox { MinWidth = 120 };
         var remember = new CheckBox { Content = L.T("RememberMapping"), Margin = new Thickness(0, 12, 0, 0) };
+        var tcp = new RadioButton { Content = "TCP", IsChecked = true, Margin = new Thickness(0, 0, 16, 0), GroupName = "MappingProtocol" };
+        var udp = new RadioButton { Content = "UDP", GroupName = "MappingProtocol" };
+        AP.SetAutomationId(tcp, "MappingTcp"); AP.SetAutomationId(udp, "MappingUdp");
         var ok = new Button { Content = L.T("Ok"), IsDefault = true, MinWidth = 90, Margin = new Thickness(0, 0, 8, 0), IsEnabled = false };
         var cancel = new Button { Content = L.T("Cancel"), IsCancel = true, MinWidth = 90 };
         AP.SetAutomationId(deviceBox, "MappingDeviceBox"); AP.SetAutomationId(service, "MappingServiceBox"); AP.SetAutomationId(host, "MappingHostBox");
         AP.SetAutomationId(remote, "MappingRemotePortBox"); AP.SetAutomationId(local, "MappingLocalPortBox"); AP.SetAutomationId(remember, "MappingRemember"); AP.SetAutomationId(ok, "MappingOk");
-        service.SelectionChanged += (_, _) => { if (service.SelectedItem is Service { Port: > 0 } s) remote.Text = s.Port.ToString(); };
+        service.SelectionChanged += (_, _) =>
+        {
+            if (service.SelectedItem is not Service { Port: > 0 } s) return;
+            remote.Text = s.Port.ToString();
+            (s.Name.EndsWith("(UDP)", StringComparison.Ordinal) ? udp : tcp).IsChecked = true;
+        };
 
         static int? Port(string text, bool emptyIsZero) =>
             text.Trim().Length == 0 ? (emptyIsZero ? 0 : null) : int.TryParse(text.Trim(), out var p) && p is >= 1 and <= 65535 ? p : null;
@@ -299,6 +307,7 @@ public static class PortForm
                 {
                     Label("ColDevice"), deviceBox,
                     Label("MappingService"), service,
+                    Label("MappingProtocol"), new StackPanel { Orientation = Orientation.Horizontal, Children = { tcp, udp } },
                     Label("MappingHost"), host, hostHelp,
                     Label("MappingRemotePort"), remote,
                     Label("MappingLocalPort"), local,
@@ -313,7 +322,7 @@ public static class PortForm
         ok.Click += (_, _) =>
         {
             var d = ((DeviceItem)deviceBox.SelectedItem).Device;
-            result = new Answer(new PortTarget(d.Id, d.Name, Port(remote.Text, false)!.Value, host.IsEnabled && host.Text.Trim() is { Length: > 0 } h ? h : null, Port(local.Text, true)!.Value), remember.IsChecked == true);
+            result = new Answer(new PortTarget(d.Id, d.Name, Port(remote.Text, false)!.Value, host.IsEnabled && host.Text.Trim() is { Length: > 0 } h ? h : null, Port(local.Text, true)!.Value, udp.IsChecked == true), remember.IsChecked == true);
             w.Close();
         };
         w.Loaded += (_, _) => remote.Focus();
