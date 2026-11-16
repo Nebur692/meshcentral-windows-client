@@ -8,6 +8,7 @@ using Xunit;
 /// Bloquear el teclado y el ratón de quien está en el equipo, contra el agente de esta máquina: dice bloqueado y luego
 /// libre. La app de Android manda los mismos bytes. Bloquear la sesión no se prueba aquí: bloquearía esta máquina.
 /// </summary>
+[Trait("Category", "UI")]
 public sealed class InputLockTests
 {
     private static string Env(string n) => Environment.GetEnvironmentVariable(n) is { Length: > 0 } v ? v
