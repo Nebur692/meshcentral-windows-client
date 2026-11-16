@@ -29,6 +29,20 @@
   term.onResize(({ cols, rows }) => { clearTimeout(timer); timer = setTimeout(() => send({ t: 'size', cols, rows }), 200); });
   window.addEventListener('resize', () => fit.fit());
 
+  // Only for the UI tests (?mirror=1): the visible rows as text, from xterm's buffer, for the window to show to UI
+  // Automation. Chromium's accessibility tree of the rows emptied now and then, so a test could not read them.
+  // Solo para las pruebas de interfaz: las filas visibles como texto, del búfer de xterm, para que la ventana se las
+  // enseñe a UI Automation. El árbol de accesibilidad de Chromium se vaciaba a veces y la prueba no podía leerlas.
+  if (new URLSearchParams(location.search).get('mirror') === '1') {
+    let last = '';
+    setInterval(() => {
+      const b = term.buffer.active, lines = [];
+      for (let y = b.viewportY; y < b.viewportY + term.rows; y++) { const l = b.getLine(y); if (l) lines.push(l.translateToString(true)); }
+      const text = lines.join('\n');
+      if (text !== last) { last = text; send({ t: 'mirror', text }); }
+    }, 250);
+  }
+
   // Copy and paste like PuTTY: selecting copies (drag, double click a word, triple click a line); right click,
   // middle click and Shift+Insert paste; Ctrl+Insert copies. Ctrl+Shift+C / Ctrl+Shift+V also work. Ctrl+C and
   // Ctrl+V stay for the remote programs, as in PuTTY, except Ctrl+C on a selection, which copies, as in Windows Terminal.

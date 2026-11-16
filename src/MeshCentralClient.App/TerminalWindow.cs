@@ -19,6 +19,9 @@ public sealed class TerminalWindow : Window
     private readonly string _kindName;
     private readonly Func<int, int, Task<ITerminalConnection>> _open;
     private readonly WebView2 _view = new() { DefaultBackgroundColor = System.Drawing.Color.Transparent };
+    /// <summary>Only for the UI tests (MESHCLIENT_UI_MIRROR=1): the visible rows as text, mirrored from the page.
+    /// Solo para las pruebas de interfaz: las filas visibles como texto, copiadas de la página.</summary>
+    private readonly TextBlock? _mirror = Environment.GetEnvironmentVariable("MESHCLIENT_UI_MIRROR") == "1" ? new() { Height = 1, Opacity = 0 } : null;
     // Always one line: a status that wraps changes the terminal's height, the terminal resizes and xterm drops the
     // selection, so Ctrl+C on it found nothing (measured on CI with a recorded session). The whole text is the tooltip.
     // Siempre una línea: un estado que salta de línea cambia el alto, la terminal se redimensiona y xterm pierde la
@@ -52,6 +55,12 @@ public sealed class TerminalWindow : Window
         var dock = new DockPanel();
         DockPanel.SetDock(_status, Dock.Bottom);
         dock.Children.Add(_status);
+        if (_mirror is not null)
+        {
+            System.Windows.Automation.AutomationProperties.SetAutomationId(_mirror, "TerminalMirror");
+            DockPanel.SetDock(_mirror, Dock.Top);
+            dock.Children.Add(_mirror);
+        }
         dock.Children.Add(_view);
         Content = dock;
         _status.Text = L.T("Connecting");
@@ -81,7 +90,7 @@ public sealed class TerminalWindow : Window
         }
         var ready = new TaskCompletionSource<(int Cols, int Rows)>(TaskCreationOptions.RunContinuationsAsynchronously);
         _view.CoreWebView2.WebMessageReceived += (_, e) => OnPageMessage(e, ready);
-        _view.CoreWebView2.Navigate($"https://{WebAssets.Host}/terminal/terminal.html?dark={(ThemeService.IsDark ? 1 : 0)}");
+        _view.CoreWebView2.Navigate($"https://{WebAssets.Host}/terminal/terminal.html?dark={(ThemeService.IsDark ? 1 : 0)}{(_mirror is null ? "" : "&mirror=1")}");
         var (cols, rows) = await ready.Task;
 
         try
@@ -128,6 +137,9 @@ public sealed class TerminalWindow : Window
                 break;
             case "title":
                 Title = $"{_kindName} — {_device.Name} — {m["title"]}";
+                break;
+            case "mirror" when _mirror is not null:
+                _mirror.Text = m["text"]?.ToString() ?? "";
                 break;
             case "copy":
                 _ = CopyAsync(m["text"]?.ToString() ?? "");

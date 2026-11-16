@@ -67,9 +67,15 @@ public sealed class SshTests(ITestOutputHelper output) : IDisposable
         Wait.UntilInputIsProcessed();
     }
 
-    /// <summary>A row of the terminal that reads <paramref name="text"/>. / Una fila de la terminal que dice el texto.</summary>
+    /// <summary>The terminal's text mirror (MESHCLIENT_UI_MIRROR=1) if a visible row matches: read from xterm's buffer,
+    /// not from Chromium's accessibility rows, which emptied now and then (CI 16-11: no row at all, not even the prompt
+    /// found a moment before). / El espejo del texto del terminal si una fila visible encaja: del búfer de xterm, no de las
+    /// filas de accesibilidad de Chromium, que a veces se vaciaban.</summary>
     private static AutomationElement? Row(AutomationElement term, Func<string, bool> match) =>
-        term.FindAllDescendants().FirstOrDefault(e => match(SafeName(e).Replace(" ", " ").Trim()));
+        term.FindFirstDescendant(cf => cf.ByAutomationId("TerminalMirror")) is { } m &&
+        SafeName(m).Split('\n').Any(l => match(l.Replace("\u00a0", " ").Trim())) ? m : null;
+
+    private static string Mirror(AutomationElement term) => term.FindFirstDescendant(cf => cf.ByAutomationId("TerminalMirror")) is { } m ? SafeName(m) : "(no mirror)";
 
     private AutomationElement OpenSsh(AutomationElement win, bool expectQuestion)
     {
@@ -127,6 +133,7 @@ public sealed class SshTests(ITestOutputHelper output) : IDisposable
         psi.Environment["APPDATA"] = Path.Combine(_dir.FullName, "appdata");
         psi.Environment["LOCALAPPDATA"] = Path.Combine(_dir.FullName, "localappdata");
         psi.Environment["MESHCLIENT_UPDATE_FEED"] = "off";
+        psi.Environment["MESHCLIENT_UI_MIRROR"] = "1";
         _app = Application.Launch(psi);
         var win = _app.GetMainWindow(_automation, Timeout)!;
         win.SetForeground();
@@ -145,12 +152,12 @@ public sealed class SshTests(ITestOutputHelper output) : IDisposable
         Id(term, "TerminalView").Click();
         Keyboard.Type("whoami");
         Assert.True(Retry.WhileNull(() => Row(term, t => t.TrimEnd().EndsWith(">whoami", StringComparison.Ordinal)), Timeout, TimeSpan.FromMilliseconds(300)).Result is not null,
-            "whoami echoed: " + string.Join(" | ", term.FindAllDescendants().Select(SafeName).Where(n => n.Trim().Length > 0)));
+            "whoami echoed: " + Mirror(term));
         Keyboard.Type(VirtualKeyShort.ENTER);
         var me = Env("MESHUI_SSH_USER").ToLowerInvariant();
         var answer = Retry.WhileNull(() => Row(term, t => t.EndsWith("\\" + me, StringComparison.OrdinalIgnoreCase)), Timeout, TimeSpan.FromMilliseconds(300)).Result;
         Shot("whoami");
-        Assert.True(answer is not null, "whoami did not answer: " + string.Join(" | ", term.FindAllDescendants().Select(SafeName).Where(n => n.Trim().Length > 0)));
+        Assert.True(answer is not null, "whoami did not answer: " + Mirror(term));
         term.AsWindow().Close();
 
         // Second time: no question, the identity is known; the account comes filled in. / Segunda vez: sin pregunta; la cuenta viene puesta.
@@ -163,7 +170,7 @@ public sealed class SshTests(ITestOutputHelper output) : IDisposable
         Keyboard.Type(VirtualKeyShort.ENTER);
         var again = Retry.WhileNull(() => Row(term, t => t.Equals("otra-vez-" + me, StringComparison.OrdinalIgnoreCase)), Timeout, TimeSpan.FromMilliseconds(300)).Result;
         Shot("second");
-        Assert.True(again is not null, "the second terminal did not answer: " + string.Join(" | ", term.FindAllDescendants().Select(SafeName).Where(n => n.Trim().Length > 0)));
+        Assert.True(again is not null, "the second terminal did not answer: " + Mirror(term));
         var saved = File.ReadAllText(Path.Combine(_dir.FullName, "appdata", "MeshCentralClient", "relays.json"));
         Assert.Contains("SHA256:", saved, StringComparison.Ordinal);
         Assert.DoesNotContain(Env("MESHUI_SSH_PASS"), saved, StringComparison.Ordinal);
