@@ -9,6 +9,9 @@
 #   MESHTEST_FILTER: only some tests, with their full output (e.g. "FullyQualifiedName~Desktop")
 #   MESHTEST_FILTER: solo algunas pruebas, con toda su salida (p. ej. "FullyQualifiedName~Desktop")
 set -euo pipefail
+# Test containers and networks carry a label, so the bench's cleaner finds them (PRUEBA = who runs the tests).
+# Contenedores y redes de prueba llevan una etiqueta, para que el limpiador del banco los encuentre.
+PRUEBA_L="--label prueba=${PRUEBA:-meshclient-bench}"
 ROOT=$(cd "$(dirname "$0")/../.." && pwd)
 HERE="$ROOT/tests/server"
 MESH_IMAGE=${MESH_IMAGE:-ghcr.io/ylianst/meshcentral:latest}
@@ -22,7 +25,7 @@ cleanup() {
   docker stop "$AGENT" "$SRV" "$OIDC" "$SSHD" "$SINK" >/dev/null 2>&1 || true
   # The agent is not --rm, so its state survives a crash: removed here by name.
   # El agente no es --rm, para que su estado sobreviva a una caída: se borra aquí por su nombre.
-  docker rm -f "$AGENT" >/dev/null 2>&1 || true
+  docker rm -fv "$AGENT" >/dev/null 2>&1 || true  # -v: the image's volumes too / también sus volúmenes
   for _ in $(seq 1 20); do docker inspect "$SRV" >/dev/null 2>&1 || docker inspect "$AGENT" >/dev/null 2>&1 || docker inspect "$OIDC" >/dev/null 2>&1 || docker inspect "$SSHD" >/dev/null 2>&1 || break; sleep 1; done
   docker network rm "$NET" >/dev/null 2>&1 || true
   # Files written by root inside the containers: removed from a container too.
@@ -32,7 +35,7 @@ cleanup() {
 }
 trap cleanup EXIT
 
-docker network create "$NET" >/dev/null
+docker network create $PRUEBA_L "$NET" >/dev/null
 
 # Whether a container has logged a line. Without -q: under pipefail, grep -q leaves at the first match, docker logs
 # gets SIGPIPE and the pipe "fails" although the line is there.
@@ -43,7 +46,7 @@ logged() { docker logs "$1" 2>&1 | grep "$2" >/dev/null; }
 # Throwaway OpenID Connect provider (tests/oidc), started before MeshCentral because it discovers it at start.
 # Proveedor OpenID Connect desechable (tests/oidc), antes que MeshCentral porque este lo descubre al arrancar.
 mkdir -p "$WORK/oidc" && cp "$ROOT/tests/oidc/package.json" "$ROOT/tests/oidc/package-lock.json" "$ROOT/tests/oidc/provider.mjs" "$WORK/oidc/"
-docker run -d --rm --name "$OIDC" --network "$NET" --cpus 0.5 --memory 256m -e ISSUER="http://$OIDC:3000" \
+docker run -d --rm $PRUEBA_L --name "$OIDC" --network "$NET" --cpus 0.5 --memory 256m -e ISSUER="http://$OIDC:3000" \
   -v "$WORK/oidc:/o" -w /o node:22-alpine sh -c 'npm ci --no-audit --no-fund --loglevel=error && exec node provider.mjs' >/dev/null
 for _ in $(seq 1 60); do logged "$OIDC" "oidc ready" && break; sleep 2; done
 logged "$OIDC" "oidc ready" || { echo "the OIDC provider did not start / el proveedor OIDC no arrancó" >&2; docker logs "$OIDC" >&2; exit 1; }
@@ -54,7 +57,7 @@ mkdir -p "$WORK/sinkca"
 openssl req -x509 -newkey rsa:2048 -nodes -days 2 -subj "/CN=$SINK" -addext "subjectAltName=DNS:$SINK" \
   -keyout "$WORK/sinkca/sink.key" -out "$WORK/sinkca/sink.crt" >/dev/null 2>&1
 chmod 644 "$WORK/sinkca/sink.key"
-docker run -d --rm --name "$SINK" --network "$NET" --cpus 0.25 --memory 128m -v "$HERE/sink.mjs:/sink.mjs:ro" -v "$WORK/sinkca:/certs:ro" node:22-alpine node /sink.mjs >/dev/null
+docker run -d --rm $PRUEBA_L --name "$SINK" --network "$NET" --cpus 0.25 --memory 128m -v "$HERE/sink.mjs:/sink.mjs:ro" -v "$WORK/sinkca:/certs:ro" node:22-alpine node /sink.mjs >/dev/null
 SINK_HOST="$SINK" SINK_CA="$WORK/sinkca" OIDC_ISSUER="http://$OIDC:3000" "$HERE/start-test-server.sh" "$SRV" "$WORK/meshdata" "$NET" "$MESH_IMAGE" >/dev/null
 SRV_IP=$(docker inspect "$SRV" --format "{{(index .NetworkSettings.Networks \"$NET\").IPAddress}}")
 read -r OTP GROUP < <(docker exec -i "$SRV" node - < "$HERE/setup-test-data.js")
@@ -65,7 +68,7 @@ read -r OTP GROUP < <(docker exec -i "$SRV" node - < "$HERE/setup-test-data.js")
 # Un servidor SSH desechable en la misma red, al que el agente llega por su nombre: el destino de las pruebas de SSH. Sus
 # claves de cliente (una con frase) se dejan en la carpeta de trabajo para que las lean las pruebas.
 mkdir -p "$WORK/ssh"
-docker run -d --rm --name "$SSHD" --network "$NET" --cpus 0.5 --memory 128m -v "$WORK/ssh:/k" --entrypoint sh node:22-alpine -c '
+docker run -d --rm $PRUEBA_L --name "$SSHD" --network "$NET" --cpus 0.5 --memory 128m -v "$WORK/ssh:/k" --entrypoint sh node:22-alpine -c '
   apk add --no-cache openssh >/dev/null && ssh-keygen -A >/dev/null &&
   adduser -D -s /bin/sh sshuser && echo "sshuser:Ssh-Pass-1234" | chpasswd &&
   ssh-keygen -q -t ed25519 -N "" -C mctest -f /k/id_plain && ssh-keygen -q -t ed25519 -N "Frase-1234" -C mctest -f /k/id_phrase &&
@@ -87,7 +90,7 @@ echo "server $SRV · agent $AGENT · cert ${CERT:0:16}…"
 
 # The tests call the server by its certificate name, as a browser would (the sign-on comes back to https://mesh.test/).
 # Las pruebas llaman al servidor por el nombre de su certificado, como un navegador (el inicio único vuelve a https://mesh.test/).
-docker run --rm --network "$NET" --add-host "mesh.test:$SRV_IP" --cpus 2 --memory 3g --user "$(id -u):$(id -g)" \
+docker run --rm $PRUEBA_L --network "$NET" --add-host "mesh.test:$SRV_IP" --cpus 2 --memory 3g --user "$(id -u):$(id -g)" \
   -e HOME=/tmp -e DOTNET_CLI_HOME=/tmp -e NUGET_PACKAGES=/tmp/nuget -e DOTNET_NOLOGO=1 -e DOTNET_CLI_TELEMETRY_OPTOUT=1 \
   -e MESHTEST_FILTER="${MESHTEST_FILTER:-}" -e MESHTEST_URL="https://mesh.test/" -e MESHTEST_CERT_SHA256="$CERT" -e MESHTEST_OTP_SECRET="$OTP" -e MESHTEST_GROUP_ID="$GROUP" \
   -e MESHTEST_SSH_HOST="$SSHD" -e MESHTEST_SSH_DIR=/work/ssh -e MESHTEST_AGENT_ONLY_HOST=solo-agente -e MESHTEST_SINK="http://$SINK:8025" \

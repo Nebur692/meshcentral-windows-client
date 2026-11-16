@@ -4,6 +4,9 @@
 #
 # Usage / Uso:  start-test-agent.sh <server-container> <network> <agent-name> <work-dir> <group-id>
 set -euo pipefail
+# Test containers and networks carry a label, so the bench's cleaner finds them (PRUEBA = who runs the tests).
+# Contenedores y redes de prueba llevan una etiqueta, para que el limpiador del banco los encuentre.
+PRUEBA_L="--label prueba=${PRUEBA:-meshclient-bench}"
 SERVER=${1:?server}; NET=${2:?network}; NAME=${3:?agent name}; WORK=${4:?work dir}; GROUP=${5:?group id}
 IP=$(docker inspect "$SERVER" --format "{{(index .NetworkSettings.Networks \"$NET\").IPAddress}}")
 mkdir -p "$WORK"
@@ -12,6 +15,6 @@ docker exec "$SERVER" wget -q --no-check-certificate -O - "https://localhost/mes
 docker exec "$SERVER" wget -q --no-check-certificate -O - "https://localhost/meshsettings?id=$MID" > "$WORK/meshagent.msh"
 chmod +x "$WORK/meshagent"
 grep -q '^MeshServer=' "$WORK/meshagent.msh"
-docker run -d --name "$NAME" --hostname test-device --network "$NET" --add-host "mesh.test:$IP" \
+docker run -d $PRUEBA_L --name "$NAME" --hostname test-device --network "$NET" --add-host "mesh.test:$IP" \
   --cpus 0.5 --memory 256m -v "$WORK:/agent" -w /agent debian:12-slim ./meshagent connect >/dev/null
 echo "$NAME"

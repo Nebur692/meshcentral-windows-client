@@ -46,7 +46,19 @@ public sealed class KeysTests(ITestOutputHelper output) : IDisposable
         await using var desk = await DesktopSession.OpenAsync(s, dev.Id);
         var size = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         desk.ScreenSizeChanged += (_, _) => size.TrySetResult();
-        await size.Task.WaitAsync(TimeSpan.FromSeconds(30));
+        if (await Task.WhenAny(size.Task, Task.Delay(TimeSpan.FromSeconds(30))) != size.Task)
+        {
+            // Once (CI 16-11, right after the desktop clipboard tests) no screen size came. Reopening and a second viewer were
+            // ruled out by probes; if it happens again, say whether a new session gets it and what was in front.
+            // Una vez no llegó el tamaño; si vuelve a pasar, se dice si otra sesión lo recibe y qué ventana había delante.
+            await using var again = await DesktopSession.OpenAsync(s, dev.Id);
+            var size2 = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            again.ScreenSizeChanged += (_, _) => size2.TrySetResult();
+            var second = await Task.WhenAny(size2.Task, Task.Delay(TimeSpan.FromSeconds(15))) == size2.Task;
+            var front = new System.Text.StringBuilder(256);
+            GetWindowText(GetForegroundWindow(), front, front.Capacity);
+            Assert.Fail($"no screen size in 30 s; a new desktop session {(second ? "DID get it" : "did not get it either")}; in front: \"{front}\"");
+        }
         await Task.Delay(1000);
 
         // A remote click on Notepad's text area. / Un clic remoto en la zona de texto del Bloc de notas.
@@ -72,4 +84,7 @@ public sealed class KeysTests(ITestOutputHelper output) : IDisposable
 
     [System.Runtime.InteropServices.DllImport("user32.dll")]
     private static extern IntPtr GetForegroundWindow();
+
+    [System.Runtime.InteropServices.DllImport("user32.dll", CharSet = System.Runtime.InteropServices.CharSet.Unicode)]
+    private static extern int GetWindowText(IntPtr hWnd, System.Text.StringBuilder text, int max);
 }

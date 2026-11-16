@@ -12,6 +12,9 @@
 #   otp   / Otp-Pass-1234    (TOTP enabled by setup-test-data.js / con TOTP, lo activa setup-test-data.js)
 #   mfa   / Mfa-Pass-1234    (only for the email and SMS two-factor tests / solo para las pruebas de correo y SMS)
 set -euo pipefail
+# Test containers and networks carry a label, so the bench's cleaner finds them (PRUEBA = who runs the tests).
+# Contenedores y redes de prueba llevan una etiqueta, para que el limpiador del banco los encuentre.
+PRUEBA_L="--label prueba=${PRUEBA:-meshclient-bench}"
 NAME=${1:?name}
 DATA=${2:?data dir}
 NET=${3:-bridge}
@@ -58,7 +61,7 @@ cat > "$DATA/config.json" <<JSON
 JSON
 M=/opt/meshcentral/meshcentral/meshcentral
 CFG=/opt/meshcentral/meshcentral-data/config.json
-docker run -d --rm --name "$NAME" --network "$NET" --cpus 1 --memory 768m $TRUST \
+docker run -d --rm $PRUEBA_L --name "$NAME" --network "$NET" --cpus 1 --memory 768m $TRUST \
   -v "$DATA:/opt/meshcentral/meshcentral-data" --entrypoint sh "$IMAGE" -c "
     cd /opt/meshcentral &&
     node $M --configfile $CFG --createaccount admin --pass Admin-Pass-1234 --name Admin $(EMAIL_OF admin) &&
