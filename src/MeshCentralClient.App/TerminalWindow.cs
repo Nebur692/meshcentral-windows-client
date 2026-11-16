@@ -66,6 +66,7 @@ public sealed class TerminalWindow : Window
         _status.Text = L.T("Connecting");
         System.ComponentModel.DependencyPropertyDescriptor.FromProperty(TextBlock.TextProperty, typeof(TextBlock)).AddValueChanged(_status, (_, _) => _status.ToolTip = _status.Text);
         Loaded += async (_, _) => await StartAsync();
+        Activated += (_, _) => { if (_terminal is not null) FocusTerminal(); };
         Closed += async (_, _) => { _closing = true; ThemeService.Changed -= OnTheme; if (_terminal is not null) await _terminal.DisposeAsync(); };
         ThemeService.Changed += OnTheme;
     }
@@ -112,6 +113,18 @@ public sealed class TerminalWindow : Window
         });
         _terminal.Output += (_, d) => Post(new JsonObject { ["t"] = "data", ["b64"] = Convert.ToBase64String(d.Span) });
         _status.Text = Help() + (_terminal is SshTerminal ssh ? "  ·  " + ssh.HostKey.Fingerprint : "");
+        FocusTerminal();
+    }
+
+    /// <summary>
+    /// The keyboard to the terminal: to the WebView2 control (Windows' focus) and, inside it, to xterm. Also each time the
+    /// window comes back (after the SSH identity question or another window), or the keys typed then went nowhere.
+    /// El teclado al terminal: al WebView2 y, dentro, a xterm. También cada vez que vuelve la ventana, o lo escrito se perdía.
+    /// </summary>
+    private void FocusTerminal()
+    {
+        if (_closing || _view.CoreWebView2 is null) return;
+        _view.Focus();
         Post(new JsonObject { ["t"] = "focus" });
     }
 
