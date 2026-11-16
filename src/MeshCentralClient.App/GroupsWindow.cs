@@ -308,7 +308,8 @@ public sealed class GroupsWindow : Window
     private Task AddUsers() => Run(async () =>
     {
         if (Selected is not { } g) return null;
-        if (RightsDialog.Ask(this, L.F("AddUsersTitle", g.Name), askNames: true, 0, canGrantFull: _session.GroupAbilitiesOn(g).Delete) is not { } c) return null;
+        if (RightsDialog.Ask(this, L.F("AddUsersTitle", g.Name), askNames: true, 0, canGrantFull: _session.GroupAbilitiesOn(g).Delete,
+                users: _session.CanManageUsers ? () => _session.GetUsersAsync() : null) is not { } c) return null;
         var said = await _session.AddMembersAsync(g, c.UserNames, c.Rights);
         return L.F("UsersAdded", said);
     });

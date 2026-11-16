@@ -239,7 +239,7 @@ public static class L
         ["UserRemoved"] = ("\"{0}\" removed from the group.", "«{0}» quitado del grupo."),
         ["AddUsersTitle"] = ("Add users to \"{0}\"", "Añadir usuarios a «{0}»"),
         ["RightsTitle"] = ("Rights of \"{0}\" on \"{1}\"", "Permisos de «{0}» en «{1}»"),
-        ["UserNamesLabel"] = ("User names, separated by commas (the sign-in name, not the display name):", "Nombres de usuario, separados por comas (el de entrar, no el visible):"),
+        ["UserNamesLabel"] = ("Users, separated by commas: type a name, an email or a user name and choose it from the list (its sign-in name goes in):", "Usuarios, separados por comas: escribe un nombre, un correo o un usuario y elígelo de la lista (se pone su usuario de entrar):"),
         ["RightsAllow"] = ("Allowed", "Permitido"),
         ["RightsLimit"] = ("Limits", "Límites"),
         ["RightFull"] = ("Full administrator of the group (every right)", "Administrador completo del grupo (todos los permisos)"),

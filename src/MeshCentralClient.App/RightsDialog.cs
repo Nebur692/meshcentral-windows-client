@@ -45,10 +45,11 @@ public static class RightsDialog
 
     /// <param name="askNames">Show the box for user names (adding); otherwise only rights (changing). / Enseña la caja de nombres (añadir).</param>
     /// <param name="canGrantFull">Only a group administrator can make another. / Solo un administrador del grupo puede nombrar otro.</param>
-    public static RightsChoice? Ask(Window owner, string title, bool askNames, long initial, bool canGrantFull)
+    public static RightsChoice? Ask(Window owner, string title, bool askNames, long initial, bool canGrantFull, Func<Task<IReadOnlyList<UserInfo>>>? users = null)
     {
         var names = new TextBox { Margin = new Thickness(0, 4, 0, 12), MinWidth = 420 };
         AP.SetAutomationId(names, "UserNamesBox");
+        if (users is not null) NameSuggest.Attach(names, users);
         var full = new CheckBox { Content = L.T("RightFull"), IsChecked = initial == Full, IsEnabled = canGrantFull || initial == Full, Margin = new Thickness(0, 0, 0, 8), FontWeight = FontWeights.SemiBold };
         AP.SetAutomationId(full, "RightFull");
         CheckBox Box((MeshRights Right, string Key) a)

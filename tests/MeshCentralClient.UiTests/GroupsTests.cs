@@ -152,7 +152,13 @@ public sealed class GroupsTests : IDisposable
         // 2. Another account with two rights, then one more. / Otra cuenta con dos permisos y luego uno más.
         Id(gw, "AddUsersButton").Click();
         var rd = Anywhere("RightsDialog");
-        Replace(Id(rd, "UserNamesBox"), "user");
+        // Typing part of it offers the account, and Tab takes its sign-in name. / Escribir parte ofrece la cuenta y Tab pone su usuario.
+        Replace(Id(rd, "UserNamesBox"), "use");
+        Until(() => _automation.GetDesktop().FindFirstDescendant(cf => cf.ByAutomationId("UserSuggestions"))?.FindAllDescendants()
+            .Any(e => e.Name.StartsWith("user", StringComparison.OrdinalIgnoreCase)) == true, "the user suggestions", () => Id(rd, "UserNamesBox").AsTextBox().Text);
+        Shot("user-suggestions");
+        Keyboard.Type(VirtualKeyShort.TAB);
+        Until(() => Id(rd, "UserNamesBox").AsTextBox().Text == "user, ", "the account taken", () => Id(rd, "UserNamesBox").AsTextBox().Text);
         Id(rd, "Wake").AsCheckBox().IsChecked = true;
         Id(rd, "DeviceDetails").AsCheckBox().IsChecked = true;
         Id(rd, "RightsOk").AsButton().Invoke();

@@ -363,7 +363,7 @@ public sealed class UsersWindow : Window
 
     private Task AddMembers() => Run(async () =>
     {
-        if (SelectedGroup is not { } g || NamesForm.Ask(this, L.F("AddMembersTitle", g.Name)) is not { } names) return null;
+        if (SelectedGroup is not { } g || NamesForm.Ask(this, L.F("AddMembersTitle", g.Name), () => _session.GetUsersAsync()) is not { } names) return null;
         try { await _session.AddUsersToUserGroupAsync(g, names); }
         finally { await ReloadGroups(g.Id); } // some may have been added even when others were not / unos pueden haber entrado aunque otros no
         return L.F("MembersAdded", g.Name);
@@ -515,12 +515,13 @@ public static class PasswordForm
 /// <summary>User names separated by commas. / Nombres de usuario separados por comas.</summary>
 public static class NamesForm
 {
-    public static IReadOnlyList<string>? Ask(Window owner, string title)
+    public static IReadOnlyList<string>? Ask(Window owner, string title, Func<Task<IReadOnlyList<UserInfo>>>? users = null)
     {
         var box = new TextBox { MinWidth = 380, Margin = new Thickness(0, 6, 0, 0) };
         var ok = new Button { Content = L.T("Ok"), IsDefault = true, MinWidth = 90, Margin = new Thickness(0, 0, 8, 0), IsEnabled = false };
         var cancel = new Button { Content = L.T("Cancel"), IsCancel = true, MinWidth = 90 };
         AP.SetAutomationId(box, "NamesBox"); AP.SetAutomationId(ok, "NamesOk");
+        if (users is not null) NameSuggest.Attach(box, users);
         box.TextChanged += (_, _) => ok.IsEnabled = box.Text.Trim().Length > 0;
         var w = new Window
         {
