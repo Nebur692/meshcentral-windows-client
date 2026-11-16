@@ -1,5 +1,5 @@
 {
-  "generado": "2026-11-15T21:47:36Z",
+  "generado": "2026-11-16T00:31:23Z",
   "aviso": "Generado por bin/burburito. No editar a mano: la fuente de verdad es el burburito.json de al lado.",
   "proyecto": {
     "id": 35,
@@ -1014,6 +1014,12 @@
       "severidad": "aviso",
       "actuar": false,
       "titulo": "Eso ya está o falta lo anterior"
+    },
+    "usuarios/cambiar-ajustes/dependencia-caida": {
+      "codigo": "035-011-007-086",
+      "severidad": "aviso",
+      "actuar": true,
+      "titulo": "La app ntfy no está escuchando"
     },
     "usuarios/gestionar-usuarios/tiempo-agotado": {
       "codigo": "035-011-506-002",

@@ -492,6 +492,55 @@ public sealed partial class MeshServerSession
         User = User with { Phone = null };
     }
 
+    /// <summary>Sends a check code to an ntfy topic (verifyMessaging, service 64); then <see cref="ConfirmMessagingAsync"/> with it.
+    /// A server without ntfy among its messaging services answers nothing, so the wait says so. The Android app does this with
+    /// its own UnifiedPush topic. / Manda un código a un tema de ntfy; un servidor sin ntfy no contesta, y la espera lo dice.</summary>
+    public async Task<MessagingCheck> StartNtfyAsync(string topic, CancellationToken ct = default)
+    {
+        CheckOwnSettings();
+        if (!ServerInfo.MessagingTwoFactorAllowed) throw UserError("usuarios/cambiar-ajustes/no-autorizado", "This server does not send codes by messaging.");
+        var t = topic.Trim();
+        if (t.Length is 0 or > 64 || !t.All(c => char.IsAsciiLetterOrDigit(c) || c is '_' or '-'))
+            throw UserError("usuarios/cambiar-ajustes/dato-invalido", $"\"{topic}\" is not an ntfy topic.");
+        JsonObject r;
+        try
+        {
+            r = await RequestAsync(new JsonObject { ["action"] = "verifyMessaging", ["service"] = 64, ["handle"] = t }, o => o.Str("action") == "verifyMessaging",
+                "usuarios/cambiar-ajustes/no-autorizado", "usuarios/cambiar-ajustes/conexion-cortada", ct, TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+        }
+        catch (MeshClientException e) when (e.Failure == MeshFailure.Timeout)
+        {
+            throw UserError("usuarios/cambiar-ajustes/no-autorizado", "This server does not have ntfy among its messaging services.");
+        }
+        if (!r.Bool("success") || r.Str("cookie") is not { } cookie) throw UserError("usuarios/cambiar-ajustes/error-remoto", "The server could not send to ntfy.");
+        return new MessagingCheck("ntfy:" + t, cookie);
+    }
+
+    /// <summary>Confirms the handle with the code it got: right = the account's event (msgid 156), wrong = verifyMessaging again.
+    /// / Confirma el canal: bueno = el aviso 156 de la cuenta; malo = verifyMessaging otra vez.</summary>
+    public async Task ConfirmMessagingAsync(MessagingCheck check, string code, CancellationToken ct = default)
+    {
+        CheckOwnSettings();
+        var digits = new string(code.Where(char.IsAsciiDigit).ToArray());
+        if (digits.Length != 6) throw UserError("usuarios/cambiar-ajustes/dato-invalido", "The code has 6 digits.");
+        var r = await RequestAsync(new JsonObject { ["action"] = "confirmMessaging", ["cookie"] = check.Cookie, ["code"] = digits },
+            o => (o.Str("action") == "event" && o["event"] is JsonObject e && OwnAccountEvent(e, 156)) || (o.Str("action") == "verifyMessaging" && o.Str("cookie") == check.Cookie),
+            "usuarios/cambiar-ajustes/tiempo-agotado", "usuarios/cambiar-ajustes/conexion-cortada", ct, TimeSpan.FromSeconds(Math.Max(Timeout.TotalSeconds, 10))).ConfigureAwait(false);
+        if (r.Str("action") != "event")
+            throw new MeshClientException(MeshFailure.InvalidTwoFactorCode, "usuarios/cambiar-ajustes/credencial-invalida", "That code is not the one sent.");
+        User = User with { MessagingHandle = check.Handle, HasOtherTwoFactor = true };
+    }
+
+    /// <summary>Removes the messaging handle (removeMessaging); confirmed by the account's event (msgid 157). / Quita el canal de mensajería.</summary>
+    public async Task RemoveMessagingAsync(CancellationToken ct = default)
+    {
+        CheckOwnSettings();
+        if (User.MessagingHandle is null) return;
+        await ConfirmedByEvent(new JsonObject { ["action"] = "removeMessaging" }, e => OwnAccountEvent(e, 157),
+            "usuarios/cambiar-ajustes/tiempo-agotado", "usuarios/cambiar-ajustes/conexion-cortada", ct).ConfigureAwait(false);
+        User = User with { MessagingHandle = null };
+    }
+
     public async Task RemoveSecurityKeyAsync(SecurityKey key, CancellationToken ct = default)
     {
         CheckOwnSettings();

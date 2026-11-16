@@ -6,9 +6,12 @@
 // códigos que manda MeshCentral por correo o por SMS. Nada sale de la red del banco.
 import net from 'node:net';
 import http from 'node:http';
+import https from 'node:https';
+import fs from 'node:fs';
 
 const mails = [];
 const sms = [];
+const ntfy = [];
 
 net.createServer((socket) => {
   let buffer = '', inData = false, to = [], data = '';
@@ -46,6 +49,21 @@ http.createServer((req, res) => {
     res.end('OK');
   } else if (url.pathname === '/read') {
     res.setHeader('content-type', 'application/json');
-    res.end(JSON.stringify({ mails, sms }));
+    res.end(JSON.stringify({ mails, sms, ntfy }));
   } else { res.statusCode = 404; res.end(); }
 }).listen(8025, () => console.log('sink ready'));
+
+// An ntfy server, when given a certificate (/certs/sink.crt and .key): MeshCentral's messaging POSTs the text to
+// https://<host>/<topic> (meshmessaging.js). Kept in "ntfy" with its topic.
+// Un servidor ntfy, si tiene certificado: la mensajería de MeshCentral manda el texto por POST a https://<host>/<tema>.
+if (fs.existsSync('/certs/sink.crt')) {
+  https.createServer({ cert: fs.readFileSync('/certs/sink.crt'), key: fs.readFileSync('/certs/sink.key') }, (req, res) => {
+    let body = '';
+    req.on('data', (c) => { body += c; });
+    req.on('end', () => {
+      if (req.method === 'POST') ntfy.push({ topic: decodeURIComponent(new URL(req.url, 'https://sink').pathname.slice(1)), msg: body, at: Date.now() });
+      res.setHeader('content-type', 'application/json');
+      res.end('{"id":"sink"}');
+    });
+  }).listen(8443, () => console.log('ntfy ready'));
+}

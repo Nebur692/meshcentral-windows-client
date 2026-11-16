@@ -40,6 +40,13 @@ if [ -n "${SINK_HOST:-}" ]; then
   "sms": { "provider": "url", "url": "http://'"$SINK_HOST"':8025/sms?phone={{phone}}&msg={{message}}" }'
   EMAIL_OF() { echo "--email $1@mesh.test"; }
 fi
+# SINK_CA=<dir with sink.crt>: the mailbox is also an ntfy server over HTTPS, and this server trusts its certificate only.
+# SINK_CA=<carpeta con sink.crt>: el buzón es también un servidor ntfy por HTTPS, y este servidor confía solo en su certificado.
+TRUST=""
+if [ -n "${SINK_HOST:-}" ] && [ -n "${SINK_CA:-}" ]; then
+  MAIL="$MAIL"', "messaging": { "ntfy": { "host": "'"$SINK_HOST"':8443" } }'
+  TRUST="-e NODE_EXTRA_CA_CERTS=/certs/sink.crt -v $SINK_CA/sink.crt:/certs/sink.crt:ro"
+fi
 cat > "$DATA/config.json" <<JSON
 {
   "settings": { "cert": "mesh.test", "port": 443, "redirPort": 0, "mpsPort": 0, "selfUpdate": false,
@@ -49,7 +56,7 @@ cat > "$DATA/config.json" <<JSON
 JSON
 M=/opt/meshcentral/meshcentral/meshcentral
 CFG=/opt/meshcentral/meshcentral-data/config.json
-docker run -d --rm --name "$NAME" --network "$NET" --cpus 1 --memory 768m \
+docker run -d --rm --name "$NAME" --network "$NET" --cpus 1 --memory 768m $TRUST \
   -v "$DATA:/opt/meshcentral/meshcentral-data" --entrypoint sh "$IMAGE" -c "
     cd /opt/meshcentral &&
     node $M --configfile $CFG --createaccount admin --pass Admin-Pass-1234 --name Admin $(EMAIL_OF admin) &&

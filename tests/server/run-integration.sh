@@ -27,7 +27,7 @@ cleanup() {
   docker network rm "$NET" >/dev/null 2>&1 || true
   # Files written by root inside the containers: removed from a container too.
   # Ficheros que escribió root dentro de los contenedores: se borran también desde un contenedor.
-  docker run --rm -v "$WORK:/w" --entrypoint sh "$SDK_IMAGE" -c 'rm -rf /w/meshdata /w/agent /w/results /w/oidc /w/agentcache /w/ssh' >/dev/null 2>&1 || true
+  docker run --rm -v "$WORK:/w" --entrypoint sh "$SDK_IMAGE" -c 'rm -rf /w/meshdata /w/agent /w/results /w/oidc /w/agentcache /w/ssh /w/sinkca' >/dev/null 2>&1 || true
   rmdir "$WORK" 2>/dev/null || true
 }
 trap cleanup EXIT
@@ -49,8 +49,13 @@ for _ in $(seq 1 60); do logged "$OIDC" "oidc ready" && break; sleep 2; done
 logged "$OIDC" "oidc ready" || { echo "the OIDC provider did not start / el proveedor OIDC no arrancó" >&2; docker logs "$OIDC" >&2; exit 1; }
 
 # The mailbox for email and SMS codes (sink.mjs), before the server that sends to it. / El buzón de correo y SMS, antes que el servidor.
-docker run -d --rm --name "$SINK" --network "$NET" --cpus 0.25 --memory 128m -v "$HERE/sink.mjs:/sink.mjs:ro" node:22-alpine node /sink.mjs >/dev/null
-SINK_HOST="$SINK" OIDC_ISSUER="http://$OIDC:3000" "$HERE/start-test-server.sh" "$SRV" "$WORK/meshdata" "$NET" "$MESH_IMAGE" >/dev/null
+# Its certificate, made for this run, makes it an ntfy server too (messaging codes). / Su certificado lo hace también servidor ntfy.
+mkdir -p "$WORK/sinkca"
+openssl req -x509 -newkey rsa:2048 -nodes -days 2 -subj "/CN=$SINK" -addext "subjectAltName=DNS:$SINK" \
+  -keyout "$WORK/sinkca/sink.key" -out "$WORK/sinkca/sink.crt" >/dev/null 2>&1
+chmod 644 "$WORK/sinkca/sink.key"
+docker run -d --rm --name "$SINK" --network "$NET" --cpus 0.25 --memory 128m -v "$HERE/sink.mjs:/sink.mjs:ro" -v "$WORK/sinkca:/certs:ro" node:22-alpine node /sink.mjs >/dev/null
+SINK_HOST="$SINK" SINK_CA="$WORK/sinkca" OIDC_ISSUER="http://$OIDC:3000" "$HERE/start-test-server.sh" "$SRV" "$WORK/meshdata" "$NET" "$MESH_IMAGE" >/dev/null
 SRV_IP=$(docker inspect "$SRV" --format "{{(index .NetworkSettings.Networks \"$NET\").IPAddress}}")
 read -r OTP GROUP < <(docker exec -i "$SRV" node - < "$HERE/setup-test-data.js")
 [ -n "${OTP:-}" ] && [ -n "${GROUP:-}" ]

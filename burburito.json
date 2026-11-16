@@ -1990,6 +1990,16 @@
       "titulo": "A la cuenta le falta el correo",
       "explicacion": "Los códigos por correo necesitan que la cuenta tenga un correo.",
       "que_hacer": "Pedir a un administrador que ponga el correo de la cuenta."
+    },
+    {
+      "modulo": "usuarios",
+      "accion": "cambiar-ajustes",
+      "causa": "dependencia-caida",
+      "severidad": "aviso",
+      "actuar": true,
+      "titulo": "La app ntfy no está escuchando",
+      "explicacion": "La app ntfy del móvil no contestó (ni dio su dirección ni recibió el código): Android no la deja empezar a escuchar hasta que se abre una vez (pasa con ntfy recién instalada o sin otras suscripciones).",
+      "que_hacer": "Abrir la app ntfy una vez y volver a intentarlo."
     }
   ]
 }

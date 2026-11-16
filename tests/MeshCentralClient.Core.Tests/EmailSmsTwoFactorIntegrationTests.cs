@@ -12,6 +12,7 @@ using Xunit;
 /// Doble factor por correo y por SMS contra el banco, cuyo servidor manda los dos al buzón del banco. Usa la cuenta «mfa», hecha para ella por el banco (las pruebas corren en paralelo).
 /// </summary>
 [Trait("Category", "Integration")]
+[Collection("mfa")] // the "mfa" account is shared with the messaging test: one after the other. / Cuenta compartida: una detrás de otra.
 public class EmailSmsTwoFactorIntegrationTests
 {
     private static string Env(string n) => Environment.GetEnvironmentVariable(n) is { Length: > 0 } v ? v

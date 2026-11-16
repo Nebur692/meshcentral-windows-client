@@ -61,7 +61,9 @@
                 <Button x:Name="EmailCodeButton" Content="{app:T SendEmailCode}" Visibility="Collapsed"
                         HorizontalAlignment="Left" Margin="0,8,8,0" Click="EmailCodeButton_Click" />
                 <Button x:Name="SmsCodeButton" Content="{app:T SendSmsCode}" Visibility="Collapsed"
-                        HorizontalAlignment="Left" Margin="0,8,0,0" Click="SmsCodeButton_Click" />
+                        HorizontalAlignment="Left" Margin="0,8,8,0" Click="SmsCodeButton_Click" />
+                <Button x:Name="MsgCodeButton" Content="{app:T SendMsgCode}" Visibility="Collapsed"
+                        HorizontalAlignment="Left" Margin="0,8,0,0" Click="MsgCodeButton_Click" />
               </StackPanel>
             </StackPanel>
           </Border>

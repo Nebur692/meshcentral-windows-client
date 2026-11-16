@@ -52,6 +52,9 @@ public sealed class AccountWindow : Window
     private readonly TextBlock _phoneState = new() { VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 12, 0) };
     private readonly Button _addPhone = new() { Content = L.T("AddPhone"), MinWidth = 90, Margin = new Thickness(0, 0, 8, 0) };
     private readonly Button _removePhone = new() { Content = L.T("RemovePhone"), MinWidth = 90 };
+    private readonly StackPanel _ntfyRow = new();
+    private readonly TextBlock _ntfyState = new() { VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 12, 0) };
+    private readonly Button _removeNtfy = new() { Content = L.T("RemovePhone"), MinWidth = 90 };
     private readonly TextBlock _codesState = new() { Opacity = 0.8 };
     private readonly Button _showCodes = new() { Content = L.T("ShowCodes"), MinWidth = 80, Margin = new Thickness(0, 0, 8, 0) };
     private readonly Button _newCodes = new() { Content = L.T("NewCodes"), MinWidth = 110, Margin = new Thickness(0, 0, 8, 0) };
@@ -78,7 +81,7 @@ public sealed class AccountWindow : Window
             (_codesState, "CodesState"), (_showCodes, "ShowCodesButton"), (_newCodes, "NewCodesButton"), (_clearCodes, "ClearCodesButton"), (_codes, "CodesBox"),
             (_keys, "KeyList"), (_removeKey, "RemoveKeyButton"), (_tokens, "TokenList"), (_newToken, "NewTokenButton"), (_removeToken, "RemoveTokenButton"),
             (_status, "AccountStatus"), (_emailState, "EmailCodesState"), (_emailToggle, "EmailCodesButton"), (_phoneState, "PhoneState"),
-            (_addPhone, "AddPhoneButton"), (_removePhone, "RemovePhoneButton"),
+            (_addPhone, "AddPhoneButton"), (_removePhone, "RemovePhoneButton"), (_ntfyState, "NtfyState"), (_removeNtfy, "RemoveNtfyButton"),
         }) AP.SetAutomationId(e, id);
         AP.SetName(_current, L.T("CurrentPassword")); AP.SetName(_new, L.T("NewPassword")); AP.SetName(_repeat, L.T("RepeatPassword"));
 
@@ -114,6 +117,12 @@ public sealed class AccountWindow : Window
         _phoneRow.Children.Add(Help("PhoneHelp"));
         _phoneRow.Children.Add(Row(_phoneState, _addPhone, _removePhone));
         page.Children.Add(_phoneRow);
+        // Codes by ntfy are set up from the Android app (its own topic); here they are seen and removed, for a lost phone.
+        // Los códigos por ntfy se ponen desde la app de Android; aquí se ven y se quitan, por si se pierde el móvil.
+        _ntfyRow.Children.Add(Section("NtfySection"));
+        _ntfyRow.Children.Add(Help("NtfyHelp"));
+        _ntfyRow.Children.Add(Row(_ntfyState, _removeNtfy));
+        page.Children.Add(_ntfyRow);
         page.Children.Add(Section("BackupSection"));
         page.Children.Add(Help("BackupHelp"));
         page.Children.Add(_codesState);
@@ -140,6 +149,7 @@ public sealed class AccountWindow : Window
         _emailToggle.Click += async (_, _) => await ToggleEmail();
         _addPhone.Click += async (_, _) => await AddPhone();
         _removePhone.Click += async (_, _) => await RemovePhone();
+        _removeNtfy.Click += async (_, _) => await RemoveNtfy();
         _showCodes.Click += async (_, _) => await Codes(BackupCodeAction.Show);
         _newCodes.Click += async (_, _) => await Codes(BackupCodeAction.New);
         _clearCodes.Click += async (_, _) => await Codes(BackupCodeAction.Clear);
@@ -175,6 +185,9 @@ public sealed class AccountWindow : Window
         _phoneState.Text = u.Phone ?? L.T("NoPhone");
         _addPhone.IsEnabled = !locked && u.Phone is null;
         _removePhone.IsEnabled = !locked && u.Phone is not null;
+        _ntfyRow.Visibility = _session.ServerInfo.MessagingTwoFactorAllowed || u.MessagingHandle is not null ? Visibility.Visible : Visibility.Collapsed;
+        _ntfyState.Text = L.T(u.MessagingHandle is null ? "NtfyOff" : "NtfyOn");
+        _removeNtfy.IsEnabled = !locked && u.MessagingHandle is not null;
         _codesState.Text = L.T(!u.HasTwoFactor ? "BackupNeedsFactor" : u.HasBackupCodes ? "CodesThere" : "NoCodes");
         _showCodes.IsEnabled = u.HasTwoFactor;
         _newCodes.IsEnabled = !locked && u.HasTwoFactor;
@@ -231,6 +244,13 @@ public sealed class AccountWindow : Window
             catch (MeshClientException e) when (e.Failure == MeshFailure.InvalidTwoFactorCode) { }
         }
         return L.T("PhoneNotChecked");
+    });
+
+    private Task RemoveNtfy() => Run(async () =>
+    {
+        if (!Confirm(L.T("ConfirmRemoveNtfy"), L.T("NtfySection"))) return null;
+        await _session.RemoveMessagingAsync();
+        return L.T("NtfyRemoved");
     });
 
     private Task RemovePhone() => Run(async () =>

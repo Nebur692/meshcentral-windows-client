@@ -7,7 +7,7 @@ public sealed record ServerInfo(string Name, string Domain, string? Version)
     internal static ServerInfo From(JsonObject o) => new(
         o.Str("name") ?? "", o.Str("domain") ?? "", o.Str("serverVersion") ?? o.Str("version"))
     {
-        ManageAllDeviceGroups = o.Bool("manageAllDeviceGroups"), Features = o.Long("features") ?? 0,
+        ManageAllDeviceGroups = o.Bool("manageAllDeviceGroups"), Features = o.Long("features") ?? 0, Features2 = o.Long("features2") ?? 0,
         ForcedConsent = (int)(o.Long("consent") ?? 0), GroupsChooseRecording = o.Long("devGroupSessionRecording") == 1,
     };
 
@@ -26,6 +26,12 @@ public sealed record ServerInfo(string Name, string Domain, string? Version)
     /// <summary>Two-factor by SMS is offered: an SMS gateway and not forbidden (0x04000000). / Se ofrece el doble factor por SMS.</summary>
     public bool SmsTwoFactorAllowed => (Features & 0x04000000) != 0;
 
+    /// <summary>The second feature bits (serverinfo.features2). / Los segundos bits de funciones.</summary>
+    public long Features2 { get; init; }
+
+    /// <summary>Two-factor by messaging (ntfy, Telegram…) is offered (features2 0x04000000). / Se ofrece el doble factor por mensajería.</summary>
+    public bool MessagingTwoFactorAllowed => (Features2 & 0x04000000) != 0;
+
     /// <summary>The server lets this account manage every device group (managealldevicegroups). / El servidor deja a esta cuenta gestionar todos los grupos.</summary>
     public bool ManageAllDeviceGroups { get; init; }
 }
@@ -41,8 +47,9 @@ public sealed record UserInfo(string Id, string Name, bool IsFullAdministrator)
         MustChangePassword = o.Long("passchange") == -1,
         // The server sends a flag or a count instead of each secret (CloneSafeUser). / El servidor manda una marca o un número en vez de cada secreto.
         HasAuthenticator = o.Long("otpsecret") is > 0, HasBackupCodes = o.Long("otpkeys") is > 0, SecurityKeys = (int)(o.Long("otphkeys") ?? 0),
-        HasOtherTwoFactor = o.Long("otpekey") is > 0 || o.Long("otpduo") is > 0 || o.Long("otpdev") is > 0 || o.Str("phone") is { Length: > 0 },
+        HasOtherTwoFactor = o.Long("otpekey") is > 0 || o.Long("otpduo") is > 0 || o.Long("otpdev") is > 0 || o.Str("phone") is { Length: > 0 } || o.Str("msghandle") is { Length: > 0 },
         HasEmailTwoFactor = o.Long("otpekey") is > 0, Phone = o.Str("phone") is { Length: > 0 } p ? p : null,
+        MessagingHandle = o.Str("msghandle") is { Length: > 0 } m ? m : null,
     };
 
     /// <summary>Codes by email at sign-in (otpekey). / Códigos por correo al entrar.</summary>
@@ -50,6 +57,9 @@ public sealed record UserInfo(string Id, string Name, bool IsFullAdministrator)
 
     /// <summary>The verified phone for SMS codes, as the server shows it. / El teléfono verificado para los códigos por SMS.</summary>
     public string? Phone { get; init; }
+
+    /// <summary>Where messaging codes go, as "ntfy:&lt;topic&gt;" (msghandle); the Android app sets its own. / Adónde van los códigos por mensajería.</summary>
+    public string? MessagingHandle { get; init; }
 
     private static DateTimeOffset? Seconds(long? s) => s is > 0 ? DateTimeOffset.FromUnixTimeSeconds(s.Value) : null;
 
@@ -242,3 +252,4 @@ internal static class JsonExtensions
 
 /// <summary>A phone being verified: the server sent it a code by SMS and keeps this cookie. / Un teléfono a verificar.</summary>
 public sealed record PhoneCheck(string Phone, string Cookie);
+public sealed record MessagingCheck(string Handle, string Cookie);

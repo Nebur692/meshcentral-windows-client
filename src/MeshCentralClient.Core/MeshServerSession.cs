@@ -393,10 +393,12 @@ public sealed partial class MeshServerSession : IAsyncDisposable
             SmsCodeAvailable = close.Bool("sms2fa"),
             EmailCodeSent = close.Bool("email2fasent"),
             SmsCodeSent = close.Bool("sms2fasent"),
+            MessagingCodeAvailable = close.Bool("msg2fa"),
+            MessagingCodeSent = close.Bool("msg2fasent"),
         };
         return (cause, msg) switch
         {
-            (_, "tokenrequired") when sentCode && credentials.TwoFactorCode is not "**email**" and not "**sms**" =>
+            (_, "tokenrequired") when sentCode && credentials.TwoFactorCode is not "**email**" and not "**sms**" and not "**msg**" =>
                 E(MeshFailure.InvalidTwoFactorCode, "conexion/verificar-identidad/credencial-invalida", "The second-factor code is not valid."),
             (_, "tokenrequired") => E(MeshFailure.TwoFactorRequired, "conexion/verificar-identidad/falta-dato", "The server asks for a second-factor code."),
             ("banned", _) or ("locked", _) => E(MeshFailure.TooManyAttempts, "conexion/iniciar-sesion/limite-de-tasa", "Too many failed attempts: the server is refusing logins for a while."),
