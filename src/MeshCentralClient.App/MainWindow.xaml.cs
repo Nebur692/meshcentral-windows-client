@@ -714,6 +714,31 @@ public partial class MainWindow : Window
         MoveToGroupItem.IsEnabled = MoveTargets(SelectedDevices()).Count > 0;
         UninstallAgentItem.IsEnabled = row is not null && _session?.AbilitiesOn(row.Device) is { Uninstall: true };
         RemoveDeviceItem.IsEnabled = row is not null && _session?.AbilitiesOn(row.Device) is { Remove: true };
+        ShareItem.IsEnabled = row is not null && _session is { } shs && shs.CanShare(row.Device);
+        SoftwareItem.IsEnabled = row is not null && _session is { } sws && sws.CanSeeSoftware(row.Device);
+        DeviceNotifyItem.IsEnabled = row is not null && _session is not null;
+    }
+
+    private void Share_Click(object sender, RoutedEventArgs e) => OpenForDevice((s, row) => new SharingWindow(s, row));
+
+    private void Software_Click(object sender, RoutedEventArgs e) => OpenForDevice((s, row) => new SoftwareWindow(s, row));
+
+    private void OpenForDevice(Func<MeshServerSession, DeviceRow, Window> create)
+    {
+        if (_session is not { } s || DeviceList.SelectedItem is not DeviceRow row) return;
+        var w = create(s, row);
+        _sessionWindows.Add(w);
+        w.Closed += (_, _) => _sessionWindows.Remove(w);
+        w.Show();
+    }
+
+    /// <summary>Email or messaging notices when this device connects or disconnects. / Avisos cuando este equipo se conecta o desconecta.</summary>
+    private async void DeviceNotify_Click(object sender, RoutedEventArgs e)
+    {
+        if (_session is not { } s || DeviceList.SelectedItem is not DeviceRow row) return;
+        if (NotifyDialog.Ask(this, L.F("NotifyDeviceTitle", row.Name), s.NotifyOn(row.Device.Id)) is not { } wanted) return;
+        try { await s.SetDeviceNotifyAsync(row.Device, wanted); Status(L.F("NotifySaved", row.Name), []); }
+        catch (MeshClientException ex) { ErrorWindow.Show(this, UserError.From(ex, s.ServerInfo.Version)); }
     }
 
     /// <summary>The agent uninstalls itself and the device goes offline; it stays in MeshCentral. / El agente se desinstala; el equipo sigue en MeshCentral.</summary>
@@ -956,7 +981,9 @@ public partial class MainWindow : Window
 
     private ContextMenu? _serverMenu;
     private MenuItem? _recordingsItem;
+    private MenuItem? _serverFilesItem;
     private RecordingsWindow? _recordingsWindow;
+    private ServerFilesWindow? _serverFilesWindow;
     private MenuItem? _serverStateItem;
 
     /// <summary>One menu, made once: a new one on every click left old copies of its items for UI Automation to find (CI 08-11).
@@ -979,10 +1006,12 @@ public partial class MainWindow : Window
             Item("ReportsItem", s => OpenOnce(ref _reportsWindow, () => new ReportsWindow(s, NamesFor(s))));
             _serverStateItem = Item("ServerStateItem", s => OpenOnce(ref _serverWindow, () => new ServerWindow(s)));
             _recordingsItem = Item("RecordingsItem", s => OpenOnce(ref _recordingsWindow, () => new RecordingsWindow(s, NamesFor(s))));
+            _serverFilesItem = Item("ServerFilesItem", s => OpenOnce(ref _serverFilesWindow, () => new ServerFilesWindow(s)));
         }
         // Only for the administrators the server shows its state to. / Solo para los administradores a los que el servidor enseña su estado.
         _serverStateItem!.IsEnabled = _session.CanSeeServer;
         _recordingsItem!.IsEnabled = _session.CanSeeRecordings;
+        _serverFilesItem!.IsEnabled = _session.CanUseServerFiles;
         _serverMenu.IsOpen = true;
     }
 

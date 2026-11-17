@@ -61,9 +61,9 @@ public class ActionsIntegrationTests(ITestOutputHelper output)
         await using var s = await As("admin", "Admin-Pass-1234");
         var d = await OnlineDevice(s);
         Assert.Equal(0xFFFFFFFF, s.RightsOn(d));
-        Assert.Equal(new DeviceAbilities(true, true, true, true, true), s.AbilitiesOn(d));
-        // An offline device can only be woken. / Un equipo desconectado solo se puede encender.
-        Assert.Equal(new DeviceAbilities(true, false, false, false, false), s.AbilitiesOn(d with { Connectivity = DeviceConnectivity.None }));
+        Assert.Equal(new DeviceAbilities(true, true, true, true, true) { Uninstall = true, Remove = true }, s.AbilitiesOn(d));
+        // An offline device can only be woken, or removed from MeshCentral. / Un equipo desconectado solo se puede encender o borrar.
+        Assert.Equal(new DeviceAbilities(true, false, false, false, false) { Remove = true }, s.AbilitiesOn(d with { Connectivity = DeviceConnectivity.None }));
     }
 
     [Fact]

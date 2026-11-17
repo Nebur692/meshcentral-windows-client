@@ -66,6 +66,7 @@ public sealed class AccountWindow : Window
     private readonly ListView _tokens = new() { MinHeight = 70, MaxHeight = 180, Margin = new Thickness(0, 4, 0, 6) };
     private readonly Button _newToken = new() { Content = L.T("NewToken"), MinWidth = 110, Margin = new Thickness(0, 0, 8, 0) };
     private readonly Button _removeToken = new() { Content = L.T("RemoveItem"), MinWidth = 90 };
+    private readonly Button _logins = new() { Content = L.T("LoginsButton"), MinWidth = 160 };
     private readonly TextBlock _status = new() { Margin = new Thickness(16, 6, 16, 10), TextTrimming = TextTrimming.CharacterEllipsis, Opacity = 0.85 };
 
     public AccountWindow(MeshServerSession session)
@@ -137,6 +138,11 @@ public sealed class AccountWindow : Window
         page.Children.Add(Help("TokensHelp"));
         page.Children.Add(_tokens);
         page.Children.Add(Row(_newToken, _removeToken));
+        page.Children.Add(Section("LoginsSection"));
+        page.Children.Add(Help("LoginsHelp"));
+        page.Children.Add(Row(_logins));
+        AP.SetAutomationId(_logins, "LoginsButton");
+        _logins.Click += (_, _) => new LoginsWindow(_session) { Owner = this }.Show();
 
         var root = new DockPanel();
         DockPanel.SetDock(_status, Dock.Bottom);

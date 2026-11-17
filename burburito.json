@@ -108,6 +108,12 @@
       "slug": "grabaciones",
       "nombre": "Las grabaciones de sesiones del servidor",
       "descripcion": "MeshServerSession.Recordings.cs (y su ventana; Recordings.kt en Android): la petición recordings (el servidor calla si no graba) y la descarga de recordings.ashx, que el servidor solo da a una sesión web (inicio de sesión único); si no, se abre su lista en la web (viewmode 52)."
+    },
+    {
+      "id": 18,
+      "slug": "ficheros-servidor",
+      "nombre": "Los ficheros guardados en el servidor («Mis ficheros»)",
+      "descripcion": "MeshServerSession.ServerFiles.cs (y su ventana; ServerFiles.kt en Android): el árbol que manda el servidor (files) y los cambios por fileoperation (createfolder, rename, delete, set para subir y get para bajar, este solo por debajo de 200 KB; más pide una sesión web). Pide el permiso de sitio 8."
     }
   ],
   "acciones": [
@@ -200,6 +206,12 @@
       "slug": "desinstalar",
       "nombre": "Desinstalar el agente",
       "descripcion": "La persona pide al agente conectado que se desinstale (uninstallagent); el servidor no contesta. No está en el vocabulario global."
+    },
+    {
+      "id": 515,
+      "slug": "compartir",
+      "nombre": "Compartir un equipo con un invitado",
+      "descripcion": "La persona hace, ve o quita enlaces para que un invitado sin cuenta use el escritorio, la terminal o los ficheros de un equipo (createDeviceShareLink, deviceShares, removeDeviceShare). No está en el vocabulario global."
     }
   ],
   "codigos": [
@@ -2132,6 +2144,226 @@
       "titulo": "Se cortó la conexión al desinstalar",
       "explicacion": "La conexión con el servidor se cortó al mandar la orden de desinstalar.",
       "que_hacer": "Volver a entrar y mirar si el equipo sigue en línea."
+    },
+    {
+      "modulo": "ficha",
+      "accion": "compartir",
+      "causa": "no-autorizado",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "Sin permiso para compartir el equipo",
+      "explicacion": "Compartir pide control remoto y «compartir con invitados» en el equipo, sin entrada limitada, y el agente conectado.",
+      "que_hacer": "Pedir esos permisos a quien administra el grupo."
+    },
+    {
+      "modulo": "ficha",
+      "accion": "compartir",
+      "causa": "dato-invalido",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "Faltan datos del enlace",
+      "explicacion": "Un enlace necesita el nombre del invitado, qué puede usar y cuánto dura.",
+      "que_hacer": "Rellenar los tres."
+    },
+    {
+      "modulo": "ficha",
+      "accion": "compartir",
+      "causa": "tiempo-agotado",
+      "severidad": "error",
+      "actuar": false,
+      "titulo": "El servidor no contestó al compartir",
+      "explicacion": "Se pidió o se quitó un enlace y el servidor no dijo nada a tiempo; puede tener compartir apagado (guestDeviceSharing).",
+      "que_hacer": "Probar otra vez; si sigue, preguntar a quien administra el servidor si permite compartir."
+    },
+    {
+      "modulo": "ficha",
+      "accion": "compartir",
+      "causa": "conexion-cortada",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "Se cortó la conexión al compartir",
+      "explicacion": "La conexión con el servidor se cortó mientras se hacía o quitaba un enlace.",
+      "que_hacer": "Volver a entrar y mirar los enlaces del equipo."
+    },
+    {
+      "modulo": "ficha",
+      "accion": "compartir",
+      "causa": "rechazo-remoto",
+      "severidad": "error",
+      "actuar": false,
+      "titulo": "El servidor no hizo el enlace",
+      "explicacion": "MeshCentral contestó con un error (por ejemplo, el tiempo o los permisos no valen).",
+      "que_hacer": "Revisar el mensaje del servidor y probar con otros datos."
+    },
+    {
+      "modulo": "ficheros-servidor",
+      "accion": "ver-pantalla",
+      "causa": "no-autorizado",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "Sin permiso para los ficheros del servidor",
+      "explicacion": "La cuenta no tiene el permiso «ficheros del servidor» (siteadmin 8).",
+      "que_hacer": "Pedírselo a quien administra el servidor."
+    },
+    {
+      "modulo": "ficheros-servidor",
+      "accion": "ver-pantalla",
+      "causa": "tiempo-agotado",
+      "severidad": "error",
+      "actuar": true,
+      "titulo": "El servidor no mandó sus ficheros",
+      "explicacion": "Se pidió el árbol de ficheros (files) y no llegó a tiempo.",
+      "que_hacer": "Volver a abrir «Mis ficheros»."
+    },
+    {
+      "modulo": "ficheros-servidor",
+      "accion": "ver-pantalla",
+      "causa": "conexion-cortada",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "Se cortó la conexión al ver los ficheros",
+      "explicacion": "El canal con el servidor se cerró mientras se pedía el árbol.",
+      "que_hacer": "Volver a conectar y abrirlo de nuevo."
+    },
+    {
+      "modulo": "ficheros-servidor",
+      "accion": "gestionar-ficheros",
+      "causa": "dato-invalido",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "Nombre no válido",
+      "explicacion": "El nombre está vacío, empieza por punto o lleva \\ / : * ? \" < > |, que el servidor no admite.",
+      "que_hacer": "Escribir otro nombre."
+    },
+    {
+      "modulo": "ficheros-servidor",
+      "accion": "gestionar-ficheros",
+      "causa": "tiempo-agotado",
+      "severidad": "error",
+      "actuar": true,
+      "titulo": "El servidor no confirmó el cambio",
+      "explicacion": "Tras crear, renombrar o borrar no llegó un árbol con el cambio hecho: el servidor no pudo hacerlo (ruta que ya no existe, nombre repetido).",
+      "que_hacer": "Actualizar la lista y mirar si se hizo."
+    },
+    {
+      "modulo": "ficheros-servidor",
+      "accion": "gestionar-ficheros",
+      "causa": "conexion-cortada",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "Se cortó la conexión al cambiar ficheros",
+      "explicacion": "El canal se cerró durante el cambio; puede haberse hecho o no.",
+      "que_hacer": "Volver a conectar y mirar la lista."
+    },
+    {
+      "modulo": "ficheros-servidor",
+      "accion": "subir",
+      "causa": "no-implementado",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "Fichero demasiado grande para la app",
+      "explicacion": "La app sube por el canal de control ficheros de hasta 20 MB.",
+      "que_hacer": "Subirlo desde la web del servidor."
+    },
+    {
+      "modulo": "ficheros-servidor",
+      "accion": "subir",
+      "causa": "estado-imposible",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "No queda espacio en el cupo",
+      "explicacion": "El fichero no cabe en lo que queda del cupo de esa carpeta.",
+      "que_hacer": "Borrar algo de esa carpeta o pedir más cupo."
+    },
+    {
+      "modulo": "ficheros-servidor",
+      "accion": "subir",
+      "causa": "dato-invalido",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "Nombre de fichero no válido",
+      "explicacion": "El nombre empieza por punto o lleva caracteres que el servidor no admite.",
+      "que_hacer": "Cambiar el nombre del fichero antes de subirlo."
+    },
+    {
+      "modulo": "ficheros-servidor",
+      "accion": "subir",
+      "causa": "tiempo-agotado",
+      "severidad": "error",
+      "actuar": true,
+      "titulo": "El servidor no confirmó la subida",
+      "explicacion": "No llegó el árbol nuevo tras subir: el servidor no pudo escribirlo (carpeta borrada o disco lleno).",
+      "que_hacer": "Actualizar la lista y volver a subirlo."
+    },
+    {
+      "modulo": "ficheros-servidor",
+      "accion": "subir",
+      "causa": "conexion-cortada",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "Se cortó la conexión al subir",
+      "explicacion": "El canal se cerró a mitad de la subida.",
+      "que_hacer": "Volver a conectar y subirlo otra vez."
+    },
+    {
+      "modulo": "ficheros-servidor",
+      "accion": "descargar",
+      "causa": "no-implementado",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "Fichero demasiado grande para la app",
+      "explicacion": "El servidor solo da a una app ficheros de menos de 200 KB; los mayores piden una sesión de la web.",
+      "que_hacer": "Bajarlo desde la web del servidor."
+    },
+    {
+      "modulo": "ficheros-servidor",
+      "accion": "descargar",
+      "causa": "tiempo-agotado",
+      "severidad": "error",
+      "actuar": true,
+      "titulo": "El servidor no mandó el fichero",
+      "explicacion": "No llegó el fichero: puede que ya no exista o que haya crecido por encima de 200 KB.",
+      "que_hacer": "Actualizar la lista y volver a intentarlo."
+    },
+    {
+      "modulo": "ficheros-servidor",
+      "accion": "descargar",
+      "causa": "conexion-cortada",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "Se cortó la conexión al bajar",
+      "explicacion": "El canal se cerró mientras llegaba el fichero.",
+      "que_hacer": "Volver a conectar y bajarlo otra vez."
+    },
+    {
+      "modulo": "ficheros-servidor",
+      "accion": "descargar",
+      "causa": "respuesta-ilegible",
+      "severidad": "error",
+      "actuar": true,
+      "titulo": "El fichero llegó ilegible",
+      "explicacion": "El servidor mandó el contenido en un formato que no se pudo leer.",
+      "que_hacer": "Volver a bajarlo; si se repite, bajarlo desde la web."
+    },
+    {
+      "modulo": "ficha",
+      "accion": "abrir-detalle",
+      "causa": "no-autorizado",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "Sin permiso para ver los programas",
+      "explicacion": "Ver los programas instalados pide el permiso completo del equipo o no tener «sin programas».",
+      "que_hacer": "Pedir el permiso a quien administra el grupo."
+    },
+    {
+      "modulo": "ficha",
+      "accion": "abrir-detalle",
+      "causa": "rechazo-remoto",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "El equipo no dio sus programas",
+      "explicacion": "El agente contestó con un error al listar los programas instalados (sistema sin esa información).",
+      "que_hacer": "Volver a intentarlo más tarde."
     }
   ]
 }

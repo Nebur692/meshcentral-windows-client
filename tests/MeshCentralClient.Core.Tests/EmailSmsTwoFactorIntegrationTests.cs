@@ -46,10 +46,13 @@ public class EmailSmsTwoFactorIntegrationTests
         var digits = kind == "sms" ? 6 : 8;
         for (var i = 0; i < 40; i++)
         {
-            var list = (JsonArray)(await Mailbox())[kind]!;
-            if (list.Count > since)
+            // Only this account's mail: other tests' notices (a device that connects, by email) share the mailbox.
+            // Solo el correo de esta cuenta: los avisos de otras pruebas (un equipo que se conecta) comparten el buzón.
+            var mine = ((JsonArray)(await Mailbox())[kind]!).Skip(since).OfType<JsonObject>()
+                .Where(x => kind == "sms" || (x["to"] as JsonArray)?.Any(t => t?.GetValue<string>() == "mfa@mesh.test") == true).ToList();
+            if (mine.Count > 0)
             {
-                var m = (JsonObject)list[^1]!;
+                var m = mine[^1];
                 var text = kind == "sms" ? m["msg"]!.GetValue<string>() : Readable(m["data"]!.GetValue<string>());
                 var found = Regex.Match(text, $@"(?<!\d)(\d{{{digits}}})(?!\d)");
                 Assert.True(found.Success, "no code in: " + text[..Math.Min(400, text.Length)]);

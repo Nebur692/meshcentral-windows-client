@@ -44,6 +44,7 @@ public sealed class GroupsWindow : Window
     private readonly Button _edit = new() { Content = L.T("EditGroup"), MinWidth = 100, Margin = new Thickness(0, 0, 8, 0) };
     private readonly Button _delete = new() { Content = L.T("DeleteGroup"), MinWidth = 100 };
     private readonly Button _settings = new() { Content = L.T("GroupSettings"), MinWidth = 100, Margin = new Thickness(8, 0, 0, 0) };
+    private readonly Button _notify = new() { Content = L.T("GroupNotify"), MinWidth = 100, Margin = new Thickness(8, 0, 0, 0) };
     private readonly TextBlock _summary = new() { Opacity = 0.65, Margin = new Thickness(0, 4, 0, 0), TextWrapping = TextWrapping.Wrap };
     private readonly ListView _members = new() { MinHeight = 90, MaxHeight = 220, Margin = new Thickness(0, 4, 0, 6) };
     private readonly Button _addUsers = new() { Content = L.T("AddUsers"), MinWidth = 100, Margin = new Thickness(0, 0, 8, 0) };
@@ -124,7 +125,8 @@ public sealed class GroupsWindow : Window
         _detail.Children.Add(_desc);
         _detail.Children.Add(_facts);
         _detail.Children.Add(_summary);
-        _detail.Children.Add(Row(_edit, _delete, _settings));
+        _detail.Children.Add(Row(_edit, _delete, _settings, _notify));
+        AP.SetAutomationId(_notify, "GroupNotifyButton");
         _detail.Children.Add(Section("UsersSection"));
         _detail.Children.Add(_members);
         _detail.Children.Add(Row(_addUsers, _addUserGroup, _changeRights, _removeUser));
@@ -161,6 +163,7 @@ public sealed class GroupsWindow : Window
         _edit.Click += async (_, _) => await EditGroup();
         _delete.Click += async (_, _) => await DeleteGroup();
         _settings.Click += async (_, _) => await EditSettings();
+        _notify.Click += async (_, _) => await EditNotify();
         _addLocal.Click += async (_, _) => await AddLocal();
         _addUsers.Click += async (_, _) => await AddUsers();
         _addUserGroup.Click += async (_, _) => await AddUserGroup();
@@ -261,6 +264,14 @@ public sealed class GroupsWindow : Window
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { ErrorWindow.Show(this, UserError.Unexpected(ex)); }
         finally { IsEnabled = true; }
     }
+
+    /// <summary>This account's notices for any device of the group. / Los avisos de esta cuenta para cualquier equipo del grupo.</summary>
+    private Task EditNotify() => Run(async () =>
+    {
+        if (Selected is not { } g || NotifyDialog.Ask(this, L.F("NotifyGroupTitle", g.Name), _session.NotifyOn(g.Id)) is not { } wanted) return null;
+        await _session.SetGroupNotifyAsync(g, wanted);
+        return L.F("NotifySaved", g.Name);
+    });
 
     private Task EditSettings() => Run(async () =>
     {

@@ -1,5 +1,5 @@
 {
-  "generado": "2026-11-17T09:25:52Z",
+  "generado": "2026-11-17T09:50:07Z",
   "aviso": "Generado por bin/burburito. No editar a mano: la fuente de verdad es el burburito.json de al lado.",
   "proyecto": {
     "id": 35,
@@ -421,6 +421,18 @@
       "actuar": false,
       "titulo": "Se cortó la conexión al leer la ficha"
     },
+    "ficha/abrir-detalle/rechazo-remoto": {
+      "codigo": "035-008-022-021",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "El equipo no dio sus programas"
+    },
+    "ficha/abrir-detalle/no-autorizado": {
+      "codigo": "035-008-022-046",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "Sin permiso para ver los programas"
+    },
     "ficha/abrir-detalle/no-encontrado": {
       "codigo": "035-008-022-062",
       "severidad": "aviso",
@@ -468,6 +480,36 @@
       "severidad": "aviso",
       "actuar": false,
       "titulo": "Sin permiso para desinstalar el agente"
+    },
+    "ficha/compartir/tiempo-agotado": {
+      "codigo": "035-008-515-002",
+      "severidad": "error",
+      "actuar": false,
+      "titulo": "El servidor no contestó al compartir"
+    },
+    "ficha/compartir/conexion-cortada": {
+      "codigo": "035-008-515-005",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "Se cortó la conexión al compartir"
+    },
+    "ficha/compartir/rechazo-remoto": {
+      "codigo": "035-008-515-021",
+      "severidad": "error",
+      "actuar": false,
+      "titulo": "El servidor no hizo el enlace"
+    },
+    "ficha/compartir/no-autorizado": {
+      "codigo": "035-008-515-046",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "Sin permiso para compartir el equipo"
+    },
+    "ficha/compartir/dato-invalido": {
+      "codigo": "035-008-515-061",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "Faltan datos del enlace"
     },
     "ficheros/ver-pantalla/tiempo-agotado": {
       "codigo": "035-007-020-002",
@@ -558,6 +600,96 @@
       "severidad": "aviso",
       "actuar": false,
       "titulo": "Una carpeta no se puede copiar dentro de sí misma"
+    },
+    "ficheros-servidor/ver-pantalla/tiempo-agotado": {
+      "codigo": "035-018-020-002",
+      "severidad": "error",
+      "actuar": true,
+      "titulo": "El servidor no mandó sus ficheros"
+    },
+    "ficheros-servidor/ver-pantalla/conexion-cortada": {
+      "codigo": "035-018-020-005",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "Se cortó la conexión al ver los ficheros"
+    },
+    "ficheros-servidor/ver-pantalla/no-autorizado": {
+      "codigo": "035-018-020-046",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "Sin permiso para los ficheros del servidor"
+    },
+    "ficheros-servidor/descargar/tiempo-agotado": {
+      "codigo": "035-018-023-002",
+      "severidad": "error",
+      "actuar": true,
+      "titulo": "El servidor no mandó el fichero"
+    },
+    "ficheros-servidor/descargar/conexion-cortada": {
+      "codigo": "035-018-023-005",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "Se cortó la conexión al bajar"
+    },
+    "ficheros-servidor/descargar/respuesta-ilegible": {
+      "codigo": "035-018-023-022",
+      "severidad": "error",
+      "actuar": true,
+      "titulo": "El fichero llegó ilegible"
+    },
+    "ficheros-servidor/descargar/no-implementado": {
+      "codigo": "035-018-023-103",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "Fichero demasiado grande para la app"
+    },
+    "ficheros-servidor/subir/tiempo-agotado": {
+      "codigo": "035-018-024-002",
+      "severidad": "error",
+      "actuar": true,
+      "titulo": "El servidor no confirmó la subida"
+    },
+    "ficheros-servidor/subir/conexion-cortada": {
+      "codigo": "035-018-024-005",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "Se cortó la conexión al subir"
+    },
+    "ficheros-servidor/subir/dato-invalido": {
+      "codigo": "035-018-024-061",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "Nombre de fichero no válido"
+    },
+    "ficheros-servidor/subir/no-implementado": {
+      "codigo": "035-018-024-103",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "Fichero demasiado grande para la app"
+    },
+    "ficheros-servidor/subir/estado-imposible": {
+      "codigo": "035-018-024-142",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "No queda espacio en el cupo"
+    },
+    "ficheros-servidor/gestionar-ficheros/tiempo-agotado": {
+      "codigo": "035-018-500-002",
+      "severidad": "error",
+      "actuar": true,
+      "titulo": "El servidor no confirmó el cambio"
+    },
+    "ficheros-servidor/gestionar-ficheros/conexion-cortada": {
+      "codigo": "035-018-500-005",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "Se cortó la conexión al cambiar ficheros"
+    },
+    "ficheros-servidor/gestionar-ficheros/dato-invalido": {
+      "codigo": "035-018-500-061",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "Nombre no válido"
     },
     "grabaciones/ver-pantalla/tiempo-agotado": {
       "codigo": "035-017-020-002",

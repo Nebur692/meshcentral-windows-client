@@ -50,6 +50,7 @@ public sealed record UserInfo(string Id, string Name, bool IsFullAdministrator)
         HasOtherTwoFactor = o.Long("otpekey") is > 0 || o.Long("otpduo") is > 0 || o.Long("otpdev") is > 0 || o.Str("phone") is { Length: > 0 } || o.Str("msghandle") is { Length: > 0 },
         HasEmailTwoFactor = o.Long("otpekey") is > 0, Phone = o.Str("phone") is { Length: > 0 } p ? p : null,
         MessagingHandle = o.Str("msghandle") is { Length: > 0 } m ? m : null,
+        Notify = NotifyOf(o),
     };
 
     /// <summary>Codes by email at sign-in (otpekey). / Códigos por correo al entrar.</summary>
@@ -57,6 +58,22 @@ public sealed record UserInfo(string Id, string Name, bool IsFullAdministrator)
 
     /// <summary>The verified phone for SMS codes, as the server shows it. / El teléfono verificado para los códigos por SMS.</summary>
     public string? Phone { get; init; }
+
+    /// <summary>
+    /// This account's notifications by device group or device id (links[group].notify and notify[id]): 16/32 email when a
+    /// device connects/disconnects, 128/256 messaging (ntfy…), 2/4 the website. / Los avisos de esta cuenta por grupo o equipo.
+    /// </summary>
+    public IReadOnlyDictionary<string, int> Notify { get; init; } = new Dictionary<string, int>();
+
+    private static Dictionary<string, int> NotifyOf(JsonObject o)
+    {
+        var map = new Dictionary<string, int>();
+        if (o["links"] is JsonObject links)
+            foreach (var (id, v) in links) if (v is JsonObject l && l.Long("notify") is long n && n != 0) map[id] = (int)n;
+        if (o["notify"] is JsonObject notify)
+            foreach (var (id, v) in notify) if (v is JsonValue j && j.TryGetValue<long>(out var n) && n != 0) map[id] = (int)n;
+        return map;
+    }
 
     /// <summary>Where messaging codes go, as "ntfy:&lt;topic&gt;" (msghandle); the Android app sets its own. / Adónde van los códigos por mensajería.</summary>
     public string? MessagingHandle { get; init; }
