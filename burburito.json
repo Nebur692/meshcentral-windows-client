@@ -188,6 +188,18 @@
       "slug": "abrir-ssh",
       "nombre": "Abrir una terminal SSH",
       "descripcion": "La persona abre una terminal SSH al equipo o a una máquina de su red, por su agente. No está en el vocabulario global."
+    },
+    {
+      "id": 513,
+      "slug": "borrar",
+      "nombre": "Borrar un equipo de MeshCentral",
+      "descripcion": "La persona quita el equipo de MeshCentral (removedevices); su agente, si lo tiene, sigue instalado. No está en el vocabulario global."
+    },
+    {
+      "id": 514,
+      "slug": "desinstalar",
+      "nombre": "Desinstalar el agente",
+      "descripcion": "La persona pide al agente conectado que se desinstale (uninstallagent); el servidor no contesta. No está en el vocabulario global."
     }
   ],
   "codigos": [
@@ -2050,6 +2062,76 @@
       "titulo": "La app ntfy no está escuchando",
       "explicacion": "La app ntfy del móvil no contestó (ni dio su dirección ni recibió el código): Android no la deja empezar a escuchar hasta que se abre una vez (pasa con ntfy recién instalada o sin otras suscripciones).",
       "que_hacer": "Abrir la app ntfy una vez y volver a intentarlo."
+    },
+    {
+      "modulo": "ficha",
+      "accion": "borrar",
+      "causa": "no-autorizado",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "Sin permiso para borrar el equipo",
+      "explicacion": "Borrar un equipo de MeshCentral pide el permiso de desinstalar en su grupo.",
+      "que_hacer": "Pedir ese permiso a quien administra el grupo."
+    },
+    {
+      "modulo": "ficha",
+      "accion": "borrar",
+      "causa": "tiempo-agotado",
+      "severidad": "error",
+      "actuar": false,
+      "titulo": "El servidor no contestó al borrar el equipo",
+      "explicacion": "Se pidió quitar el equipo (removedevices) y el servidor no dijo nada a tiempo.",
+      "que_hacer": "Actualizar la lista para ver si se borró; si sigue, probar otra vez."
+    },
+    {
+      "modulo": "ficha",
+      "accion": "borrar",
+      "causa": "conexion-cortada",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "Se cortó la conexión al borrar el equipo",
+      "explicacion": "La conexión con el servidor se cortó mientras se borraba el equipo.",
+      "que_hacer": "Volver a entrar y mirar si el equipo sigue en la lista."
+    },
+    {
+      "modulo": "ficha",
+      "accion": "borrar",
+      "causa": "rechazo-remoto",
+      "severidad": "error",
+      "actuar": false,
+      "titulo": "El servidor no borró el equipo",
+      "explicacion": "MeshCentral contestó a removedevices con algo distinto de «ok».",
+      "que_hacer": "Probar desde la web de MeshCentral; si tampoco, avisar a quien administra el servidor."
+    },
+    {
+      "modulo": "ficha",
+      "accion": "desinstalar",
+      "causa": "no-autorizado",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "Sin permiso para desinstalar el agente",
+      "explicacion": "Desinstalar el agente pide el permiso de desinstalar en el grupo del equipo.",
+      "que_hacer": "Pedir ese permiso a quien administra el grupo."
+    },
+    {
+      "modulo": "ficha",
+      "accion": "desinstalar",
+      "causa": "sin-conexion",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "El agente no está conectado",
+      "explicacion": "Solo un agente conectado puede desinstalarse: la orden se le manda a él.",
+      "que_hacer": "Esperar a que el equipo esté en línea."
+    },
+    {
+      "modulo": "ficha",
+      "accion": "desinstalar",
+      "causa": "conexion-cortada",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "Se cortó la conexión al desinstalar",
+      "explicacion": "La conexión con el servidor se cortó al mandar la orden de desinstalar.",
+      "que_hacer": "Volver a entrar y mirar si el equipo sigue en línea."
     }
   ]
 }

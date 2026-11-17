@@ -589,6 +589,23 @@ public sealed partial class MeshServerSession
         User = User with { SecurityKeys = before + 1 };
     }
 
+    /// <summary>
+    /// The server's "remember the second factor" cookie (twoFactorCookie; 30 days unless the server says otherwise): given
+    /// as the code "cookie=&lt;it&gt;" it signs in without asking again. The app keeps it in memory only, to reconnect after a
+    /// dropped connection without asking the person for a new code. Null if the server gives none. The same as Android's.
+    /// La cookie de «recordar el doble factor»; dada como código «cookie=&lt;ella&gt;» entra sin volver a pedirlo. Solo en memoria.
+    /// </summary>
+    public async Task<string?> TwoFactorCookieAsync(CancellationToken ct = default)
+    {
+        try
+        {
+            var r = await RequestAsync(new JsonObject { ["action"] = "twoFactorCookie" }, o => o.Str("action") == "twoFactorCookie",
+                "usuarios/cambiar-ajustes/tiempo-agotado", "usuarios/cambiar-ajustes/conexion-cortada", ct, TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+            return r.Str("cookie") is { Length: > 0 } c ? c : null;
+        }
+        catch (MeshClientException e) when (e.Failure == MeshFailure.Timeout) { return null; }
+    }
+
     public async Task RemoveSecurityKeyAsync(SecurityKey key, CancellationToken ct = default)
     {
         CheckOwnSettings();

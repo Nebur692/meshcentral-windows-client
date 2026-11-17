@@ -22,7 +22,13 @@ public enum PowerAction { PowerOff = 2, Restart = 3, Sleep = 4 }
 public enum CommandShell { Cmd = 1, PowerShell = 2, Shell = 3 }
 
 /// <summary>The device actions a person can do, worked out from the rights. / Las acciones que puede hacer, sacadas de los permisos.</summary>
-public sealed record DeviceAbilities(bool Wake, bool Power, bool Notify, bool MessageBox, bool RunCommands);
+public sealed record DeviceAbilities(bool Wake, bool Power, bool Notify, bool MessageBox, bool RunCommands)
+{
+    /// <summary>Uninstall its agent: the uninstall right and the agent connected. / Desinstalar su agente: el permiso y el agente conectado.</summary>
+    public bool Uninstall { get; init; }
+    /// <summary>Remove it from MeshCentral: removedevices checks the uninstall right too. / Borrarlo: removedevices pide también ese permiso.</summary>
+    public bool Remove { get; init; }
+}
 
 /// <summary>
 /// Device actions: wake, power, messages to whoever uses the device, and commands with their output. Rights are worked
@@ -103,7 +109,37 @@ public sealed partial class MeshServerSession
             Notify: Has(r, MeshRights.ChatNotify) && device.HasAgent,
             // msg is routed only with remote control or view only (routeCommandToNode). / msg solo se enruta con control remoto o solo ver.
             MessageBox: (Has(r, MeshRights.RemoteControl) || Has(r, MeshRights.RemoteViewOnly)) && device.HasAgent,
-            RunCommands: Has(r, MeshRights.RemoteCommand) && device.HasAgent);
+            RunCommands: Has(r, MeshRights.RemoteCommand) && device.HasAgent)
+        {
+            Uninstall = Has(r, MeshRights.Uninstall) && device.HasAgent,
+            Remove = Has(r, MeshRights.Uninstall),
+        };
+    }
+
+    /// <summary>Removes the device from MeshCentral (removedevices); its agent, if any, stays installed. The same as Android's.
+    /// Quita el equipo de MeshCentral; su agente, si lo tiene, sigue instalado.</summary>
+    public async Task RemoveDeviceAsync(Device device, CancellationToken ct = default)
+    {
+        if (!AbilitiesOn(device).Remove) throw Denied("ficha/borrar/no-autorizado", "remove it");
+        var id = NewId();
+        var r = await RequestAsync(new JsonObject { ["action"] = "removedevices", ["nodeids"] = new JsonArray(device.Id), ["responseid"] = id },
+            o => o.Str("action") == "removedevices" && o.Str("responseid") == id, "ficha/borrar/tiempo-agotado", "ficha/borrar/conexion-cortada", ct).ConfigureAwait(false);
+        if (r.Str("result") != "ok")
+            throw new MeshClientException(MeshFailure.Rejected, "ficha/borrar/rechazo-remoto", $"The server did not remove it: {r.Str("result")}.") { ServerMessage = r.Str("result") };
+    }
+
+    /// <summary>Asks the connected agent to uninstall itself (uninstallagent); the server does not answer. The same as Android's.
+    /// Pide al agente conectado que se desinstale; el servidor no contesta.</summary>
+    public async Task UninstallAgentAsync(Device device, CancellationToken ct = default)
+    {
+        if (!AbilitiesOn(device).Uninstall)
+            throw device.HasAgent ? Denied("ficha/desinstalar/no-autorizado", "uninstall its agent")
+                : new MeshClientException(MeshFailure.Rejected, "ficha/desinstalar/sin-conexion", "The agent is not connected.");
+        try { await SendAsync(new JsonObject { ["action"] = "uninstallagent", ["nodeids"] = new JsonArray(device.Id) }, ct).ConfigureAwait(false); }
+        catch (Exception ex) when (ex is System.Net.WebSockets.WebSocketException or InvalidOperationException or ObjectDisposedException)
+        {
+            throw new MeshClientException(MeshFailure.ConnectionLost, "ficha/desinstalar/conexion-cortada", "The connection to the server was lost.", ex);
+        }
     }
 
     /// <summary>Port mapping, SSH and RDP through the device: the server asks for remote control or relay rights

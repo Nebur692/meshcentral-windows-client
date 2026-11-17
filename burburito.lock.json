@@ -1,5 +1,5 @@
 {
-  "generado": "2026-11-16T14:27:48Z",
+  "generado": "2026-11-17T09:25:52Z",
   "aviso": "Generado por bin/burburito. No editar a mano: la fuente de verdad es el burburito.json de al lado.",
   "proyecto": {
     "id": 35,
@@ -426,6 +426,48 @@
       "severidad": "aviso",
       "actuar": false,
       "titulo": "Ese dato del equipo no está disponible"
+    },
+    "ficha/borrar/tiempo-agotado": {
+      "codigo": "035-008-513-002",
+      "severidad": "error",
+      "actuar": false,
+      "titulo": "El servidor no contestó al borrar el equipo"
+    },
+    "ficha/borrar/conexion-cortada": {
+      "codigo": "035-008-513-005",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "Se cortó la conexión al borrar el equipo"
+    },
+    "ficha/borrar/rechazo-remoto": {
+      "codigo": "035-008-513-021",
+      "severidad": "error",
+      "actuar": false,
+      "titulo": "El servidor no borró el equipo"
+    },
+    "ficha/borrar/no-autorizado": {
+      "codigo": "035-008-513-046",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "Sin permiso para borrar el equipo"
+    },
+    "ficha/desinstalar/sin-conexion": {
+      "codigo": "035-008-514-001",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "El agente no está conectado"
+    },
+    "ficha/desinstalar/conexion-cortada": {
+      "codigo": "035-008-514-005",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "Se cortó la conexión al desinstalar"
+    },
+    "ficha/desinstalar/no-autorizado": {
+      "codigo": "035-008-514-046",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "Sin permiso para desinstalar el agente"
     },
     "ficheros/ver-pantalla/tiempo-agotado": {
       "codigo": "035-007-020-002",

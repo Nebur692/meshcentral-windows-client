@@ -173,6 +173,8 @@
               <MenuItem x:Name="RunCommandsItem" Header="{app:T RunCommandsItem}" Click="RunCommands_Click" />
               <MenuItem x:Name="UpdateAgentItem" Header="{app:T UpdateAgentItem}" Click="UpdateAgent_Click" />
               <MenuItem x:Name="MoveToGroupItem" Header="{app:T MoveToGroupItem}" Click="MoveToGroup_Click" />
+              <MenuItem x:Name="UninstallAgentItem" Header="{app:T UninstallAgentItem}" Click="UninstallAgent_Click" />
+              <MenuItem x:Name="RemoveDeviceItem" Header="{app:T RemoveDeviceItem}" Click="RemoveDevice_Click" />
               <Separator />
               <MenuItem Header="{app:T OpenInBrowser}" Click="OpenInBrowser_Click" />
               <MenuItem Header="{app:T CopyName}" Click="CopyName_Click" />

@@ -76,6 +76,15 @@ public class IntegrationTests(ITestOutputHelper output)
         await using var s = await MeshServerSession.ConnectAsync(Server, new("otp", "Otp-Pass-1234", Totp.Code(Env("MESHTEST_OTP_SECRET"))), Pinned);
         Assert.Equal("user//otp", s.User.Id);
         Assert.False(s.User.IsFullAdministrator);
+
+        // The "remember the second factor" cookie signs in again without a code, as the app does reconnecting; a forged one does not.
+        // La cookie de «recordar el doble factor» vuelve a entrar sin código, como hace la app al reconectar; una falsa no.
+        var cookie = await s.TwoFactorCookieAsync();
+        Assert.False(string.IsNullOrEmpty(cookie));
+        await using (var again = await MeshServerSession.ConnectAsync(Server, new("otp", "Otp-Pass-1234", "cookie=" + cookie), Pinned))
+            Assert.Equal("user//otp", again.User.Id);
+        var forged = await Fails(new("otp", "Otp-Pass-1234", "cookie=" + new string(cookie!.Reverse().ToArray())));
+        Assert.True(forged.Failure is MeshFailure.InvalidTwoFactorCode or MeshFailure.TwoFactorRequired);
     }
 
     [Fact]

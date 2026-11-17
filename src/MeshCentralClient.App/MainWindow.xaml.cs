@@ -301,6 +301,9 @@ public partial class MainWindow : Window
         ForgetButton.Visibility = Visibility.Collapsed;
     }
 
+    /// <summary>The second-factor cookie of the last sign-in, in memory only. / La cookie del doble factor de la última entrada, solo en memoria.</summary>
+    private (string Server, string User, string Cookie)? _twoFactorCookie;
+
     private async Task ConnectAsync(bool emailCode = false, bool smsCode = false, bool msgCode = false, bool securityKey = false)
     {
         HideError();
@@ -317,6 +320,14 @@ public partial class MainWindow : Window
         var code = emailCode ? "**email**" : smsCode ? "**sms**" : msgCode ? "**msg**" : (TwoFactorPanel.Visibility == Visibility.Visible ? CodeBox.Text.Trim() : null);
         if (code is { Length: 0 }) code = null;
         var key = address!.ToString();
+        // Reconnecting (no code asked): the "remember the second factor" cookie kept from this sign-in, if any.
+        // Al reconectar (sin pedir código): la cookie de «recordar el doble factor» guardada de esta entrada, si la hay.
+        var usedCookie = false;
+        if (code is null && !securityKey && _twoFactorCookie is { } kept && kept.Server == key && kept.User.Equals(user, StringComparison.OrdinalIgnoreCase))
+        {
+            code = "cookie=" + kept.Cookie;
+            usedCookie = true;
+        }
 
         SetBusy(true);
         _connectCts = new CancellationTokenSource();
@@ -347,8 +358,21 @@ public partial class MainWindow : Window
             saved.WritePassword(RememberBox.IsChecked == true ? password : null);
             if (_saved.Save() is { } problem) ErrorWindow.Show(this, problem);
 
+            // A second factor was passed (a code or a key): its cookie, in memory only, for reconnecting without asking again.
+            // Se pasó un segundo factor: su cookie, solo en memoria, para reconectar sin volver a pedirlo.
+            if (securityKey || (code is { } c && !c.StartsWith("**", StringComparison.Ordinal) && !usedCookie))
+                _twoFactorCookie = await session.TwoFactorCookieAsync() is { } cookie ? (key, user, cookie) : null;
             HideTwoFactor();
             await OpenSessionAsync(session);
+        }
+        catch (MeshClientException ex) when (usedCookie && ex.Failure is MeshFailure.TwoFactorRequired or MeshFailure.InvalidTwoFactorCode)
+        {
+            // The cookie no longer works (expired, or the second factor changed): ask for a code as usual.
+            // La cookie ya no vale (caducó o cambió el segundo factor): se pide un código como siempre.
+            _twoFactorCookie = null;
+            SetBusy(false);
+            await ConnectAsync();
+            return;
         }
         catch (MeshClientException ex) when (ex.Failure == MeshFailure.TwoFactorRequired)
         {
@@ -631,6 +655,7 @@ public partial class MainWindow : Window
 
     private async void Disconnect_Click(object sender, RoutedEventArgs e)
     {
+        _twoFactorCookie = null; // signing out on purpose: the next sign-in asks again / salir a propósito: la próxima entrada vuelve a pedirlo
         await CloseSessionAsync();
         if (RememberBox.IsChecked != true) PasswordBox.Password = "";
     }
@@ -687,6 +712,26 @@ public partial class MainWindow : Window
         ChatItem.IsEnabled = row is not null && _session is { } cs && (cs.RightsOn(row.Device) & (long)MeshRights.ChatNotify) != 0 && row.Device.HasAgent;
         UpdateAgentItem.IsEnabled = _session is { } us && SelectedDevices().Any(us.CanUpdateAgent);
         MoveToGroupItem.IsEnabled = MoveTargets(SelectedDevices()).Count > 0;
+        UninstallAgentItem.IsEnabled = row is not null && _session?.AbilitiesOn(row.Device) is { Uninstall: true };
+        RemoveDeviceItem.IsEnabled = row is not null && _session?.AbilitiesOn(row.Device) is { Remove: true };
+    }
+
+    /// <summary>The agent uninstalls itself and the device goes offline; it stays in MeshCentral. / El agente se desinstala; el equipo sigue en MeshCentral.</summary>
+    private async void UninstallAgent_Click(object sender, RoutedEventArgs e)
+    {
+        if (_session is not { } s || DeviceList.SelectedItem is not DeviceRow row) return;
+        if (MessageBox.Show(this, L.F("ConfirmUninstallAgent", row.Name), L.T("UninstallAgentItem"), MessageBoxButton.YesNo, MessageBoxImage.Warning, MessageBoxResult.No) != MessageBoxResult.Yes) return;
+        try { await s.UninstallAgentAsync(row.Device); Status(L.F("UninstallAgentSent", row.Name), []); }
+        catch (MeshClientException ex) { ErrorWindow.Show(this, UserError.From(ex, s.ServerInfo.Version)); }
+    }
+
+    /// <summary>The device leaves MeshCentral; its agent, if any, stays installed. / El equipo sale de MeshCentral; el agente sigue instalado.</summary>
+    private async void RemoveDevice_Click(object sender, RoutedEventArgs e)
+    {
+        if (_session is not { } s || DeviceList.SelectedItem is not DeviceRow row) return;
+        if (MessageBox.Show(this, L.F("ConfirmRemoveDevice", row.Name), L.T("RemoveDeviceItem"), MessageBoxButton.YesNo, MessageBoxImage.Warning, MessageBoxResult.No) != MessageBoxResult.Yes) return;
+        try { await s.RemoveDeviceAsync(row.Device); Status(L.F("DeviceRemoved", row.Name), []); await LoadDevicesAsync(); }
+        catch (MeshClientException ex) { ErrorWindow.Show(this, UserError.From(ex, s.ServerInfo.Version)); }
     }
 
     private void OpenTerminal_Click(object sender, RoutedEventArgs e) => OpenTerminal(TunnelProtocol.Terminal);

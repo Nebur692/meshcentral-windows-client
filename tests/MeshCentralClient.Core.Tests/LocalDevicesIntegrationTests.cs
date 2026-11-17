@@ -99,6 +99,14 @@ public class LocalDevicesIntegrationTests
             Assert.Equal("grupos/gestionar-grupos/dato-invalido", wrong.BurburitoKey);
             var spaces = await Assert.ThrowsAsync<MeshClientException>(() => s.AddLocalDeviceAsync(g, "x", "con espacios", LocalDeviceOs.Windows));
             Assert.Equal("grupos/gestionar-grupos/dato-invalido", spaces.BurburitoKey);
+
+            // Without an agent there is nothing to uninstall; removing it takes it out of MeshCentral.
+            // Sin agente no hay nada que desinstalar; borrarlo lo saca de MeshCentral.
+            var noAgent = await Assert.ThrowsAsync<MeshClientException>(() => s.UninstallAgentAsync(box));
+            Assert.Equal("ficha/desinstalar/sin-conexion", noAgent.BurburitoKey);
+            await s.RemoveDeviceAsync(box);
+            for (var i = 0; i < 40 && (await s.GetDevicesAsync()).Any(d => d.Id == box.Id); i++) await Task.Delay(250);
+            Assert.DoesNotContain(await s.GetDevicesAsync(), d => d.Id == box.Id);
         }
         finally
         {
