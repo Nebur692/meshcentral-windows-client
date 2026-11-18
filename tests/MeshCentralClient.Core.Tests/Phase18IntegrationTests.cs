@@ -83,3 +83,30 @@ public class Phase18IntegrationTests
         }
     }
 }
+
+/// <summary>A place set on a device puts it on the map. / Un sitio puesto en un equipo lo pone en el mapa.</summary>
+[Trait("Category", "Integration")]
+public class MapIntegrationTests
+{
+    private static string Env(string n) => Environment.GetEnvironmentVariable(n)!;
+
+    [Fact]
+    public async Task A_place_set_by_hand_puts_the_device_on_the_map()
+    {
+        Assert.True(ServerAddress.TryParse(Env("MESHTEST_URL"), out var a));
+        await using var s = await MeshServerSession.ConnectAsync(a!, new("admin", "Admin-Pass-1234"), new CertificateTrust(Env("MESHTEST_CERT_SHA256")));
+        await s.GetDeviceGroupsAsync();
+        var d = (await s.GetDevicesAsync()).First(x => x.GroupId == Env("MESHTEST_GROUP_ID"));
+        var before = DeviceSettings.Of(d);
+        try
+        {
+            await s.SaveDeviceSettingsAsync(d, before with { Location = new(41.3874, 2.1686) });
+            Device now = d;
+            for (var i = 0; i < 40 && now.MapPlace?.Kind != MapPlaceKind.User; i++) { await Task.Delay(250); now = (await s.GetDevicesAsync()).First(x => x.Id == d.Id); }
+            Assert.Equal(MapPlaceKind.User, now.MapPlace!.Kind);
+            Assert.Equal(41.3874, now.MapPlace.Latitude, 4);
+            Assert.Equal(2.1686, now.MapPlace.Longitude, 4);
+        }
+        finally { await s.SaveDeviceSettingsAsync((await s.GetDevicesAsync()).First(x => x.Id == d.Id), before); }
+    }
+}

@@ -162,4 +162,27 @@ public sealed class Phase18Tests : IDisposable
             await s.SaveDeviceSettingsAsync((await s.GetDevicesAsync()).First(d => d.Id == dev.Id), before);
         }
     }
+
+    [Fact]
+    public async Task A_person_sees_the_devices_on_the_map()
+    {
+        await using var s = await Admin();
+        await s.GetDeviceGroupsAsync();
+        var dev = (await s.GetDevicesAsync()).First(d => d.Name == Environment.MachineName);
+        var before = DeviceSettings.Of(dev);
+        try
+        {
+            if (s.ServerKeepsLocations) await s.SaveDeviceSettingsAsync(dev, before with { Location = new(40.4168, -3.7038) });
+            var win = SignIn();
+            Id(win, "ServerMenuButton").AsButton().Invoke();
+            Anywhere("MapItem").AsMenuItem().Invoke();
+            var mw = Anywhere("MapWindow");
+            // Leaflet drew its map: its OpenStreetMap credit is in the page. / Leaflet pintó el mapa: su crédito está en la página.
+            WaitFor(() => Id(mw, "MapView").FindFirstDescendant(cf => cf.ByName("OpenStreetMap")), "the map's OpenStreetMap credit");
+            var expected = s.ServerKeepsLocations ? "1 of" : "0 of";
+            Until(() => Text(Id(mw, "MapStatus")).Contains(expected, StringComparison.Ordinal), "the devices with a place", () => Text(Id(mw, "MapStatus")));
+            Shot("map");
+        }
+        finally { await s.SaveDeviceSettingsAsync((await s.GetDevicesAsync()).First(d => d.Id == dev.Id), before); }
+    }
 }

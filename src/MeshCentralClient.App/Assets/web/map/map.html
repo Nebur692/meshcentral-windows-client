@@ -1,0 +1,23 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="leaflet.css">
+<style>
+  html, body, #map { margin: 0; height: 100%; }
+  body { font-family: "Segoe UI", Roboto, sans-serif; }
+  #empty { position: absolute; top: 12px; left: 50%; transform: translateX(-50%); z-index: 1000; display: none;
+           background: rgba(255,255,255,.95); padding: 8px 14px; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.3); }
+  .name { font-weight: 600; font-size: 14px; }
+  .facts { color: #555; margin: 2px 0 8px; }
+  button.open { border: 0; border-radius: 6px; padding: 6px 12px; background: #1565c0; color: #fff; cursor: pointer; font-size: 13px; }
+</style>
+</head>
+<body>
+<div id="map"></div>
+<div id="empty"></div>
+<script src="leaflet.js"></script>
+<script src="map.js"></script>
+</body>
+</html>

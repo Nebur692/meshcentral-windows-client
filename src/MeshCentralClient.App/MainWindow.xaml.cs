@@ -780,7 +780,13 @@ public partial class MainWindow : Window
     // La ficha se abre también con el equipo desconectado: sus datos, notas e historial están en el servidor.
     private void OpenDetails_Click(object sender, RoutedEventArgs e)
     {
-        if (DeviceList.SelectedItem is not DeviceRow row || _session is null) return;
+        if (DeviceList.SelectedItem is DeviceRow row) OpenDetailsOf(row.Device.Id);
+    }
+
+    /// <summary>A device's page, from the list or the map. / La ficha de un equipo, desde la lista o el mapa.</summary>
+    private void OpenDetailsOf(string deviceId)
+    {
+        if (_rows.FirstOrDefault(r => r.Device.Id == deviceId) is not { } row || _session is null) return;
         var w = new DeviceWindow(_session, row);
         _sessionWindows.Add(w);
         w.Closed += (_, _) => _sessionWindows.Remove(w);
@@ -997,6 +1003,7 @@ public partial class MainWindow : Window
     private MenuItem? _serverFilesItem;
     private RecordingsWindow? _recordingsWindow;
     private ServerFilesWindow? _serverFilesWindow;
+    private MapWindow? _mapWindow;
     private MenuItem? _serverStateItem;
 
     /// <summary>One menu, made once: a new one on every click left old copies of its items for UI Automation to find (CI 08-11).
@@ -1020,6 +1027,7 @@ public partial class MainWindow : Window
             _serverStateItem = Item("ServerStateItem", s => OpenOnce(ref _serverWindow, () => new ServerWindow(s)));
             _recordingsItem = Item("RecordingsItem", s => OpenOnce(ref _recordingsWindow, () => new RecordingsWindow(s, NamesFor(s))));
             _serverFilesItem = Item("ServerFilesItem", s => OpenOnce(ref _serverFilesWindow, () => new ServerFilesWindow(s)));
+            Item("MapItem", s => OpenOnce(ref _mapWindow, () => new MapWindow(() => _rows.Select(r => r.Device).ToList(), OpenDetailsOf)));
         }
         // Only for the administrators the server shows its state to. / Solo para los administradores a los que el servidor enseña su estado.
         _serverStateItem!.IsEnabled = _session.CanSeeServer;

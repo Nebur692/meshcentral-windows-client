@@ -50,7 +50,7 @@ npm install --no-audit --no-fund --loglevel=error "meshcentral@$MeshCentralVersi
   "settings": { "cert": "mesh.test", "port": 4443, "redirPort": 0, "mpsPort": 0, "selfUpdate": false, "maxInvalidLogin": false, "agentDownloads": { "enabled": false } },
   "smtp": { "host": "localhost", "port": 2525, "from": "mesh@mesh.test", "tls": false },
   "sms": { "provider": "url", "url": "http://localhost:8025/sms?phone={{phone}}&msg={{message}}" },
-  "domains": { "": { "title": "Test", "newAccounts": false, "sessionRecording": { "protocols": [1, 200] },
+  "domains": { "": { "title": "Test", "newAccounts": false, "geolocation": true, "sessionRecording": { "protocols": [1, 200] },
     "authStrategies": { "oidc": { "issuer": "http://localhost:3000",
       "client": { "client_id": "meshcentral-test", "client_secret": "test-secret-not-for-production" },
       "newAccounts": true, "groups": { "claim": "groups", "required": ["mesh-users"] } } } } }

@@ -192,6 +192,9 @@ public sealed record Device(
     /// El puerto para un servicio cuyo puerto normal es ese: el propio del equipo, o ese.</summary>
     public int PortFor(int usual) => usual switch { 3389 => RdpPort, 22 => SshPort, 5900 => VncPort, 80 => HttpPort, 443 => HttpsPort, _ => null } ?? usual;
 
+    /// <summary>Where it shows on the map, from the best place the server has (null = none). / Dónde sale en el mapa.</summary>
+    public MapPlace? MapPlace { get; init; }
+
     /// <summary>Where someone placed it on the map (servers with geolocation on). / Dónde lo pusieron en el mapa.</summary>
     public DeviceLocation? Location { get; init; }
 
@@ -240,6 +243,7 @@ public sealed record Device(
             Links = JsonExtensions.Links(o), IsLocal = o.Long("mtype") == 3,
             RdpPort = Port(o, "rdpport", 3389), SshPort = Port(o, "sshport", 22), VncPort = Port(o, "rfbport", 5900), HttpPort = Port(o, "httpport", 80), HttpsPort = Port(o, "httpsport", 443),
             Location = DeviceLocation.Parse(o.Str("userloc")),
+            MapPlace = MapPlace.Of(o),
         };
         // The usual port is no own port: the change event sends rdpport 3389 and rfbport 5900 on purpose when one is removed.
         // El puerto normal no es un puerto propio: el aviso del cambio manda 3389 y 5900 a propósito al quitar uno.
@@ -303,5 +307,37 @@ public sealed record DeviceLocation(double Latitude, double Longitude)
         return p is { Length: >= 2 } && double.TryParse(p[0], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var lat)
             && double.TryParse(p[1], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var lon)
             && lat is >= -90 and <= 90 && lon is >= -180 and <= 180 ? new(lat, lon) : null;
+    }
+}
+
+/// <summary>Where a device's place on the map comes from, worst to best, as the website. / De dónde sale su sitio en el mapa.</summary>
+public enum MapPlaceKind { Ip = 1, Wifi = 2, Gps = 3, User = 4 }
+
+/// <summary>
+/// A device on the map, as the website's map_parseNodeLoc: the place someone set beats GPS, which beats Wi-Fi, which
+/// beats the one guessed from its address; that last one is moved a little by the device id, so devices behind the same
+/// address do not hide each other. / Un equipo en el mapa, como la web: el puesto a mano gana al GPS, este al wifi y este
+/// a la IP; a la de la IP se la mueve un poco por el id del equipo, para que no se tapen los de la misma dirección.
+/// </summary>
+public sealed record MapPlace(double Latitude, double Longitude, MapPlaceKind Kind)
+{
+    internal static MapPlace? Of(JsonObject o)
+    {
+        (string? Text, MapPlaceKind Kind) best = (null, 0);
+        foreach (var (field, kind) in new[] { ("iploc", MapPlaceKind.Ip), ("wifiloc", MapPlaceKind.Wifi), ("gpsloc", MapPlaceKind.Gps), ("userloc", MapPlaceKind.User) })
+            if (o.Str(field) is { Length: > 0 } t) best = (t, kind);
+        if (DeviceLocation.Parse(best.Text) is not { } at) return null;
+        if (best.Kind != MapPlaceKind.Ip) return new(at.Latitude, at.Longitude, best.Kind);
+        var id = o.Str("_id") ?? "";
+        return new(at.Latitude + Hash(id[..Math.Min(20, id.Length)]) / 100000000000.0,
+                   at.Longitude + Hash(id.Length > 20 ? id[20..] : "") / 100000000000.0, MapPlaceKind.Ip);
+    }
+
+    /// <summary>The website's stringToIntHash (32-bit). / El stringToIntHash de la web.</summary>
+    private static int Hash(string s)
+    {
+        var h = 0;
+        unchecked { foreach (var c in s) h = ((h << 5) - h) + c; }
+        return h;
     }
 }
