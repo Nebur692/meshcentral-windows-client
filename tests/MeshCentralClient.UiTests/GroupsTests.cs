@@ -97,6 +97,12 @@ public sealed class GroupsTests : IDisposable
         Keyboard.TypeSimultaneously(VirtualKeyShort.CONTROL, VirtualKeyShort.KEY_A);
         Keyboard.Type(VirtualKeyShort.DELETE);
         Keyboard.Type(text);
+        // The keys arrive after Type returns: the box must hold the text before the next step (a group got "UI f").
+        // Las teclas llegan después: el cuadro tiene que tener el texto antes del paso siguiente (un grupo quedó «UI f»).
+        Wait.UntilInputIsProcessed();
+        if (box.Patterns.Value.PatternOrDefault is { } v &&
+            !Retry.WhileFalse(() => v.Value.Value == text, TimeSpan.FromSeconds(10), TimeSpan.FromMilliseconds(100), throwOnTimeout: false, ignoreException: true).Result)
+            throw new Exception($"\"{text}\" was not typed in {box.AutomationId}: {v.Value.Value}");
     }
 
     // A ListBox row is a ListItem; a row of a ListView with columns (GridView) is a DataItem (seen on CI 08-11).
