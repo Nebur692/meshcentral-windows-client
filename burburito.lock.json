@@ -1,5 +1,5 @@
 {
-  "generado": "2026-11-17T09:50:07Z",
+  "generado": "2026-11-18T08:24:26Z",
   "aviso": "Generado por bin/burburito. No editar a mano: la fuente de verdad es el burburito.json de al lado.",
   "proyecto": {
     "id": 35,
@@ -510,6 +510,24 @@
       "severidad": "aviso",
       "actuar": false,
       "titulo": "Faltan datos del enlace"
+    },
+    "ficha/consola/conexion-cortada": {
+      "codigo": "035-008-516-005",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "Se cortó la conexión al mandar la orden"
+    },
+    "ficha/consola/no-autorizado": {
+      "codigo": "035-008-516-046",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "Sin permiso para la consola del agente"
+    },
+    "ficha/consola/dato-invalido": {
+      "codigo": "035-008-516-061",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "Orden de consola vacía o demasiado larga"
     },
     "ficheros/ver-pantalla/tiempo-agotado": {
       "codigo": "035-007-020-002",

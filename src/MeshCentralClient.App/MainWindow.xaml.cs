@@ -717,11 +717,24 @@ public partial class MainWindow : Window
         ShareItem.IsEnabled = row is not null && _session is { } shs && shs.CanShare(row.Device);
         SoftwareItem.IsEnabled = row is not null && _session is { } sws && sws.CanSeeSoftware(row.Device);
         DeviceNotifyItem.IsEnabled = row is not null && _session is not null;
+        ConsoleItem.IsEnabled = row is not null && _session is { } cos && cos.CanUseAgentConsole(row.Device);
+        DeviceSettingsItem.IsEnabled = row is not null && _session is { } dss && dss.CanChangeDeviceSettings(row.Device);
     }
 
     private void Share_Click(object sender, RoutedEventArgs e) => OpenForDevice((s, row) => new SharingWindow(s, row));
 
     private void Software_Click(object sender, RoutedEventArgs e) => OpenForDevice((s, row) => new SoftwareWindow(s, row));
+
+    private void Console_Click(object sender, RoutedEventArgs e) => OpenForDevice((s, row) => new AgentConsoleWindow(s, row));
+
+    /// <summary>Icon, own ports and place on the map. / Icono, puertos propios y sitio en el mapa.</summary>
+    private async void DeviceSettings_Click(object sender, RoutedEventArgs e)
+    {
+        if (_session is not { } s || DeviceList.SelectedItem is not DeviceRow row) return;
+        if (DeviceSettingsDialog.Ask(this, row.Name, DeviceSettings.Of(row.Device), s.ServerKeepsLocations) is not { } wanted) return;
+        try { await s.SaveDeviceSettingsAsync(row.Device, wanted); Status(L.F("DeviceSettingsSaved", row.Name), []); }
+        catch (MeshClientException ex) { ErrorWindow.Show(this, UserError.From(ex, s.ServerInfo.Version)); }
+    }
 
     private void OpenForDevice(Func<MeshServerSession, DeviceRow, Window> create)
     {
@@ -831,7 +844,7 @@ public partial class MainWindow : Window
         if (DeviceList.SelectedItem is not DeviceRow row || _session is not { } s || _relays is not { } r || !s.CanRelayThrough(row.Device)) return;
         try
         {
-            var m = r.OpenRemoteDesktop(row.Device);
+            var m = r.OpenRemoteDesktop(row.Device, port: row.Device.PortFor(3389));
             ActionStatus.Text = L.F("RdpOpened", row.Name, m.Local);
         }
         catch (MeshClientException ex) { ErrorWindow.Show(this, UserError.From(ex, s.ServerInfo.Version)); }
@@ -841,7 +854,7 @@ public partial class MainWindow : Window
     {
         if (DeviceList.SelectedItem is not DeviceRow row || _session is not { } s || !s.CanRelayThrough(row.Device)) return;
         var server = s.Server.BaseUri.ToString();
-        if (SshForm.Ask(this, row.Name, RelayStore.Shared.SshOf(server, row.Id), s.IsLocal(row.Device) ? row.Device.Address ?? "" : null) is not { } asked) return;
+        if (SshForm.Ask(this, row.Name, RelayStore.Shared.SshOf(server, row.Id), s.IsLocal(row.Device) ? row.Device.Address ?? "" : null, row.Device.PortFor(22)) is not { } asked) return;
         RelayStore.Shared.RememberSsh(new SshProfile { Server = server, NodeId = row.Id, Host = asked.Host, Port = asked.Port, User = asked.Login.User, KeyPath = asked.Login.PrivateKeyPath });
         var device = row.Device;
         TerminalWindow? w = null;

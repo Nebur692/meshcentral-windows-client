@@ -172,6 +172,8 @@
               <MenuItem x:Name="ChatItem" Header="{app:T ChatItem}" Click="Chat_Click" />
               <MenuItem x:Name="RunCommandsItem" Header="{app:T RunCommandsItem}" Click="RunCommands_Click" />
               <MenuItem x:Name="UpdateAgentItem" Header="{app:T UpdateAgentItem}" Click="UpdateAgent_Click" />
+              <MenuItem x:Name="ConsoleItem" Header="{app:T ConsoleItem}" Click="Console_Click" />
+              <MenuItem x:Name="DeviceSettingsItem" Header="{app:T DeviceSettingsItem}" Click="DeviceSettings_Click" />
               <MenuItem x:Name="ShareItem" Header="{app:T ShareItem}" Click="Share_Click" />
               <MenuItem x:Name="SoftwareItem" Header="{app:T SoftwareItem}" Click="Software_Click" />
               <MenuItem x:Name="DeviceNotifyItem" Header="{app:T DeviceNotifyItem}" Click="DeviceNotify_Click" />

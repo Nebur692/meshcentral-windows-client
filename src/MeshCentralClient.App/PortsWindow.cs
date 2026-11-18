@@ -200,7 +200,9 @@ public sealed class PortsWindow : Window
         var r = Selected;
         _remove.IsEnabled = _copy.IsEnabled = r is not null;
         _browser.IsEnabled = r is not null;
-        _rdp.IsEnabled = r is not null && r.Map.Target.RemotePort == 3389;
+        // Remote desktop to the usual port, or to the device's own RDP port. / Al puerto normal o al RDP propio del equipo.
+        _rdp.IsEnabled = r is not null && (r.Map.Target.RemotePort == 3389 ||
+            _devices().FirstOrDefault(d => d.Id == r.Map.Target.NodeId)?.RdpPort == r.Map.Target.RemotePort);
     }
 
     private void Add()
@@ -273,7 +275,8 @@ public static class PortForm
         service.SelectionChanged += (_, _) =>
         {
             if (service.SelectedItem is not Service { Port: > 0 } s) return;
-            remote.Text = s.Port.ToString();
+            // The device's own port for that service, when it has one. / El puerto propio del equipo para ese servicio, si lo tiene.
+            remote.Text = ((deviceBox.SelectedItem as DeviceItem)?.Device.PortFor(s.Port) ?? s.Port).ToString();
             (s.Name.EndsWith("(UDP)", StringComparison.Ordinal) ? udp : tcp).IsChecked = true;
         };
 
@@ -337,10 +340,10 @@ public static class SshForm
     public sealed record Answer(string? Host, int Port, SshLogin Login);
 
     /// <param name="fixedHost">A device without an agent: its address, which cannot be changed here. / Sin agente: su dirección, fija.</param>
-    public static Answer? Ask(Window owner, string deviceName, SshProfile? last, string? fixedHost = null)
+    public static Answer? Ask(Window owner, string deviceName, SshProfile? last, string? fixedHost = null, int usualPort = 22)
     {
         var host = new TextBox { MinWidth = 300, Text = fixedHost ?? last?.Host ?? "", IsEnabled = fixedHost is null };
-        var port = new TextBox { MinWidth = 120, Text = (last?.Port ?? 22).ToString() };
+        var port = new TextBox { MinWidth = 120, Text = (last?.Port ?? usualPort).ToString() };
         var user = new TextBox { MinWidth = 300, Text = last?.User ?? "" };
         var password = new PasswordBox { MinWidth = 300 };
         var key = new TextBox { MinWidth = 220, Text = last?.KeyPath ?? "" };

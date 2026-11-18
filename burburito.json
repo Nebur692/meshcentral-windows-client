@@ -212,6 +212,12 @@
       "slug": "compartir",
       "nombre": "Compartir un equipo con un invitado",
       "descripcion": "La persona hace, ve o quita enlaces para que un invitado sin cuenta use el escritorio, la terminal o los ficheros de un equipo (createDeviceShareLink, deviceShares, removeDeviceShare). No está en el vocabulario global."
+    },
+    {
+      "id": 516,
+      "slug": "consola",
+      "nombre": "Usar la consola del agente",
+      "descripcion": "La persona manda órdenes a la consola del propio agente (msg de tipo console: help, info, netinfo…) y lee lo que contesta. No está en el vocabulario global."
     }
   ],
   "codigos": [
@@ -2364,6 +2370,36 @@
       "titulo": "El equipo no dio sus programas",
       "explicacion": "El agente contestó con un error al listar los programas instalados (sistema sin esa información).",
       "que_hacer": "Volver a intentarlo más tarde."
+    },
+    {
+      "modulo": "ficha",
+      "accion": "consola",
+      "causa": "no-autorizado",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "Sin permiso para la consola del agente",
+      "explicacion": "La consola pide los permisos de control remoto y de consola del agente en el equipo, el agente conectado y que sepa de consola.",
+      "que_hacer": "Pedir esos permisos a quien administra el grupo."
+    },
+    {
+      "modulo": "ficha",
+      "accion": "consola",
+      "causa": "dato-invalido",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "Orden de consola vacía o demasiado larga",
+      "explicacion": "Una orden de consola es una línea de hasta 4096 caracteres.",
+      "que_hacer": "Escribir la orden en una línea."
+    },
+    {
+      "modulo": "ficha",
+      "accion": "consola",
+      "causa": "conexion-cortada",
+      "severidad": "aviso",
+      "actuar": false,
+      "titulo": "Se cortó la conexión al mandar la orden",
+      "explicacion": "El canal con el servidor se cerró al mandar la orden a la consola.",
+      "que_hacer": "Volver a conectar y repetirla."
     }
   ]
 }

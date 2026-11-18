@@ -50,6 +50,9 @@ public sealed partial class MeshServerSession
 
     public event EventHandler<ServerNotification>? NotificationReceived;
 
+    /// <summary>Text an agent writes on its console (answers to <see cref="SendConsoleCommandAsync"/>). / Lo que escribe un agente en su consola.</summary>
+    public event EventHandler<ConsoleText>? ConsoleOutput;
+
     /// <summary>The live state, while <see cref="WatchServerStatsAsync"/> is on. / El estado en vivo, mientras se vigila.</summary>
     public event EventHandler<ServerStats>? ServerStatsReceived;
 
@@ -185,6 +188,10 @@ public sealed partial class MeshServerSession
                 // Las respuestas a peticiones de la propia app llevan titleid y se enseñan donde se pidieron.
                 case "msg" when o.Str("type") == "notify" && o["titleid"] is null && o.Str("value") is { Length: > 0 } text:
                     NotificationReceived?.Invoke(this, new(o.Str("title") ?? o.Str("username") ?? "", text));
+                    break;
+                // What an agent writes on its console, in as many pieces as it likes. / Lo que escribe un agente en su consola.
+                case "msg" when o.Str("type") == "console" && o.Str("nodeid") is { Length: > 0 } node && o.Str("value") is { } said:
+                    ConsoleOutput?.Invoke(this, new(node, said));
                     break;
                 case "serverstats":
                     var state = new Dictionary<string, long>();

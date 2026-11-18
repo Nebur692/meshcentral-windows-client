@@ -180,6 +180,21 @@ public sealed record Device(
     /// <summary>Rights given on this device alone. / Permisos dados solo en este equipo.</summary>
     public IReadOnlyDictionary<string, long> Links { get; init; } = JsonExtensions.NoLinks;
 
+    /// <summary>The device's own ports when it does not use the usual ones (null = the usual: RDP 3389, SSH 22, VNC 5900,
+    /// web 80 and 443). / Los puertos propios del equipo si no usa los normales (null = el normal).</summary>
+    public int? RdpPort { get; init; }
+    public int? SshPort { get; init; }
+    public int? VncPort { get; init; }
+    public int? HttpPort { get; init; }
+    public int? HttpsPort { get; init; }
+
+    /// <summary>The port to use for a service whose usual port is <paramref name="usual"/>: the device's own, or that.
+    /// El puerto para un servicio cuyo puerto normal es ese: el propio del equipo, o ese.</summary>
+    public int PortFor(int usual) => usual switch { 3389 => RdpPort, 22 => SshPort, 5900 => VncPort, 80 => HttpPort, 443 => HttpsPort, _ => null } ?? usual;
+
+    /// <summary>Where someone placed it on the map (servers with geolocation on). / Dónde lo pusieron en el mapa.</summary>
+    public DeviceLocation? Location { get; init; }
+
     public bool IsOnline => Connectivity != DeviceConnectivity.None;
 
     /// <summary>A device without an agent, reached by its address through the server (a group of local devices).
@@ -220,7 +235,15 @@ public sealed record Device(
             (int)(agent?.Long("id") ?? 0),
             o.Str("desc"),
             o.Long("lastbootuptime") is long boot and > 0 ? DateTimeOffset.FromUnixTimeMilliseconds(boot) : null,
-            agent?.Str("core")) { Links = JsonExtensions.Links(o), IsLocal = o.Long("mtype") == 3 };
+            agent?.Str("core"))
+        {
+            Links = JsonExtensions.Links(o), IsLocal = o.Long("mtype") == 3,
+            RdpPort = Port(o, "rdpport", 3389), SshPort = Port(o, "sshport", 22), VncPort = Port(o, "rfbport", 5900), HttpPort = Port(o, "httpport", 80), HttpsPort = Port(o, "httpsport", 443),
+            Location = DeviceLocation.Parse(o.Str("userloc")),
+        };
+        // The usual port is no own port: the change event sends rdpport 3389 and rfbport 5900 on purpose when one is removed.
+        // El puerto normal no es un puerto propio: el aviso del cambio manda 3389 y 5900 a propósito al quitar uno.
+        static int? Port(JsonObject o, string k, int usual) => o.Long(k) is long p and > 0 and < 65536 && p != usual ? (int)p : null;
     }
 
     /// <summary>Applies a "changenode" update, which does not carry connection state.
@@ -270,3 +293,15 @@ internal static class JsonExtensions
 /// <summary>A phone being verified: the server sent it a code by SMS and keeps this cookie. / Un teléfono a verificar.</summary>
 public sealed record PhoneCheck(string Phone, string Cookie);
 public sealed record MessagingCheck(string Handle, string Cookie);
+
+/// <summary>A place on the map, as the server keeps it ("lat,long,when"). / Un sitio en el mapa, como lo guarda el servidor.</summary>
+public sealed record DeviceLocation(double Latitude, double Longitude)
+{
+    internal static DeviceLocation? Parse(string? userloc)
+    {
+        var p = userloc?.Split(',');
+        return p is { Length: >= 2 } && double.TryParse(p[0], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var lat)
+            && double.TryParse(p[1], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var lon)
+            && lat is >= -90 and <= 90 && lon is >= -180 and <= 180 ? new(lat, lon) : null;
+    }
+}
