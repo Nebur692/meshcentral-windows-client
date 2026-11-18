@@ -96,7 +96,7 @@ public sealed class SsoTests : IDisposable
         if (!expectProviderPage) return;
         var sso = WaitFor(() => Anywhere("SsoWindow"), "the sign-on window");
         // Both fields are required by the page, as a person would find. / La página exige los dos campos, como se lo encontraría una persona.
-        var fields = Retry.WhileFalse(() => sso.FindAllDescendants(cf => cf.ByControlType(ControlType.Edit)).Length >= 2, Timeout, TimeSpan.FromMilliseconds(300)).Result
+        var fields = Retry.WhileFalse(() => sso.FindAllDescendants(cf => cf.ByControlType(ControlType.Edit)).Length >= 2, Timeout, TimeSpan.FromMilliseconds(300), ignoreException: true).Result
             ? sso.FindAllDescendants(cf => cf.ByControlType(ControlType.Edit))
             : throw Failed(sso, user, "the provider's login and password fields did not appear");
         Shot($"{user}-provider-page");

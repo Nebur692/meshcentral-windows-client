@@ -158,7 +158,7 @@ public sealed class EndToEndTests(ITestOutputHelper output) : IDisposable
         Keyboard.Type(VirtualKeyShort.ENTER);
         // xterm screenReaderMode exposes each row as text. / El screenReaderMode de xterm expone cada fila como texto.
         var answer = Retry.WhileNull(() => term.FindAllDescendants().FirstOrDefault(e => SafeName(e).Replace("\u00a0", " ").Trim() == "42"),
-            TimeSpan.FromSeconds(30), TimeSpan.FromMilliseconds(500)).Result;
+            TimeSpan.FromSeconds(30), TimeSpan.FromMilliseconds(500), ignoreException: true).Result;
         Shot("terminal-output");
         Assert.NotNull(answer);
 
@@ -182,14 +182,14 @@ public sealed class EndToEndTests(ITestOutputHelper output) : IDisposable
         Find("TerminalView", term).RightClick();
         Keyboard.Type(VirtualKeyShort.ENTER);
         Assert.NotNull(Retry.WhileNull(() => term.FindAllDescendants().FirstOrDefault(e => SafeName(e).Replace(" ", " ").Trim() == "56"),
-            TimeSpan.FromSeconds(30), TimeSpan.FromMilliseconds(500)).Result);
+            TimeSpan.FromSeconds(30), TimeSpan.FromMilliseconds(500), ignoreException: true).Result);
 
         //     Shift+Insert pastes too. / Mayús+Insert también pega.
         ClipboardTool.SetText("set /a 9*9");
         Keyboard.TypeSimultaneously(VirtualKeyShort.SHIFT, VirtualKeyShort.INSERT);
         Keyboard.Type(VirtualKeyShort.ENTER);
         var pasted = Retry.WhileNull(() => term.FindAllDescendants().FirstOrDefault(e => SafeName(e).Replace(" ", " ").Trim() == "81"),
-            TimeSpan.FromSeconds(30), TimeSpan.FromMilliseconds(500)).Result;
+            TimeSpan.FromSeconds(30), TimeSpan.FromMilliseconds(500), ignoreException: true).Result;
         Shot("terminal-pasted");
         Assert.NotNull(pasted);
         term.AsWindow().Close();
@@ -211,7 +211,7 @@ public sealed class EndToEndTests(ITestOutputHelper output) : IDisposable
             Find("TerminalView", ps).Click(); // the keyboard, each time / el teclado, cada vez
             Keyboard.Type("6*7");
             Keyboard.Type(VirtualKeyShort.ENTER);
-            psAnswer = Retry.WhileNull(() => ps.FindAllDescendants().FirstOrDefault(e => SafeName(e).Replace("\u00a0", " ").Trim() == "42"), TimeSpan.FromSeconds(5), TimeSpan.FromMilliseconds(300)).Result;
+            psAnswer = Retry.WhileNull(() => ps.FindAllDescendants().FirstOrDefault(e => SafeName(e).Replace("\u00a0", " ").Trim() == "42"), TimeSpan.FromSeconds(5), TimeSpan.FromMilliseconds(300), ignoreException: true).Result;
         }
         Shot("powershell-output");
         Assert.NotNull(psAnswer);
