@@ -56,7 +56,7 @@ public class FilesTreeIntegrationTests : IDisposable
     {
         var (s, d) = await Admin();
         await using var _ = s;
-        await using var f = await FilesSession.OpenAsync(s, d.Id);
+        await using var f = await FilesSession.OpenAsync(s, d);
         var src = MakeSource();
         var root = "/tmp/mcc-tree-" + Guid.NewGuid().ToString("N")[..8];
         try

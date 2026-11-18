@@ -248,7 +248,7 @@ public sealed class DesktopClipboard : IAsyncDisposable
                     break;
                 case ClipKind.Files:
                     Show(new ClipTransfer(L.T("ClipFilesListing"), null, CanCancel: false));
-                    var source = new RemoteFileSource(_session, _device.Id);
+                    var source = new RemoteFileSource(_session, _device);
                     source.Failed += ex => Say(UserError.From(ex, _session.ServerInfo.Version).Message);
                     try
                     {

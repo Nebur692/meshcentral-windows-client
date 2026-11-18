@@ -16,7 +16,7 @@ public sealed record RemoteClipEntry(string RelativePath, string RemotePath, boo
 /// túnel libre o abre otro; un flujo abandonado a medias pierde su túnel, cuyos mensajes ya no se distinguirían de los del
 /// fichero siguiente.
 /// </summary>
-public sealed class RemoteFileSource(MeshServerSession session, string nodeId) : IAsyncDisposable
+public sealed class RemoteFileSource(MeshServerSession session, Device device) : IAsyncDisposable
 {
     private readonly Stack<FilesSession> _free = new();
     private readonly CancellationTokenSource _life = new();
@@ -76,7 +76,7 @@ public sealed class RemoteFileSource(MeshServerSession session, string nodeId) :
         {
             while (_free.TryPop(out var f)) if (f.Tunnel.IsOpen) return f;
         }
-        return await FilesSession.OpenAsync(session, nodeId, ct).ConfigureAwait(false);
+        return await FilesSession.OpenAsync(session, device, ct).ConfigureAwait(false);
     }
 
     private void Give(FilesSession files) { lock (_free) _free.Push(files); }

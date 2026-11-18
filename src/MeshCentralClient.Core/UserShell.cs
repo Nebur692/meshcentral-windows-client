@@ -61,7 +61,7 @@ internal sealed class UserShell(MeshServerSession session, Device device, UserSh
     {
         if (_files is { Tunnel.IsOpen: true }) return _files;
         if (_files is not null) await _files.DisposeAsync().ConfigureAwait(false);
-        return _files = await FilesSession.OpenAsync(session, device.Id, ct).ConfigureAwait(false);
+        return _files = await FilesSession.OpenAsync(session, device, ct).ConfigureAwait(false);
     }
 
     /// <summary>The user's PowerShell, opened once and waited for until it shows its prompt. / El PowerShell del usuario, abierto una vez y esperado hasta que enseña su indicador.</summary>

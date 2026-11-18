@@ -38,7 +38,7 @@ public class FilesIntegrationTests
     {
         var (s, d) = await Admin();
         await using var _ = s;
-        await using var f = await FilesSession.OpenAsync(s, d.Id);
+        await using var f = await FilesSession.OpenAsync(s, d);
         var root = await f.ListAsync("/");
         Assert.Contains(root.Entries, e => e.Name == "etc" && e.Kind == RemoteEntryKind.Folder);
         var etc = await f.ListAsync("/etc");
@@ -62,7 +62,7 @@ public class FilesIntegrationTests
 
         var (s, d) = await Admin();
         await using var _ = s;
-        await using var f = await FilesSession.OpenAsync(s, d.Id);
+        await using var f = await FilesSession.OpenAsync(s, d);
         var dir = Folder();
         await f.CreateFolderAsync(dir);
         await WaitList(f, "/tmp", l => l.Entries.Any(e => "/tmp/" + e.Name == dir));
@@ -85,7 +85,7 @@ public class FilesIntegrationTests
     {
         var (s, d) = await Admin();
         await using var _ = s;
-        await using var f = await FilesSession.OpenAsync(s, d.Id);
+        await using var f = await FilesSession.OpenAsync(s, d);
         var dir = Folder();
         await f.CreateFolderAsync(dir);
         await f.CreateFolderAsync(dir + "/inner");
@@ -106,7 +106,7 @@ public class FilesIntegrationTests
     {
         var (s, d) = await Admin();
         await using var _ = s;
-        await using var f = await FilesSession.OpenAsync(s, d.Id);
+        await using var f = await FilesSession.OpenAsync(s, d);
         var missing = "/no/such/" + Guid.NewGuid().ToString("N");
         Assert.Equal("ficheros/ver-pantalla/no-encontrado", (await Assert.ThrowsAsync<MeshClientException>(() => f.ListAsync(missing))).BurburitoKey);
         Assert.Equal("ficheros/descargar/no-encontrado", (await Assert.ThrowsAsync<MeshClientException>(() => f.DownloadAsync(missing + "/x", new MemoryStream()))).BurburitoKey);
@@ -120,7 +120,7 @@ public class FilesIntegrationTests
     {
         var (s, d) = await Admin();
         await using var _ = s;
-        await using var f = await FilesSession.OpenAsync(s, d.Id);
+        await using var f = await FilesSession.OpenAsync(s, d);
         var dir = Folder();
         await f.CreateFolderAsync(dir);
         await WaitList(f, "/tmp", l => l.Entries.Any(e => "/tmp/" + e.Name == dir));
@@ -148,7 +148,7 @@ public class FilesIntegrationTests
         await using var _ = admin;
         Assert.True(ServerAddress.TryParse(Env("MESHTEST_URL"), out var a));
         await using var user = await MeshServerSession.ConnectAsync(a!, new("user", "User-Pass-1234"), new CertificateTrust(Env("MESHTEST_CERT_SHA256")));
-        var e = await Assert.ThrowsAsync<MeshClientException>(() => FilesSession.OpenAsync(user, dev.Id));
+        var e = await Assert.ThrowsAsync<MeshClientException>(() => FilesSession.OpenAsync(user, dev));
         Assert.StartsWith("tunel/abrir-detalle/", e.BurburitoKey);
     }
 }

@@ -25,7 +25,7 @@ public class RemoteFileSourceTests
     private static async Task<string> Tree(MeshServerSession s, Device d, int bigSize)
     {
         var root = "/tmp/mcc-src-" + Guid.NewGuid().ToString("N")[..8];
-        await using var f = await FilesSession.OpenAsync(s, d.Id);
+        await using var f = await FilesSession.OpenAsync(s, d);
         await f.CreateFolderAsync(root);
         await f.CreateFolderAsync(root + "/sub");
         for (var i = 0; i < 40 && !(await f.ListAsync(root)).Entries.Any(e => e.Name == "sub"); i++) await Task.Delay(100);
@@ -52,7 +52,7 @@ public class RemoteFileSourceTests
         var (s, d) = await Admin();
         await using var _ = s;
         var root = await Tree(s, d, 0);
-        await using var source = new RemoteFileSource(s, d.Id);
+        await using var source = new RemoteFileSource(s, d);
 
         var entries = await source.ListAsync(new[] { root.Replace('/', '\\') });
         var name = root[(root.LastIndexOf('/') + 1)..];
@@ -75,7 +75,7 @@ public class RemoteFileSourceTests
         await using var _ = s;
         const int size = 12 * 1024 * 1024; // over what waits in memory, so the device has to pause / más de lo que espera en memoria, así que el equipo tiene que pararse
         var root = await Tree(s, d, size);
-        await using var source = new RemoteFileSource(s, d.Id);
+        await using var source = new RemoteFileSource(s, d);
         var big = (await source.ListAsync(new[] { root + "/big.bin" })).Single();
         Assert.Equal(size, big.Size);
         await using var stream = source.Open(big);
@@ -94,7 +94,7 @@ public class RemoteFileSourceTests
         var (s, d) = await Admin();
         await using var _ = s;
         var root = await Tree(s, d, 12 * 1024 * 1024);
-        await using var source = new RemoteFileSource(s, d.Id);
+        await using var source = new RemoteFileSource(s, d);
         var entries = await source.ListAsync(new[] { root + "/big.bin", root + "/a.txt" });
         var big = entries.Single(e => e.IsFolder == false && e.Size > 3);
 
@@ -116,7 +116,7 @@ public class RemoteFileSourceTests
     {
         var (s, d) = await Admin();
         await using var _ = s;
-        await using var source = new RemoteFileSource(s, d.Id);
+        await using var source = new RemoteFileSource(s, d);
         MeshClientException? told = null;
         source.Failed += ex => told = ex;
         await using var stream = source.Open(new RemoteClipEntry("x.txt", "/tmp/mcc-no-existe-" + Guid.NewGuid().ToString("N"), false, 3, null));

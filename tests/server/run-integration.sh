@@ -62,6 +62,9 @@ SINK_HOST="$SINK" SINK_CA="$WORK/sinkca" OIDC_ISSUER="http://$OIDC:3000" "$HERE/
 SRV_IP=$(docker inspect "$SRV" --format "{{(index .NetworkSettings.Networks \"$NET\").IPAddress}}")
 read -r OTP GROUP < <(docker exec -i "$SRV" node - < "$HERE/setup-test-data.js")
 [ -n "${OTP:-}" ] && [ -n "${GROUP:-}" ]
+# The agent on Madrid time, as real devices: agents other than Windows send file times by the device's clock.
+# El agente en hora de Madrid, como los equipos de verdad: los que no son Windows mandan la hora de ficheros por su reloj.
+export AGENT_TZ="${AGENT_TZ:-CET-1CEST,M3.5.0,M10.5.0/3}"
 "$HERE/start-test-agent.sh" "$SRV" "$NET" "$AGENT" "$WORK/agent" "$GROUP" >/dev/null
 # A throwaway SSH server on the same network, reached by the agent by its name: the target of the SSH tests. Its client
 # keys (one with a passphrase) are written to the work folder for the tests to read.
@@ -92,7 +95,7 @@ echo "server $SRV · agent $AGENT · cert ${CERT:0:16}…"
 # Las pruebas llaman al servidor por el nombre de su certificado, como un navegador (el inicio único vuelve a https://mesh.test/).
 docker run --rm $PRUEBA_L --network "$NET" --add-host "mesh.test:$SRV_IP" --cpus 2 --memory 3g --user "$(id -u):$(id -g)" \
   -e HOME=/tmp -e DOTNET_CLI_HOME=/tmp -e NUGET_PACKAGES=/tmp/nuget -e DOTNET_NOLOGO=1 -e DOTNET_CLI_TELEMETRY_OPTOUT=1 \
-  -e MESHTEST_FILTER="${MESHTEST_FILTER:-}" -e MESHTEST_URL="https://mesh.test/" -e MESHTEST_CERT_SHA256="$CERT" -e MESHTEST_OTP_SECRET="$OTP" -e MESHTEST_GROUP_ID="$GROUP" \
+  -e TZ=Europe/Madrid -e MESHTEST_FILTER="${MESHTEST_FILTER:-}" -e MESHTEST_URL="https://mesh.test/" -e MESHTEST_CERT_SHA256="$CERT" -e MESHTEST_OTP_SECRET="$OTP" -e MESHTEST_GROUP_ID="$GROUP" \
   -e MESHTEST_SSH_HOST="$SSHD" -e MESHTEST_SSH_DIR=/work/ssh -e MESHTEST_AGENT_ONLY_HOST=solo-agente -e MESHTEST_SINK="http://$SINK:8025" \
   -v "$ROOT:/src" -v "$WORK:/work" -w /src "$SDK_IMAGE" \
   sh -c 't() { dotnet test tests/MeshCentralClient.Core.Tests --nologo -v q "$@" --results-directory /work/results --artifacts-path /tmp/artifacts; }

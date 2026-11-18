@@ -150,7 +150,7 @@ public sealed class FilesWindow : Window
         Busy(true);
         try
         {
-            _files = await FilesSession.OpenAsync(_session, _device.Id);
+            _files = await FilesSession.OpenAsync(_session, _device);
             _files.Tunnel.Closed += (_, e) => Dispatcher.BeginInvoke(() => { if (!_closing) Fail(e); });
         }
         catch (MeshClientException ex) { Fail(ex); return; }

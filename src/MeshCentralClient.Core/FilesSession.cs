@@ -40,10 +40,13 @@ public sealed partial class FilesSession : IAsyncDisposable
     private readonly TimeSpan _timeout;
     private Channel<ReadOnlyMemory<byte>> _inbox = Channel.CreateUnbounded<ReadOnlyMemory<byte>>();
 
-    private FilesSession(MeshTunnel tunnel, TimeSpan timeout)
+    private readonly bool _deviceClock;
+
+    private FilesSession(MeshTunnel tunnel, TimeSpan timeout, bool deviceClock)
     {
         _tunnel = tunnel;
         _timeout = timeout;
+        _deviceClock = deviceClock;
         tunnel.DataReceived += (_, d) => _inbox.Writer.TryWrite(d.ToArray());
         tunnel.TextReceived += (_, t) => _inbox.Writer.TryWrite(Encoding.UTF8.GetBytes(t));
         tunnel.Closed += (_, e) => _inbox.Writer.TryComplete(e);
@@ -51,8 +54,15 @@ public sealed partial class FilesSession : IAsyncDisposable
 
     public MeshTunnel Tunnel => _tunnel;
 
-    public static async Task<FilesSession> OpenAsync(MeshServerSession session, string nodeId, CancellationToken ct = default) =>
-        new(await MeshTunnel.OpenAsync(session, nodeId, TunnelProtocol.Files, null, ct).ConfigureAwait(false), session.Timeout);
+    /// <summary>
+    /// Agents other than Windows send file times as the device's own clock with a false "Z" (measured 18-11 with the
+    /// agent on Madrid time: a file written at 10:05:30 UTC came as 11:05:30Z); Windows agents send true UTC. So the
+    /// device is asked for, and its times are shown as its clock reads, as ls -l there would.
+    /// Los agentes que no son de Windows mandan la hora del reloj del equipo con una «Z» falsa; los de Windows, UTC de
+    /// verdad. Por eso se pide el equipo, y sus horas se enseñan como las marca su reloj.
+    /// </summary>
+    public static async Task<FilesSession> OpenAsync(MeshServerSession session, Device device, CancellationToken ct = default) =>
+        new(await MeshTunnel.OpenAsync(session, device.Id, TunnelProtocol.Files, null, ct).ConfigureAwait(false), session.Timeout, !device.IsWindows);
 
     // ------------------------------------------------------------------ listing / listar
 
@@ -72,17 +82,19 @@ public sealed partial class FilesSession : IAsyncDisposable
                 e.Str("n") ?? "",
                 (RemoteEntryKind)(e.Long("t") ?? 3),
                 e.Long("s") ?? 0,
-                ParseDate(e["d"]),
+                ParseDate(e["d"], _deviceClock),
                 e.Long("f"))).Where(e => e.Name.Length > 0).ToList();
             return new RemoteFolder(reply.Str("path") ?? path, entries);
         }
         finally { _one.Release(); }
     }
 
-    private static DateTimeOffset? ParseDate(JsonNode? n)
+    internal static DateTimeOffset? ParseDate(JsonNode? n, bool deviceClock)
     {
         if (n is not JsonValue v) return null;
-        if (v.TryGetValue<string>(out var s) && DateTimeOffset.TryParse(s, System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.AssumeUniversal, out var d)) return d;
+        // The device's clock reading: kept as that wall time here, whatever the "Z" says. / La hora de su reloj, tal cual.
+        if (v.TryGetValue<string>(out var s) && DateTimeOffset.TryParse(s, System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.AssumeUniversal, out var d))
+            return deviceClock ? new DateTimeOffset(DateTime.SpecifyKind(d.UtcDateTime, DateTimeKind.Local)) : d;
         if (v.TryGetValue<long>(out var ms)) return DateTimeOffset.FromUnixTimeMilliseconds(ms);
         return null;
     }
