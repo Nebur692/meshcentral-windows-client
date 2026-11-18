@@ -43,7 +43,6 @@ public class EmailSmsTwoFactorIntegrationTests
     /// El código del último mensaje: 8 cifras por correo, 6 por SMS.</summary>
     private static async Task<string> NewestCode(string kind, int since)
     {
-        var digits = kind == "sms" ? 6 : 8;
         for (var i = 0; i < 40; i++)
         {
             // Only this account's mail: other tests' notices (a device that connects, by email) share the mailbox.
@@ -53,14 +52,28 @@ public class EmailSmsTwoFactorIntegrationTests
             if (mine.Count > 0)
             {
                 var m = mine[^1];
-                var text = kind == "sms" ? m["msg"]!.GetValue<string>() : Readable(m["data"]!.GetValue<string>());
-                var found = Regex.Match(text, $@"(?<!\d)(\d{{{digits}}})(?!\d)");
-                Assert.True(found.Success, "no code in: " + text[..Math.Min(400, text.Length)]);
-                return found.Groups[1].Value;
+                return CodeIn(kind, kind == "sms" ? m["msg"]!.GetValue<string>() : Readable(m["data"]!.GetValue<string>()));
             }
             await Task.Delay(250);
         }
         throw new Exception($"nothing arrived by {kind}");
+    }
+
+    /// <summary>The code in a message: by email, from its sentence, since the headers (Message-ID, boundary) are random and
+    /// now and then carry 8 digits. / El código de un mensaje: por correo, de su frase, porque las cabeceras son al azar.</summary>
+    private static string CodeIn(string kind, string text)
+    {
+        var found = Regex.Match(text, kind == "sms" ? @"(?<!\d)(\d{6})(?!\d)" : @"token is:\s*(\d{8})(?!\d)");
+        Assert.True(found.Success, "no code in: " + text[..Math.Min(400, text.Length)]);
+        return found.Groups[1].Value;
+    }
+
+    [Fact]
+    public void The_code_is_read_from_its_sentence_not_from_a_header_full_of_digits()
+    {
+        const string mail = "From: mesh@mesh.test\nTo: mfa@mesh.test\nMessage-ID: <20261118-3729-82d9-e774-2122a23bcec1@mesh.test>\n" +
+                            "Content-Transfer-Encoding: 7bit\nYour login token is: 58006776\nThis token can only be used once.";
+        Assert.Equal("58006776", CodeIn("mails", Readable(mail)));
     }
 
     [Fact]
