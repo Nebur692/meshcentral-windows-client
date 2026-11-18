@@ -707,6 +707,7 @@ public static class L
         ["FeatDays"] = ("Days without connecting", "Días sin conectarse"),
         ["FeatDaysRange"] = ("From 1 to {0}", "De 1 a {0}"),
         ["FeatInactiveShort"] = ("Removed after {0} day(s) without connecting", "Se borran tras {0} día(s) sin conectarse"),
+        ["MoreMenu"] = ("More", "Más"),
         ["ConsoleItem"] = ("Agent console…", "Consola del agente…"),
         ["ConsoleTitle"] = ("Agent console of {0}", "Consola del agente de {0}"),
         ["ConsoleHelp"] = ("Commands go to the device's MeshCentral agent, not to its system. Type help to see them.", "Las órdenes van al agente de MeshCentral del equipo, no a su sistema. Escribe help para verlas."),

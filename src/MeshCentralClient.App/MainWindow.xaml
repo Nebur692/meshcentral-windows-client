@@ -172,11 +172,14 @@
               <MenuItem x:Name="ChatItem" Header="{app:T ChatItem}" Click="Chat_Click" />
               <MenuItem x:Name="RunCommandsItem" Header="{app:T RunCommandsItem}" Click="RunCommands_Click" />
               <MenuItem x:Name="UpdateAgentItem" Header="{app:T UpdateAgentItem}" Click="UpdateAgent_Click" />
-              <MenuItem x:Name="ConsoleItem" Header="{app:T ConsoleItem}" Click="Console_Click" />
-              <MenuItem x:Name="DeviceSettingsItem" Header="{app:T DeviceSettingsItem}" Click="DeviceSettings_Click" />
-              <MenuItem x:Name="ShareItem" Header="{app:T ShareItem}" Click="Share_Click" />
-              <MenuItem x:Name="SoftwareItem" Header="{app:T SoftwareItem}" Click="Software_Click" />
-              <MenuItem x:Name="DeviceNotifyItem" Header="{app:T DeviceNotifyItem}" Click="DeviceNotify_Click" />
+              <!-- In a submenu so the device menu fits a 768-pixel screen. / En un submenú para que el menú quepa en 768 píxeles. -->
+              <MenuItem x:Name="MoreMenu" Header="{app:T MoreMenu}">
+                <MenuItem x:Name="ShareItem" Header="{app:T ShareItem}" Click="Share_Click" />
+                <MenuItem x:Name="SoftwareItem" Header="{app:T SoftwareItem}" Click="Software_Click" />
+                <MenuItem x:Name="DeviceNotifyItem" Header="{app:T DeviceNotifyItem}" Click="DeviceNotify_Click" />
+                <MenuItem x:Name="DeviceSettingsItem" Header="{app:T DeviceSettingsItem}" Click="DeviceSettings_Click" />
+                <MenuItem x:Name="ConsoleItem" Header="{app:T ConsoleItem}" Click="Console_Click" />
+              </MenuItem>
               <MenuItem x:Name="MoveToGroupItem" Header="{app:T MoveToGroupItem}" Click="MoveToGroup_Click" />
               <MenuItem x:Name="UninstallAgentItem" Header="{app:T UninstallAgentItem}" Click="UninstallAgent_Click" />
               <MenuItem x:Name="RemoveDeviceItem" Header="{app:T RemoveDeviceItem}" Click="RemoveDevice_Click" />

@@ -124,6 +124,8 @@ public sealed class Phase17Tests : IDisposable
     private void Menu(AutomationElement win, string item)
     {
         WaitFor(() => Id(win, "DeviceList").FindFirstDescendant(cf => cf.ByName(Environment.MachineName)), "the device").RightClick();
+        // These live in the device menu's "More" submenu. / Estas viven en el submenú «Más» del menú del equipo.
+        Anywhere("MoreMenu").AsMenuItem().Open();
         WaitFor(() => _automation.GetDesktop().FindFirstDescendant(cf => cf.ByAutomationId(item)), item).Click();
     }
 
