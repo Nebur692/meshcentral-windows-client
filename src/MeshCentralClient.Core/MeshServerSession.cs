@@ -109,6 +109,10 @@ public sealed partial class MeshServerSession : IAsyncDisposable
         ws.Options.RemoteCertificateValidationCallback = trust.Validate;
         ws.Options.CollectHttpResponseDetails = true;
         ws.Options.KeepAliveInterval = TimeSpan.FromSeconds(30);
+        // A ping that gets no pong in this time closes the channel: a network that died without a word (sleep, Wi-Fi
+        // change) is noticed and reconnected, instead of a channel that looks open and is dead.
+        // Un ping sin respuesta en este tiempo cierra el canal: una red muerta en silencio se nota y se reconecta.
+        ws.Options.KeepAliveTimeout = TimeSpan.FromSeconds(20);
         ws.Options.SetRequestHeader("User-Agent", "MeshCentralWindowsClient/" + typeof(MeshServerSession).Assembly.GetName().Version?.ToString(3));
         authenticate(ws.Options);
 

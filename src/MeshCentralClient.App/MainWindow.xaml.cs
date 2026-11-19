@@ -538,6 +538,8 @@ public partial class MainWindow : Window
         SessionUserPanel.Visibility = Visibility.Visible;
         Title = $"{SessionTitle.Text} — {L.T("AppTitle")}";
         LostBanner.Visibility = Visibility.Collapsed;
+        _autoTimer?.Stop();
+        _autoTries = 0;
         LoginPanel.Visibility = Visibility.Collapsed;
         DevicesPanel.Visibility = Visibility.Visible;
         SearchBox.Text = "";
@@ -635,10 +637,72 @@ public partial class MainWindow : Window
         var err = UserError.From(reason, from.ServerInfo.Version);
         LostText.Text = $"{err.Message}  {err.Footer}";
         LostBanner.Visibility = Visibility.Visible;
+        ScheduleAutoReconnect();
+    }
+
+    // ---------------- Reconnecting by itself / Reconectar sola ----------------
+    // As the Android app: when the channel to the server drops (network change, sleep), it signs in again by itself when
+    // it can without asking anything (a password in the form; the second factor's "remember" from this sign-in), waiting
+    // longer each time. Single sign-on, or a second factor it cannot answer, are left to the person's Reconnect button.
+    // Como la app de Android: si se corta el canal con el servidor, vuelve a entrar sola cuando puede sin preguntar nada.
+
+    private static readonly int[] AutoDelays = [3, 5, 10, 20, 30, 60];
+    private int _autoTries;
+    private System.Windows.Threading.DispatcherTimer? _autoTimer;
+
+    private bool CanReconnectQuietly => PasswordBox.Password.Length > 0;
+
+    private void ScheduleAutoReconnect()
+    {
+        _autoTimer?.Stop();
+        if (!CanReconnectQuietly) return;
+        var delay = AutoDelays[Math.Min(_autoTries, AutoDelays.Length - 1)];
+        _autoTries++;
+        LostText.Text += "  " + L.F("ReconnectingIn", delay);
+        _autoTimer = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromSeconds(delay) };
+        _autoTimer.Tick += async (_, _) =>
+        {
+            _autoTimer?.Stop();
+            if (_session is { IsOpen: true }) return;
+            await CloseSessionAsync();
+            await ConnectAsync();
+            // Not in yet and nothing asked (no second factor waiting): another try later. / Sin entrar y sin preguntas: otro intento.
+            if (_session is not { IsOpen: true } && TwoFactorPanel.Visibility != Visibility.Visible) ScheduleAutoReconnectFromLogin();
+        };
+        _autoTimer.Start();
+    }
+
+    /// <summary>After a failed try the login form shows its error; the next try comes from there. / Tras un intento fallido, el siguiente desde el formulario.</summary>
+    private void ScheduleAutoReconnectFromLogin()
+    {
+        if (!CanReconnectQuietly) return;
+        var delay = AutoDelays[Math.Min(_autoTries, AutoDelays.Length - 1)];
+        _autoTries++;
+        _autoTimer = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromSeconds(delay) };
+        _autoTimer.Tick += async (_, _) =>
+        {
+            _autoTimer?.Stop();
+            if (_session is { IsOpen: true } || LoginPanel.Visibility != Visibility.Visible) return;
+            await ConnectAsync();
+            if (_session is not { IsOpen: true } && TwoFactorPanel.Visibility != Visibility.Visible) ScheduleAutoReconnectFromLogin();
+        };
+        _autoTimer.Start();
+    }
+
+    /// <summary>A tool opened on a dead channel would only fail: the banner and the reconnection instead.
+    /// Una herramienta abierta sobre un canal muerto solo fallaría: en su lugar, el aviso y la reconexión.</summary>
+    private bool SessionAlive()
+    {
+        if (_session is not { } s) return false;
+        if (s.IsOpen) return true;
+        if (LostBanner.Visibility != Visibility.Visible)
+            OnSessionLost(s, new MeshClientException(MeshFailure.ConnectionLost, "conexion/ver-pantalla/conexion-cortada", "The connection to the server was closed."));
+        return false;
     }
 
     private async void Reconnect_Click(object sender, RoutedEventArgs e)
     {
+        _autoTimer?.Stop();
         await CloseSessionAsync();
         await ConnectAsync();
     }
@@ -655,6 +719,7 @@ public partial class MainWindow : Window
 
     private async void Disconnect_Click(object sender, RoutedEventArgs e)
     {
+        _autoTimer?.Stop();
         _twoFactorCookie = null; // signing out on purpose: the next sign-in asks again / salir a propósito: la próxima entrada vuelve a pedirlo
         await CloseSessionAsync();
         if (RememberBox.IsChecked != true) PasswordBox.Password = "";
@@ -688,12 +753,15 @@ public partial class MainWindow : Window
     // Doble clic: una terminal si el equipo puede; si no, su página en el navegador.
     private void DeviceList_MouseDoubleClick(object sender, System.Windows.Input.MouseButtonEventArgs e)
     {
+        if (!SessionAlive()) return;
         if (DeviceList.SelectedItem is DeviceRow { CanOpenTerminal: true }) OpenTerminal_Click(sender, e);
         else OpenInBrowser_Click(sender, e);
     }
 
     private void DeviceMenu_Opened(object sender, RoutedEventArgs e)
     {
+        // The channel dropped: no tool on it, the banner says so and reconnects. / El canal se cayó: ninguna herramienta.
+        if (!SessionAlive()) { ((ContextMenu)sender).IsOpen = false; return; }
         var row = DeviceList.SelectedItem as DeviceRow;
         TerminalItem.IsEnabled = row is { CanOpenTerminal: true };
         PowerShellItem.Visibility = row is { IsWindows: true } ? Visibility.Visible : Visibility.Collapsed;
