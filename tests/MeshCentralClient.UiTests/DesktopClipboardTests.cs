@@ -318,6 +318,11 @@ public sealed class DesktopClipboardTests(ITestOutputHelper output) : IDisposabl
         // The same keys as Remote Desktop, there and back, with the picture holding the keyboard. / Las mismas teclas que Escritorio remoto, ida y vuelta, con el teclado en la imagen.
         // Leaving full screen hands the keyboard back to the picture. / Al salir de pantalla completa el teclado vuelve a la imagen.
         window.SetForeground();
+        // The keys only once the window holds the keyboard: typed while it was still coming forward, they went nowhere (23-11),
+        // which a person, pressing on a window already in front, does not do.
+        // Las teclas solo cuando la ventana tiene el teclado: tecleadas mientras aún pasaba delante se perdían (23-11), algo que
+        // una persona, que pulsa sobre una ventana ya delante, no hace.
+        Until(() => HoldsKeyboard(window), "the keyboard in the window before the keys", () => _automation.FocusedElement()?.Properties.ProcessId.ValueOrDefault.ToString() ?? "none");
         Keyboard.TypeSimultaneously(VirtualKeyShort.CONTROL, VirtualKeyShort.ALT, VirtualKeyShort.PAUSE);
         Until(() => window.BoundingRectangle.Height >= screen.Height, "full screen by keys", () => window.BoundingRectangle.ToString());
         // The new frame takes the keyboard back a moment later; a person never presses again within those milliseconds.
