@@ -148,7 +148,12 @@
       </DockPanel>
 
       <Grid>
-        <ListView x:Name="DeviceList" Margin="16,0,16,0" SelectionMode="Extended" MouseDoubleClick="DeviceList_MouseDoubleClick">
+        <!-- Scrolled by pixels: grouped, it scrolled by whole groups, so a click on a row of the next group jumped to that
+             group's header, and a group taller than the window could not be gone through with the keyboard.
+             Por píxeles: agrupada se desplazaba por grupos enteros (un clic en una fila del grupo siguiente saltaba a su
+             cabecera, y un grupo más alto que la ventana no se podía recorrer con el teclado). -->
+        <ListView x:Name="DeviceList" Margin="16,0,16,0" SelectionMode="Extended" MouseDoubleClick="DeviceList_MouseDoubleClick"
+                  ScrollViewer.CanContentScroll="False">
           <ListView.ContextMenu>
             <ContextMenu Opened="DeviceMenu_Opened">
               <MenuItem x:Name="DetailsItem" Header="{app:T OpenDetails}" Click="OpenDetails_Click" />

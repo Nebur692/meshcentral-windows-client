@@ -38,6 +38,7 @@ public partial class MainWindow : Window
         _view.SortDescriptions.Add(new SortDescription(nameof(DeviceRow.GroupName), ListSortDirection.Ascending));
         _view.SortDescriptions.Add(new SortDescription(nameof(DeviceRow.Name), ListSortDirection.Ascending));
         DeviceList.ItemsSource = _view;
+        KeepListStill();
 
         ThemeBox.ItemsSource = new[] { L.T("ThemeSystem"), L.T("ThemeLight"), L.T("ThemeDark") };
         ThemeBox.SelectedIndex = (int)ThemeService.Current;
@@ -592,10 +593,35 @@ public partial class MainWindow : Window
         UpdateCount();
     }
 
+    // The list only moves by itself when you move through it with the keyboard. A click on a row cut at the edge, the menu
+    // closing or a live change asked it to show the whole row and, as it scrolls in whole rows, it jumped several of them.
+    // La lista solo se mueve sola al recorrerla con el teclado. Un clic en una fila cortada en el borde, el menú al cerrarse
+    // o un cambio en vivo le pedían enseñar la fila entera y, como se desplaza por filas enteras, saltaba varias.
+    private bool _byKeyboard;
+
+    // A class handler runs on the row itself, before the list's scroller takes the request; registered once for the app.
+    // Un manejador de clase corre en la propia fila, antes de que el desplazamiento de la lista atienda la petición; uno solo.
+    static MainWindow() => EventManager.RegisterClassHandler(typeof(ListViewItem), RequestBringIntoViewEvent,
+        new RequestBringIntoViewEventHandler((sender, e) =>
+        {
+            if (ItemsControl.ItemsControlFromItemContainer((DependencyObject)sender) is { } list
+                && GetWindow(list) is MainWindow w && list == w.DeviceList && !w._byKeyboard) e.Handled = true;
+        }));
+
+    private void KeepListStill() => DeviceList.PreviewKeyDown += (_, _) =>
+    {
+        _byKeyboard = true;
+        Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.ContextIdle, () => _byKeyboard = false);
+    };
+
     private void ApplyChange(MeshServerSession from, DeviceChangedEventArgs e)
     {
         if (!ReferenceEquals(from, _session)) return;
         var row = _rows.FirstOrDefault(r => r.Id == e.DeviceId);
+        // Rows added or removed take their place by themselves; the whole list is redone only when a row's order, group or
+        // filter match may have changed. / Las filas que entran o salen se colocan solas; la lista entera solo se rehace si
+        // pueden cambiar el orden, el grupo o lo que casa con el filtro.
+        var redo = false;
         switch (e.Kind)
         {
             case DeviceChangeKind.Removed:
@@ -616,12 +642,14 @@ public partial class MainWindow : Window
                 else
                 {
                     var merged = e.Kind == DeviceChangeKind.Changed ? row.Device.WithDetails(e.Device!) : e.Device!;
+                    var group = GroupName(merged.GroupId);
+                    redo = merged.Name != row.Name || group != row.GroupName || _view?.Filter is not null;
                     row.Device = merged;
-                    row.GroupName = GroupName(merged.GroupId);
+                    row.GroupName = group;
                 }
                 break;
         }
-        _view?.Refresh();
+        if (redo) _view?.Refresh();
         UpdateCount();
     }
 
